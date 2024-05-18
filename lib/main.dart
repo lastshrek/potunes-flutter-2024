@@ -1,18 +1,56 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_displaymode/flutter_displaymode.dart';
+import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:potunes_flutter_2024/services/service_locator.dart';
+import 'package:potunes_flutter_2024/theme/app_theme.dart';
+
+import 'screens/home.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  /**
+   * @description: 初始化Hive数据库
+   */
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await Hive.initFlutter('Potunes');
   } else {
     await Hive.initFlutter();
   }
+
+  await openHiveBox('settings');
+  // await openHiveBox('downloads');
+  // await openHiveBox('Favorite Songs');
+  await openHiveBox('cache', limit: true);
+
+  /**
+   * @description: 适配移动端设备的最佳显示模式
+   */
+  if (Platform.isAndroid || Platform.isIOS) {
+    setOptimalDisplayMode();
+  }
+  /**
+   * @description: 初始化服务定位器   
+   */
+  await setupServiceLocator();
   runApp(const MyApp());
+  if (Platform.isAndroid) {
+    /**
+     * @description: 设置状态栏和导航栏的颜色
+     */
+    SystemUiOverlayStyle systemUiOverlayStyle = const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    );
+    SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
+  }
 }
 
 Future<void> openHiveBox(String boxName, {bool limit = false}) async {
@@ -36,34 +74,71 @@ Future<void> openHiveBox(String boxName, {bool limit = false}) async {
   }
 }
 
-class MyApp extends StatelessWidget {
+/// @description: 适配移动端设备的最佳显示模式
+Future<void> setOptimalDisplayMode() async {
+  final List<DisplayMode> supportedModes = await FlutterDisplayMode.supported;
+  final DisplayMode activeMode = await FlutterDisplayMode.active;
+  final DisplayMode optimalMode = supportedModes.firstWhere(
+    (DisplayMode mode) =>
+        mode.width == activeMode.width && mode.height == activeMode.height && mode.refreshRate > activeMode.refreshRate,
+    orElse: () => supportedModes.first,
+  );
+  await FlutterDisplayMode.setPreferredMode(optimalMode);
+}
+
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    /**
+     * @description: 初始化主题
+     */
+    AppTheme.currentTheme.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+    return GetMaterialApp(
+      title: '破破',
+      debugShowCheckedModeBanner: false,
+      themeMode: AppTheme.themeMode,
+      theme: AppTheme.lightTheme(
+        context: context,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      darkTheme: AppTheme.darkTheme(
+        context: context,
+      ),
+      getPages: [
+        GetPage(name: '/', page: () => const Home()),
+        // GetPage(name: '/', page: () => SettingScreen()),
+        // GetPage(name: '/playlist', page: () => const PlaylistScreen(), transition: Transition.cupertinoDialog),
+        // GetPage(name: '/nowplaying', page: () => const NowPlayingScreen(), transition: Transition.downToUp),
+        // GetPage(name: '/albums', page: () => const AlbumsScreen(), transition: Transition.cupertinoDialog),
+        // GetPage(name: '/about', page: () => const AboutScreen(), transition: Transition.rightToLeft),
+        // GetPage(name: '/auth', page: () => const AuthScreen(), transition: Transition.downToUp),
+        // GetPage(name: '/library', page: () => const LibraryPage(), transition: Transition.cupertinoDialog),
+        // GetPage(
+        //     name: '/favourite',
+        //     page: () => const Favourites(
+        //           playlistName: 'Favorite Songs',
+        //         )),
+        // GetPage(name: '/settings', page: () => SettingScreen(), transition: Transition.rightToLeft),
+        // GetPage(name: '/album', page: () => const AlbumScreen(), transition: Transition.cupertinoDialog),
+      ],
     );
   }
 }
