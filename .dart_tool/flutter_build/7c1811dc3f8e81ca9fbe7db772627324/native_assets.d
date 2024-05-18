@@ -1,0 +1,1 @@
+ /Users/lastshrek/Documents/GitHub/potunes-flutter-2024/.dart_tool/flutter_build/7c1811dc3f8e81ca9fbe7db772627324/native_assets.yaml: 
