@@ -6,10 +6,10 @@ import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:potunes_flutter_2024/services/service_locator.dart';
 import 'package:potunes_flutter_2024/theme/app_theme.dart';
 
 import 'screens/home.dart';
+import 'services/service_locator.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
