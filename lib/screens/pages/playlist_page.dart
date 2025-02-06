@@ -4,6 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 
 import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
@@ -84,7 +86,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
   Future<void> _extractColors() async {
     try {
       final imageProvider = CachedNetworkImageProvider(widget.playlist['cover'] ?? '');
-      // 预加载图片
       await precacheImage(imageProvider, context);
 
       final PaletteGenerator paletteGenerator = await PaletteGenerator.fromImageProvider(
@@ -94,13 +95,21 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
       if (!mounted) return;
       setState(() {
-        dominantColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.darkVibrantColor?.color ?? paletteGenerator.dominantColor?.color?.withOpacity(0.8) ?? const Color(0xff161616);
+        // 获取主色和次色
+        dominantColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.darkVibrantColor?.color ?? paletteGenerator.dominantColor?.color ?? const Color(0xff161616);
+
+        // 获取第二主色
+        secondaryColor = paletteGenerator.mutedColor?.color ?? paletteGenerator.vibrantColor?.color ?? dominantColor?.withOpacity(0.7) ?? const Color(0xff161616);
+
+        // 确保颜色足够深
+        secondaryColor = HSLColor.fromColor(secondaryColor!).withLightness((HSLColor.fromColor(secondaryColor!).lightness * 0.7).clamp(0.0, 1.0)).toColor();
       });
     } catch (e) {
       if (!mounted) return;
       debugPrint('Error extracting colors: $e');
       setState(() {
         dominantColor = const Color(0xff161616);
+        secondaryColor = const Color(0xff121212);
       });
     }
   }
@@ -108,100 +117,122 @@ class _PlaylistPageState extends State<PlaylistPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 主要内容区域
-            Expanded(
-              child: CustomScrollView(
-                controller: _scrollController,
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  _buildSliverAppBar(),
-                  SliverToBoxAdapter(
-                    child: _buildPlaylistHeader(),
-                  ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        if (index >= tracks.length) return null;
-                        final track = tracks[index];
-                        return ListTile(
-                          key: ValueKey('track_${track['id']}'),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(4.0),
-                            child: CachedNetworkImage(
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.cover,
-                              imageUrl: track['cover_url'] ?? '',
-                              placeholder: (context, url) => Container(
-                                color: Colors.grey[800],
-                                child: const Icon(
-                                  Icons.music_note,
-                                  color: Colors.white54,
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: Colors.grey[800],
-                                child: const Icon(
-                                  Icons.music_note,
-                                  color: Colors.white54,
-                                ),
-                              ),
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: const [0.0, 0.7],
+            colors: [
+              secondaryColor?.withOpacity(0.95) ?? const Color(0xff161616),
+              secondaryColor?.withOpacity(0.7) ?? const Color(0xff121212),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              Expanded(
+                child: _isLoading
+                    ? _buildSkeleton(context)
+                    : CustomScrollView(
+                        controller: _scrollController,
+                        physics: const BouncingScrollPhysics(),
+                        slivers: [
+                          _buildSliverAppBar(),
+                          SliverToBoxAdapter(
+                            child: _buildPlaylistHeader(),
+                          ),
+                          SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                if (index >= tracks.length) return null;
+                                final track = tracks[index];
+                                return Material(
+                                  type: MaterialType.transparency,
+                                  child: ListTile(
+                                    key: ValueKey('track_${track['id']}'),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                    tileColor: Colors.transparent,
+                                    selectedTileColor: Colors.transparent,
+                                    hoverColor: Colors.white.withOpacity(0.1),
+                                    splashColor: Colors.transparent,
+                                    leading: ClipRRect(
+                                      borderRadius: BorderRadius.circular(4.0),
+                                      child: CachedNetworkImage(
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                        imageUrl: track['cover_url'] ?? '',
+                                        placeholder: (context, url) => Container(
+                                          color: Colors.grey[800],
+                                          child: const Icon(
+                                            Icons.music_note,
+                                            color: Colors.white54,
+                                          ),
+                                        ),
+                                        errorWidget: (context, url, error) => Container(
+                                          color: Colors.grey[800],
+                                          child: const Icon(
+                                            Icons.music_note,
+                                            color: Colors.white54,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    title: RichText(
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: '${index + 1}. ',
+                                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                          ),
+                                          TextSpan(
+                                            text: track['name'] ?? '',
+                                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.white,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    subtitle: Text(
+                                      track['artist'] ?? '',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                            color: Colors.grey,
+                                          ),
+                                    ),
+                                    onTap: () {
+                                      AudioService.to.playPlaylist(
+                                        List<Map<String, dynamic>>.from(tracks),
+                                        index,
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
+                              childCount: tracks.length,
                             ),
                           ),
-                          title: RichText(
-                            text: TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: '${index + 1}. ',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                ),
-                                TextSpan(
-                                  text: track['name'] ?? '',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.white,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: 32),
                           ),
-                          subtitle: Text(
-                            track['artist'] ?? '',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey,
-                                ),
-                          ),
-                          onTap: () {
-                            AudioService.to.playPlaylist(
-                              List<Map<String, dynamic>>.from(tracks),
-                              index,
-                            );
-                          },
-                        );
-                      },
-                      childCount: tracks.length,
-                    ),
-                  ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: 32),
-                  ),
-                ],
+                        ],
+                      ),
               ),
-            ),
-            const MiniPlayer(isAboveBottomBar: false),
-          ],
+              const MiniPlayer(isAboveBottomBar: false),
+            ],
+          ),
         ),
       ),
     );
@@ -212,18 +243,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     final double topPadding = MediaQuery.of(context).padding.top;
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          stops: [0.0, 0.3, 1.0],
-          colors: [
-            Color(0xff161616),
-            Color(0xff121212),
-            Colors.black,
-          ],
-        ),
-      ),
+      color: const Color(0xff161616),
       child: CustomScrollView(
         physics: const NeverScrollableScrollPhysics(),
         slivers: [
@@ -385,11 +405,19 @@ class _PlaylistPageState extends State<PlaylistPage> {
         final double titleOpacity = ((opacity - 0.7) * 5).clamp(0.0, 1.0);
         final double currentSize = (imageSize - (imageSize - minImageSize) * opacity).clamp(minImageSize, imageSize);
 
+        // 使用第二主色作为 AppBar 背景
+        final Color backgroundColor = opacity <= 0.01 ? Colors.transparent : (secondaryColor?.withOpacity(opacity) ?? const Color(0xff161616).withOpacity(opacity));
+
         return SliverAppBar(
-          expandedHeight: imageSize + topPadding,
+          expandedHeight: imageSize + topPadding + 4,
           pinned: true,
           stretch: true,
-          backgroundColor: showTitle ? (dominantColor ?? const Color(0xff161616)) : Colors.transparent,
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: backgroundColor,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+          ),
+          backgroundColor: backgroundColor,
           leading: IconButton(
             icon: const Icon(
               Icons.arrow_back_ios,
@@ -409,47 +437,47 @@ class _PlaylistPageState extends State<PlaylistPage> {
             ),
           ),
           flexibleSpace: FlexibleSpaceBar(
-            background: Container(
-              color: Colors.transparent,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.only(top: 20.0 + topPadding),
-                    child: Center(
-                      child: SizedBox(
-                        width: currentSize,
-                        height: currentSize,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8.0),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
-                                blurRadius: 15,
-                                offset: const Offset(0, 8),
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                Positioned(
+                  top: topPadding, // 从状态栏底部开始
+                  left: 0,
+                  right: 0,
+                  bottom: 4, // 添加底部间距
+                  child: Center(
+                    child: SizedBox(
+                      width: currentSize,
+                      height: currentSize,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8.0),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 15,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: CachedNetworkImage(
+                            imageUrl: widget.playlist['cover'] ?? '',
+                            fit: BoxFit.cover,
+                            memCacheWidth: 800,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey[800],
+                              child: const Icon(
+                                Icons.music_note,
+                                color: Colors.white54,
                               ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8.0),
-                            child: CachedNetworkImage(
-                              imageUrl: widget.playlist['cover'] ?? '',
-                              fit: BoxFit.cover,
-                              memCacheWidth: 800,
-                              placeholder: (context, url) => Container(
-                                color: Colors.grey[800],
-                                child: const Icon(
-                                  Icons.music_note,
-                                  color: Colors.white54,
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: Colors.grey[800],
-                                child: const Icon(
-                                  Icons.music_note,
-                                  color: Colors.white54,
-                                ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: Colors.grey[800],
+                              child: const Icon(
+                                Icons.music_note,
+                                color: Colors.white54,
                               ),
                             ),
                           ),
@@ -457,8 +485,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -469,6 +497,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
   Widget _buildPlaylistHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
+      color: Colors.transparent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

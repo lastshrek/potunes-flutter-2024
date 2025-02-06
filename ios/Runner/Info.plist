@@ -59,5 +59,9 @@
 		</array>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>We need to access to the microphone to record audio file</string>
+		<key>UIViewControllerBasedStatusBarAppearance</key>
+		<true/>
+		<key>UIStatusBarStyle</key>
+		<string>UIStatusBarStyleLightContent</string>
 	</dict>
 </plist>
