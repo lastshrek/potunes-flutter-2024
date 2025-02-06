@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import '../../utils/http/api_exception.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../../widgets/horizontal_playlist_list.dart';
+import '../../screens/pages/playlist_page.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -169,42 +171,55 @@ class _HomePageState extends State<HomePage> {
                           : Swiper(
                               itemBuilder: (context, index) {
                                 final item = collections[index];
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    image: DecorationImage(
-                                      image: NetworkImage(item['cover'] ?? ''),
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => PlaylistPage(
+                                          playlist: item,
+                                          playlistId: item['id'] ?? 0,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                   child: Container(
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(8),
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.transparent,
-                                          Colors.black.withOpacity(0.7),
-                                        ],
-                                      ),
-                                    ),
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item['title'] ?? '',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
                                         ),
                                       ],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: CachedNetworkImage(
+                                        imageUrl: item['cover'] ?? '',
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(
+                                          color: Colors.grey[800],
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.music_note,
+                                              color: Colors.white54,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        ),
+                                        errorWidget: (context, url, error) => Container(
+                                          color: Colors.grey[800],
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.error_outline,
+                                              color: Colors.white54,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 );
@@ -226,7 +241,18 @@ class _HomePageState extends State<HomePage> {
                 playlists: finalPlaylists,
                 isLoading: _isLoading,
                 onTitleTap: () {
-                  // TODO: 处理点击事件
+                  // TODO: 处理标题点击事件
+                },
+                onPlaylistTap: (playlist) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PlaylistPage(
+                        playlist: playlist,
+                        playlistId: playlist['id'] ?? 0,
+                      ),
+                    ),
+                  );
                 },
               ),
               const SizedBox(height: 24),
@@ -236,7 +262,18 @@ class _HomePageState extends State<HomePage> {
                 playlists: albums,
                 isLoading: _isLoading,
                 onTitleTap: () {
-                  // TODO: 处理点击事件
+                  // TODO: 处理标题点击事件
+                },
+                onPlaylistTap: (playlist) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PlaylistPage(
+                        playlist: playlist,
+                        playlistId: playlist['id'] ?? 0,
+                      ),
+                    ),
+                  );
                 },
               ),
               const SizedBox(height: 24),
@@ -246,7 +283,18 @@ class _HomePageState extends State<HomePage> {
                 playlists: neteaseToplist,
                 isLoading: _isLoading,
                 onTitleTap: () {
-                  // TODO: 处理点击事件
+                  // TODO: 处理标题点击事件
+                },
+                onPlaylistTap: (playlist) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PlaylistPage(
+                        playlist: playlist,
+                        playlistId: playlist['id'] ?? 0,
+                      ),
+                    ),
+                  );
                 },
               ),
             ]),

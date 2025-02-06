@@ -9,9 +9,7 @@ class ApiConfig {
   static const String home = '/playlists/home';
   static const String latestCollection = '/v1/playlists/collection/latest';
   static const String latestFinal = '/v1/playlists/final/latest';
-  static const String search = '/search';
-  static const String topCharts = '/top-charts';
-  static const String library = '/library';
+  static const String playlist = '/playlists/by';
 
   // HTTP 状态码
   static const int successCode = 200;

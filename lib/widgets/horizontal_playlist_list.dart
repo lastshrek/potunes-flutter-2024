@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'skeleton_loading.dart';
 
 class HorizontalPlaylistList extends StatelessWidget {
   final String title;
   final List<dynamic> playlists;
   final VoidCallback? onTitleTap;
+  final Function(Map<String, dynamic>)? onPlaylistTap;
   final bool isLoading;
 
   const HorizontalPlaylistList({
@@ -12,6 +14,7 @@ class HorizontalPlaylistList extends StatelessWidget {
     required this.title,
     required this.playlists,
     this.onTitleTap,
+    this.onPlaylistTap,
     this.isLoading = false,
   });
 
@@ -68,13 +71,88 @@ class HorizontalPlaylistList extends StatelessWidget {
                 imageUrl: item['cover'] ?? '',
                 title: item['title'] ?? '',
                 onTap: () {
-                  // TODO: 处理点击事件
+                  onPlaylistTap?.call(item);
                 },
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPlaylistItem(Map<String, dynamic> playlist) {
+    return GestureDetector(
+      onTap: () => onPlaylistTap?.call(playlist),
+      child: Container(
+        width: 120,
+        margin: const EdgeInsets.only(right: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CachedNetworkImage(
+                  imageUrl: playlist['cover'] ?? '',
+                  fit: BoxFit.cover,
+                  memCacheWidth: 240, // 限制缓存图片大小
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[800],
+                    child: const Center(
+                      child: Icon(
+                        Icons.music_note,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[800],
+                    child: const Center(
+                      child: Icon(
+                        Icons.error_outline,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              playlist['title'] ?? '',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (playlist['count'] != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                '${playlist['count']} 首歌曲',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

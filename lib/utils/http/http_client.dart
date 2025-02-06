@@ -33,7 +33,7 @@ class HttpClient {
         requestHeader: false,
         requestBody: false,
         responseHeader: false,
-        responseBody: true,
+        responseBody: false,
         error: true,
         compact: true,
         maxWidth: 90,
@@ -71,12 +71,6 @@ class HttpClient {
       if (response.statusCode == 200) {
         final responseData = response.data;
 
-        if (kDebugMode) {
-          print('Response type: ${responseData.runtimeType}');
-          print('Expected type: $T');
-          print('Response data: $responseData');
-        }
-
         // 检查响应状态码
         if (responseData is Map<String, dynamic>) {
           final statusCode = responseData['statusCode'];
@@ -111,8 +105,48 @@ class HttpClient {
         return responseData as T;
       }
 
+      // 处理非 200 状态码
+      String errorMessage;
+      switch (response.statusCode) {
+        case 401:
+          errorMessage = '未授权，请重新登录';
+          break;
+        case 403:
+          errorMessage = '拒绝访问';
+          break;
+        case 404:
+          errorMessage = '请求错误，未找到该资源';
+          break;
+        case 405:
+          errorMessage = '请求方法未允许';
+          break;
+        case 408:
+          errorMessage = '请求超时';
+          break;
+        case 500:
+          errorMessage = '服务器内部错误';
+          break;
+        case 501:
+          errorMessage = '服务未实现';
+          break;
+        case 502:
+          errorMessage = '网络错误';
+          break;
+        case 503:
+          errorMessage = '服务不可用';
+          break;
+        case 504:
+          errorMessage = '网络超时';
+          break;
+        case 505:
+          errorMessage = 'HTTP版本不受支持';
+          break;
+        default:
+          errorMessage = '请求失败，错误码：${response.statusCode}';
+      }
+
       throw ApiException(
-        message: response.statusMessage ?? '请求失败',
+        message: errorMessage,
         statusCode: response.statusCode,
         data: response.data,
       );
@@ -123,14 +157,48 @@ class HttpClient {
         print('Error response: ${e.response}');
       }
 
+      String errorMessage;
+      switch (e.type) {
+        case DioExceptionType.connectionTimeout:
+          errorMessage = '连接超时';
+          break;
+        case DioExceptionType.sendTimeout:
+          errorMessage = '请求超时';
+          break;
+        case DioExceptionType.receiveTimeout:
+          errorMessage = '响应超时';
+          break;
+        case DioExceptionType.badResponse:
+          errorMessage = '服务器异常';
+          break;
+        case DioExceptionType.cancel:
+          errorMessage = '请求取消';
+          break;
+        case DioExceptionType.connectionError:
+          errorMessage = '连接错误，请检查网络';
+          break;
+        default:
+          errorMessage = '网络错误，请稍后重试';
+      }
+
       // 显示错误提示
       Get.snackbar(
-        '错误',
-        e.message ?? '网络请求失败',
+        '请求失败',
+        errorMessage,
         snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
+        backgroundColor: Colors.red[700],
         colorText: Colors.white,
         margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
+        mainButton: TextButton(
+          onPressed: () {
+            Get.back(); // 关闭 snackbar
+          },
+          child: const Text(
+            '知道了',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
       );
 
       rethrow;
@@ -143,11 +211,21 @@ class HttpClient {
       // 显示错误提示
       Get.snackbar(
         '错误',
-        '发生未知错误',
+        '发生未知错误，请稍后重试',
         snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
+        backgroundColor: Colors.red[700],
         colorText: Colors.white,
         margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
+        mainButton: TextButton(
+          onPressed: () {
+            Get.back(); // 关闭 snackbar
+          },
+          child: const Text(
+            '知道了',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
       );
 
       rethrow;
