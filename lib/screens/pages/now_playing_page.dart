@@ -51,6 +51,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   // 添加一个 ScrollController 作为类成员
   final ScrollController _lyricsScrollController = ScrollController();
 
+  // 修改歌词行的高度常量
+  static const double kLyricLineHeight = 96.0; // 从 72.0 改为 96.0
+
   @override
   void initState() {
     super.initState();
@@ -240,7 +243,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   void _scrollToCurrentLine(int currentIndex, double availableHeight) {
     if (!_lyricsScrollController.hasClients) return;
 
-    final itemHeight = 72.0;
+    final itemHeight = kLyricLineHeight; // 使用新的行高
     final viewportHeight = _lyricsScrollController.position.viewportDimension;
     final screenCenter = viewportHeight / 2;
     final currentLineOffset = currentIndex * itemHeight;
@@ -703,7 +706,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
                           if (isCurrentLine) {
                             WidgetsBinding.instance.addPostFrameCallback((_) {
-                              final itemPosition = index * 72.0;
+                              final itemPosition = index * kLyricLineHeight; // 使用新的行高
                               final screenCenter = _lyricsScrollController.position.viewportDimension / 2;
                               final topPadding = availableHeight / 2;
 
@@ -721,7 +724,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                           }
 
                           return Container(
-                            height: 72.0,
+                            height: kLyricLineHeight, // 使用新的行高
                             alignment: Alignment.center,
                             child: TweenAnimationBuilder<double>(
                               tween: Tween<double>(
@@ -740,7 +743,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                                         isCurrentLine ? 1.0 : 0.5,
                                       ),
                                       fontSize: 16,
-                                      height: 1.5,
+                                      height: 1.5, // 保持行内间距不变
                                       letterSpacing: 0.5,
                                       fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
                                     ),
