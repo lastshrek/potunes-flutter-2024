@@ -1,0 +1,257 @@
+import 'package:flutter/material.dart';
+import 'package:card_swiper/card_swiper.dart';
+import '../../services/network_service.dart';
+import 'package:flutter/foundation.dart';
+import '../../utils/http/api_exception.dart';
+import '../../widgets/skeleton_loading.dart';
+import '../../widgets/horizontal_playlist_list.dart';
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final NetworkService _networkService = NetworkService();
+  Map<String, dynamic>? _homeData;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHomeData();
+  }
+
+  Future<void> _loadHomeData() async {
+    try {
+      final data = await _networkService.getHomeData();
+
+      setState(() {
+        _homeData = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (e is ApiException) {
+        setState(() {
+          _error = '${e.message} (${e.statusCode})';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+      if (kDebugMode) {
+        print('Error: $e');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final collections = _homeData?['collections'] as List<dynamic>? ?? [];
+    final finalPlaylists = _homeData?['finals'] as List<dynamic>? ?? [];
+    final albums = _homeData?['albums'] as List<dynamic>? ?? [];
+    final neteaseToplist = _homeData?['netease_toplist'] as List<dynamic>? ?? [];
+
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          pinned: true,
+          floating: false,
+          leadingWidth: 48,
+          leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+          title: SizedBox(
+            height: 40,
+            child: TextField(
+              style: const TextStyle(color: Colors.white),
+              textAlignVertical: TextAlignVertical.center,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.grey[900],
+                hintText: '搜索音乐...',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: (value) {
+                // TODO: 实现搜索功能
+              },
+            ),
+          ),
+          actions: const [
+            SizedBox(width: 8),
+          ],
+          backgroundColor: Colors.black,
+          elevation: 0,
+          toolbarHeight: 64,
+        ),
+        if (_error != null)
+          SliverFillRemaining(
+            child: Center(
+              child: Text(
+                _error!,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+          )
+        else
+          SliverList(
+            delegate: SliverChildListDelegate([
+              const SizedBox(height: 8),
+              // Collections 部分
+              Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _isLoading
+                            ? const SkeletonLoading(
+                                width: 100,
+                                height: 18,
+                              )
+                            : Text(
+                                'Collections',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: _isLoading
+                              ? const SkeletonLoading(
+                                  width: 18,
+                                  height: 18,
+                                )
+                              : IconButton(
+                                  icon: const Icon(
+                                    Icons.arrow_outward_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () {
+                                    // TODO: 处理点击事件
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: AspectRatio(
+                      aspectRatio: 32 / 15,
+                      child: _isLoading
+                          ? const SkeletonLoading()
+                          : Swiper(
+                              itemBuilder: (context, index) {
+                                final item = collections[index];
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    image: DecorationImage(
+                                      image: NetworkImage(item['cover'] ?? ''),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.black.withOpacity(0.7),
+                                        ],
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item['title'] ?? '',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                              itemCount: collections.length,
+                              autoplay: true,
+                              autoplayDelay: 3000,
+                              viewportFraction: 1.0,
+                              scale: 1.0,
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Final 部分
+              HorizontalPlaylistList(
+                title: 'Final',
+                playlists: finalPlaylists,
+                isLoading: _isLoading,
+                onTitleTap: () {
+                  // TODO: 处理点击事件
+                },
+              ),
+              const SizedBox(height: 24),
+              // Albums 部分
+              HorizontalPlaylistList(
+                title: 'Albums',
+                playlists: albums,
+                isLoading: _isLoading,
+                onTitleTap: () {
+                  // TODO: 处理点击事件
+                },
+              ),
+              const SizedBox(height: 24),
+              // Netease Toplist 部分
+              HorizontalPlaylistList(
+                title: 'Netease Toplist',
+                playlists: neteaseToplist,
+                isLoading: _isLoading,
+                onTitleTap: () {
+                  // TODO: 处理点击事件
+                },
+              ),
+            ]),
+          ),
+      ],
+    );
+  }
+}
