@@ -45,13 +45,16 @@ class MiniPlayer extends StatelessWidget {
         return TweenAnimationBuilder<double>(
           tween: Tween<double>(
             begin: 0,
-            end: isAboveBottomBar ? 80 : 0, // 80 是 SalomonBottomBar 的高度
+            end: isAboveBottomBar ? 90 : 0, // 80 是 SalomonBottomBar 的高度
           ),
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
           builder: (context, bottomMargin, child) {
             return Padding(
-              padding: EdgeInsets.only(bottom: bottomMargin),
+              padding: EdgeInsets.only(
+                bottom: bottomMargin,
+                top: 0, // 当不在底部导航栏上方时，向上移动4像素
+              ),
               child: child,
             );
           },
@@ -60,31 +63,7 @@ class MiniPlayer extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: double.infinity, // 确保宽度与父级相同
-                  height: 2,
-                  color: Colors.white.withOpacity(0.1),
-                  child: StreamBuilder<Duration>(
-                    stream: controller.player.positionStream,
-                    builder: (context, snapshot) {
-                      final position = snapshot.data ?? Duration.zero;
-                      final duration = controller.duration;
-                      final progress = duration.inMilliseconds > 0 ? position.inMilliseconds / duration.inMilliseconds : 0.0;
-
-                      print('[DEBUG] Progress bar value: $progress');
-
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(1),
-                        child: LinearProgressIndicator(
-                          value: progress.clamp(0.0, 1.0),
-                          backgroundColor: Colors.transparent,
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                          minHeight: 2,
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                // 播放器主体
                 Container(
                   height: 64,
                   color: Colors.black87,
@@ -186,6 +165,32 @@ class MiniPlayer extends StatelessWidget {
                         ],
                       ),
                     ),
+                  ),
+                ),
+                // 进度条
+                Container(
+                  width: double.infinity,
+                  height: 2,
+                  color: Colors.black87, // 与播放器主体颜色相同
+                  child: StreamBuilder<Duration>(
+                    stream: controller.player.positionStream,
+                    builder: (context, snapshot) {
+                      final position = snapshot.data ?? Duration.zero;
+                      final duration = controller.duration;
+                      final progress = duration.inMilliseconds > 0 ? position.inMilliseconds / duration.inMilliseconds : 0.0;
+
+                      print('[DEBUG] Progress bar value: $progress');
+
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(1),
+                        child: LinearProgressIndicator(
+                          value: progress.clamp(0.0, 1.0),
+                          backgroundColor: Colors.white.withOpacity(0.1),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                          minHeight: 2,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
