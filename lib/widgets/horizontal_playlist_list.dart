@@ -29,28 +29,38 @@ class HorizontalPlaylistList extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
+              isLoading
+                  ? const SkeletonLoading(
+                      width: 100,
+                      height: 18,
+                    )
+                  : Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
               SizedBox(
                 width: 24,
                 height: 24,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_outward_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: onTitleTap,
-                ),
+                child: isLoading
+                    ? const SkeletonLoading(
+                        width: 24,
+                        height: 24,
+                      )
+                    : IconButton(
+                        icon: const Icon(
+                          Icons.arrow_outward,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: onTitleTap,
+                      ),
               ),
             ],
           ),

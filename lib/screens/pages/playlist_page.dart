@@ -266,9 +266,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
                           color: Colors.grey[800],
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
@@ -409,7 +409,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
         final Color backgroundColor = opacity <= 0.01 ? Colors.transparent : (secondaryColor?.withOpacity(opacity) ?? const Color(0xff161616).withOpacity(opacity));
 
         return SliverAppBar(
-          expandedHeight: imageSize + topPadding + 4,
+          expandedHeight: imageSize + topPadding + 10,
           pinned: true,
           stretch: true,
           systemOverlayStyle: SystemUiOverlayStyle(
@@ -444,7 +444,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                   top: topPadding, // 从状态栏底部开始
                   left: 0,
                   right: 0,
-                  bottom: 4, // 添加底部间距
+                  bottom: 10, // 添加底部间距
                   child: Center(
                     child: SizedBox(
                       width: currentSize,
@@ -454,9 +454,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
                           borderRadius: BorderRadius.circular(8.0),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),

@@ -62,6 +62,23 @@ Future<void> main() async {
     if (!kDebugMode) {
       debugPrint = (String? message, {int? wrapWidth}) {};
     }
+
+    // 设置沉浸式状态栏
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent, // 状态栏透明
+        statusBarIconBrightness: Brightness.light, // 状态栏图标为亮色
+        systemNavigationBarColor: Colors.transparent, // 导航栏透明
+        systemNavigationBarIconBrightness: Brightness.light, // 导航栏图标为亮色
+        systemNavigationBarDividerColor: Colors.transparent, // 导航栏分割线透明
+      ),
+    );
+
+    // 设置沉浸式导航栏
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.edgeToEdge, // 启用边缘到边缘模式
+      overlays: [SystemUiOverlay.top], // 只显示顶部状态栏
+    );
   }
 
   // 完全禁用调试打印
@@ -172,10 +189,28 @@ class MyApp extends StatelessWidget {
           color: Color(0xFFDA5597), // Custom Pink
           circularTrackColor: Color(0x40DA5597), // Custom Pink with opacity
         ),
+        appBarTheme: const AppBarTheme(
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.light,
+            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarIconBrightness: Brightness.light,
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
       ),
       builder: (context, child) {
-        return Scaffold(
-          body: child ?? const SizedBox.shrink(),
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.light,
+            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarIconBrightness: Brightness.light,
+          ),
+          child: Scaffold(
+            body: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       home: FutureBuilder(

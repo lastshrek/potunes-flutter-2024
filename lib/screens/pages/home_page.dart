@@ -137,18 +137,18 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ),
                         SizedBox(
-                          width: 18,
-                          height: 18,
+                          width: 24,
+                          height: 24,
                           child: _isLoading
                               ? const SkeletonLoading(
-                                  width: 18,
-                                  height: 18,
+                                  width: 24,
+                                  height: 24,
                                 )
                               : IconButton(
                                   icon: const Icon(
-                                    Icons.arrow_outward_rounded,
+                                    Icons.arrow_outward,
                                     color: Colors.white,
-                                    size: 16,
+                                    size: 20,
                                   ),
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
