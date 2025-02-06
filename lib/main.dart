@@ -194,6 +194,8 @@ class MyApp extends StatelessWidget {
           );
         },
       ),
+      defaultTransition: Transition.fadeIn,
+      transitionDuration: const Duration(milliseconds: 300),
     );
   }
 }

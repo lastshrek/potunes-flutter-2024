@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:get/get.dart';
 
 import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
@@ -199,8 +200,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                 ],
               ),
             ),
-            // 添加 MiniPlayer
-            const MiniPlayer(),
+            const MiniPlayer(isAboveBottomBar: false),
           ],
         ),
       ),
@@ -395,7 +395,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
               Icons.arrow_back_ios,
               color: Colors.white,
             ),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Get.back(),
           ),
           title: Opacity(
             opacity: titleOpacity,
