@@ -7,6 +7,7 @@ import '../../widgets/skeleton_loading.dart';
 import '../../widgets/horizontal_playlist_list.dart';
 import '../../screens/pages/playlist_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../config/api_config.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,31 +25,39 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _loadHomeData();
+    _loadData();
   }
 
-  Future<void> _loadHomeData() async {
+  Future<void> _loadData() async {
     try {
-      final data = await _networkService.getHomeData();
+      debugPrint('=================== Loading Home Data ===================');
+      debugPrint('Starting to load home data...');
 
-      setState(() {
-        _homeData = data;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (e is ApiException) {
+      final response = await _networkService.getHomeData();
+
+      debugPrint('Home data loaded successfully');
+      debugPrint('Response: $response');
+      debugPrint('Response type: ${response.runtimeType}');
+      debugPrint('====================================================');
+
+      if (mounted) {
         setState(() {
-          _error = '${e.message} (${e.statusCode})';
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _error = e.toString();
+          _homeData = response;
           _isLoading = false;
         });
       }
-      if (kDebugMode) {
-        print('Error: $e');
+    } catch (e, stackTrace) {
+      debugPrint('=================== Error Loading Home Data ===================');
+      debugPrint('Error: $e');
+      debugPrint('Error type: ${e.runtimeType}');
+      debugPrint('Stack trace: $stackTrace');
+      debugPrint('===========================================================');
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
       }
     }
   }

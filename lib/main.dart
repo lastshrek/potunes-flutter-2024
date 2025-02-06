@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -107,6 +108,13 @@ Future<void> main() async {
     setOptimalDisplayMode();
   }
   // await setupServiceLocator();
+  if (kDebugMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message == null) return;
+      // 强制输出日志，不受 iOS 限制
+      developer.log(message);
+    };
+  }
   runApp(const MyApp());
   if (Platform.isAndroid) {
     //覆盖状态栏，写在渲染之前MaterialApp组件会覆盖掉这个值。

@@ -1,41 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:dio/dio.dart' as dio;
+import '../../config/api_config.dart';
 import 'api_exception.dart';
 
 class ResponseHandler {
+  static dynamic handleResponse(dio.Response response) {
+    final statusCode = response.statusCode ?? 500;
+    final data = response.data;
+
+    if (statusCode == ApiConfig.successCode) {
+      return data;
+    }
+
+    throw ApiException(
+      statusCode: statusCode,
+      message: response.statusMessage ?? ApiConfig.serverError,
+      data: data,
+    );
+  }
+
   static T handle<T>({
     required dynamic response,
     required int? statusCode,
     String? errorMessage,
   }) {
-    if (statusCode == 200) {
+    final code = statusCode ?? 500;
+
+    if (code == ApiConfig.successCode) {
+      // 检查是否是包装的响应格式
+      if (response is Map && response['statusCode'] != null && response['data'] != null) {
+        final innerData = response['data'];
+
+        // 如果内部数据就是期望的类型
+        if (innerData is T) {
+          return innerData;
+        }
+
+        // 尝试转换内部数据
+        try {
+          return innerData as T;
+        } catch (e) {
+          debugPrint('Error converting inner data to $T: $e');
+          throw ApiException(
+            statusCode: code,
+            message: 'Inner data type mismatch',
+            data: innerData,
+          );
+        }
+      }
+
       // 如果响应本身就是期望的类型
       if (response is T) {
         return response;
       }
 
-      // 如果响应是 Map 且包含 data 字段，并且不是期望 List 类型
-      if (response is Map && response.containsKey('data') && T != List<dynamic>) {
-        return response['data'] as T;
+      // 尝试直接转换
+      try {
+        return response as T;
+      } catch (e) {
+        debugPrint('Error converting response to $T: $e');
+        throw ApiException(
+          statusCode: code,
+          message: 'Response type mismatch',
+          data: response,
+        );
       }
-
-      // 其他情况尝试直接转换
-      return response as T;
-    } else {
-      // 显示错误提示
-      Get.snackbar(
-        '错误',
-        errorMessage ?? '请求失败',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-      );
-      throw ApiException(
-        message: errorMessage ?? '请求失败',
-        statusCode: statusCode,
-        data: response,
-      );
     }
+
+    // 显示错误提示
+    Get.snackbar(
+      '错误',
+      errorMessage ?? '请求失败',
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.red,
+      colorText: Colors.white,
+      margin: const EdgeInsets.all(16),
+    );
+
+    // 处理错误响应
+    throw ApiException(
+      statusCode: code,
+      message: errorMessage ?? '请求失败',
+      data: response,
+    );
   }
 }

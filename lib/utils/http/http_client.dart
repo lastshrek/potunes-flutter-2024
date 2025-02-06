@@ -7,6 +7,7 @@ import 'api_exception.dart';
 import 'response_handler.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
+import 'dart:developer' as developer;
 
 class HttpClient {
   static HttpClient? _instance;
@@ -25,20 +26,22 @@ class HttpClient {
     );
 
     // 添加拦截器
-    _dio.interceptors.add(ErrorInterceptor());
-
-    // 添加日志拦截器（仅在调试模式下）
-    if (kDebugMode) {
-      _dio.interceptors.add(PrettyDioLogger(
-        requestHeader: false,
-        requestBody: false,
-        responseHeader: false,
-        responseBody: false,
-        error: true,
-        compact: true,
-        maxWidth: 90,
-      ));
-    }
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          print('REQUEST[${options.method}] => PATH: ${options.path}');
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          print('RESPONSE[${response.statusCode}] => DATA: ${response.data}');
+          return handler.next(response);
+        },
+        onError: (DioException e, handler) {
+          print('ERROR[${e.response?.statusCode}] => ${e.message}');
+          return handler.next(e);
+        },
+      ),
+    );
   }
 
   static HttpClient get instance => _instance ??= HttpClient._internal();
@@ -50,9 +53,7 @@ class HttpClient {
     CancelToken? cancelToken,
   }) async {
     try {
-      if (kDebugMode) {
-        print('Making request to: ${_dio.options.baseUrl}$path');
-      }
+      print('Starting request to: ${_dio.options.baseUrl}$path');
 
       final response = await _dio.get(
         path,
@@ -67,167 +68,20 @@ class HttpClient {
         cancelToken: cancelToken,
       );
 
-      // 直接处理响应数据
-      if (response.statusCode == 200) {
-        final responseData = response.data;
+      print('Response received: ${response.data}');
 
-        // 检查响应状态码
-        if (responseData is Map<String, dynamic>) {
-          final statusCode = responseData['statusCode'];
-          if (statusCode != 200) {
-            throw ApiException(
-              message: responseData['message'] ?? '请求失败',
-              statusCode: statusCode,
-              data: responseData,
-            );
-          }
-
-          // 如果响应包含 data 字段
-          if (responseData.containsKey('data')) {
-            final data = responseData['data'];
-            if (kDebugMode) {
-              print('Data type: ${data.runtimeType}');
-              print('Data content: $data');
-            }
-
-            // 如果期望返回类型是 List
-            if (T.toString() == 'List<dynamic>') {
-              if (data is List) {
-                return data as T;
-              }
-              // 如果 data 本身就是我们需要的数据
-              return [data] as T;
-            }
-            return data as T;
-          }
-        }
-
-        return responseData as T;
-      }
-
-      // 处理非 200 状态码
-      String errorMessage;
-      switch (response.statusCode) {
-        case 401:
-          errorMessage = '未授权，请重新登录';
-          break;
-        case 403:
-          errorMessage = '拒绝访问';
-          break;
-        case 404:
-          errorMessage = '请求错误，未找到该资源';
-          break;
-        case 405:
-          errorMessage = '请求方法未允许';
-          break;
-        case 408:
-          errorMessage = '请求超时';
-          break;
-        case 500:
-          errorMessage = '服务器内部错误';
-          break;
-        case 501:
-          errorMessage = '服务未实现';
-          break;
-        case 502:
-          errorMessage = '网络错误';
-          break;
-        case 503:
-          errorMessage = '服务不可用';
-          break;
-        case 504:
-          errorMessage = '网络超时';
-          break;
-        case 505:
-          errorMessage = 'HTTP版本不受支持';
-          break;
-        default:
-          errorMessage = '请求失败，错误码：${response.statusCode}';
+      if (response.data is T) {
+        return response.data;
       }
 
       throw ApiException(
-        message: errorMessage,
-        statusCode: response.statusCode,
+        statusCode: response.statusCode ?? 500,
+        message: 'Response type mismatch',
         data: response.data,
       );
-    } on DioException catch (e) {
-      if (kDebugMode) {
-        print('DioException: ${e.type}');
-        print('Error message: ${e.message}');
-        print('Error response: ${e.response}');
-      }
-
-      String errorMessage;
-      switch (e.type) {
-        case DioExceptionType.connectionTimeout:
-          errorMessage = '连接超时';
-          break;
-        case DioExceptionType.sendTimeout:
-          errorMessage = '请求超时';
-          break;
-        case DioExceptionType.receiveTimeout:
-          errorMessage = '响应超时';
-          break;
-        case DioExceptionType.badResponse:
-          errorMessage = '服务器异常';
-          break;
-        case DioExceptionType.cancel:
-          errorMessage = '请求取消';
-          break;
-        case DioExceptionType.connectionError:
-          errorMessage = '连接错误，请检查网络';
-          break;
-        default:
-          errorMessage = '网络错误，请稍后重试';
-      }
-
-      // 显示错误提示
-      Get.snackbar(
-        '请求失败',
-        errorMessage,
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red[700],
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 4),
-        mainButton: TextButton(
-          onPressed: () {
-            Get.back(); // 关闭 snackbar
-          },
-          child: const Text(
-            '知道了',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      );
-
-      rethrow;
-    } catch (e, stackTrace) {
-      if (kDebugMode) {
-        print('Unexpected error: $e');
-        print('Stack trace: $stackTrace');
-      }
-
-      // 显示错误提示
-      Get.snackbar(
-        '错误',
-        '发生未知错误，请稍后重试',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red[700],
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 4),
-        mainButton: TextButton(
-          onPressed: () {
-            Get.back(); // 关闭 snackbar
-          },
-          child: const Text(
-            '知道了',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      );
-
+    } catch (e) {
+      print('Error in request: $e');
+      _handleError(e);
       rethrow;
     }
   }
@@ -256,7 +110,7 @@ class HttpClient {
 
       return ResponseHandler.handle<T>(
         response: response.data,
-        statusCode: response.statusCode,
+        statusCode: response.statusCode ?? 500,
         errorMessage: response.statusMessage,
       );
     } on DioException catch (e) {
@@ -291,6 +145,19 @@ class HttpClient {
       );
 
       rethrow;
+    }
+  }
+
+  void _handleError(dynamic error) {
+    if (error is DioException) {
+      throw ApiException.fromDioError(error);
+    } else if (error is ApiException) {
+      throw error;
+    } else {
+      throw ApiException(
+        statusCode: 500,
+        message: error.toString(),
+      );
     }
   }
 }

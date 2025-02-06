@@ -38,9 +38,9 @@ class MiniPlayer extends StatelessWidget {
 
         // 只在秒数变化时打印
         if (position.inSeconds != _lastPrintedSecond) {
-          print('Track: ${currentTrack['name']}');
-          print('Position: ${formatDuration(position)} / ${formatDuration(duration)}');
-          print('Progress: ${(progress * 100).toStringAsFixed(1)}%');
+          // print('Track: ${currentTrack['name']}');
+          // print('Position: ${formatDuration(position)} / ${formatDuration(duration)}');
+          // print('Progress: ${(progress * 100).toStringAsFixed(1)}%');
           _lastPrintedSecond = position.inSeconds;
         }
 
@@ -197,8 +197,6 @@ class MiniPlayer extends StatelessWidget {
                           final position = snapshot.data ?? Duration.zero;
                           final duration = controller.duration;
                           final progress = duration.inMilliseconds > 0 ? position.inMilliseconds / duration.inMilliseconds : 0.0;
-
-                          print('[DEBUG] Progress bar value: $progress');
 
                           return ClipRRect(
                             borderRadius: BorderRadius.circular(1),

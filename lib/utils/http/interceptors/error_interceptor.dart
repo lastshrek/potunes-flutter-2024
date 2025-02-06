@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
-import '../api_exception.dart';
 import '../../../config/api_config.dart';
+import '../api_exception.dart';
 
 class ErrorInterceptor extends Interceptor {
   @override
@@ -9,27 +9,26 @@ class ErrorInterceptor extends Interceptor {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        throw ApiException(message: ApiConfig.timeoutError);
+        throw ApiException(
+          statusCode: 408,
+          message: ApiConfig.timeoutError,
+        );
       case DioExceptionType.badResponse:
-        switch (err.response?.statusCode) {
-          case ApiConfig.unauthorizedCode:
-            throw ApiException(
-              message: '未授权',
-              statusCode: ApiConfig.unauthorizedCode,
-            );
-          case ApiConfig.notFoundCode:
-            throw ApiException(
-              message: '请求不存在',
-              statusCode: ApiConfig.notFoundCode,
-            );
-          default:
-            throw ApiException(
-              message: err.response?.statusMessage ?? ApiConfig.serverError,
-              statusCode: err.response?.statusCode,
-            );
-        }
+        throw ApiException(
+          statusCode: err.response?.statusCode ?? 500,
+          message: err.response?.statusMessage ?? ApiConfig.serverError,
+          data: err.response?.data,
+        );
+      case DioExceptionType.connectionError:
+        throw ApiException(
+          statusCode: 503,
+          message: ApiConfig.networkError,
+        );
       default:
-        throw ApiException(message: ApiConfig.networkError);
+        throw ApiException(
+          statusCode: 500,
+          message: ApiConfig.serverError,
+        );
     }
   }
 }

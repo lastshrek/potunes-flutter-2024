@@ -1,5 +1,3 @@
-import 'dart:io';
-
 class ApiConfig {
   static String get baseUrl {
     return 'https://api.poche.pink';
@@ -10,7 +8,7 @@ class ApiConfig {
   static const String latestCollection = '/v1/playlists/collection/latest';
   static const String latestFinal = '/v1/playlists/final/latest';
   static const String playlist = '/playlists/by';
-
+  static const String lyrics = '/v1/lyrics';
   // HTTP 状态码
   static const int successCode = 200;
   static const int unauthorizedCode = 401;
@@ -25,4 +23,9 @@ class ApiConfig {
   static const String networkError = '网络连接失败';
   static const String timeoutError = '请求超时';
   static const String serverError = '服务器错误';
+
+  // 获取歌词路径
+  static String getLyricsPath(String id, String nId) {
+    return '$lyrics/$id/$nId';
+  }
 }
