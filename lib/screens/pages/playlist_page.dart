@@ -6,6 +6,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:just_audio/just_audio.dart';
 
 import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
@@ -25,7 +26,7 @@ class PlaylistPage extends StatefulWidget {
   State<PlaylistPage> createState() => _PlaylistPageState();
 }
 
-class _PlaylistPageState extends State<PlaylistPage> {
+class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   final NetworkService _networkService = NetworkService();
   bool _isLoading = true;
   Color? dominantColor;
@@ -34,23 +35,83 @@ class _PlaylistPageState extends State<PlaylistPage> {
   final ValueNotifier<double> _bgOpacity = ValueNotifier<double>(0.0);
   List<dynamic> tracks = [];
 
+  // 添加缓存标记
+  static final Map<String, Color> _colorCache = {};
+  static final Map<String, List<dynamic>> _tracksCache = {};
+
+  @override
+  bool get wantKeepAlive => false; // 设置为 false 表示不保持在内存中
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
+
+    // 使用缓存数据
+    final String cacheKey = widget.playlist['cover'] ?? '';
+    if (_colorCache.containsKey(cacheKey)) {
+      dominantColor = _colorCache[cacheKey];
+      secondaryColor = dominantColor?.withOpacity(0.7);
+    }
+
+    // 移除缓存数据的使用，总是加载新数据
+    _isLoading = true;
 
     // 等待页面完全构建后再加载数据
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadPlaylistData();
-      _extractColors();
+      if (!_colorCache.containsKey(cacheKey)) {
+        _extractColors();
+      }
+      _loadPlaylistData(); // 总是加载新数据
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    print('PlaylistPage disposed');
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+
+    // 清理不必要的缓存
+    if (!mounted) {
+      imageCache.clear();
+      imageCache.clearLiveImages();
+    }
+
+    // 清理颜色
+    dominantColor = null;
+    secondaryColor = null;
+
+    // 清理列表数据但保留缓存
+    tracks.clear();
+
+    // 限制缓存大小但不清空
+    if (_colorCache.length > 50) {
+      final keysToRemove = _colorCache.keys.take(_colorCache.length - 50);
+      for (final key in keysToRemove) {
+        _colorCache.remove(key);
+      }
+    }
+    if (_tracksCache.length > 20) {
+      final keysToRemove = _tracksCache.keys.take(_tracksCache.length - 20);
+      for (final key in keysToRemove) {
+        _tracksCache.remove(key);
+      }
+    }
+
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      // 当页面不可见时清理资源
+      imageCache.clear();
+      imageCache.clearLiveImages();
+    }
+    super.didChangeAppLifecycleState(state);
   }
 
   void _onScroll() {
@@ -64,28 +125,41 @@ class _PlaylistPageState extends State<PlaylistPage> {
   Future<void> _loadPlaylistData() async {
     try {
       final response = await _networkService.getPlaylistById(widget.playlistId);
-      if (!mounted) return; // 检查组件是否还在树中
+      if (!mounted) return;
 
       setState(() {
         if (response['tracks'] != null) {
           tracks = response['tracks'] as List<dynamic>;
+          // 更新缓存数据
+          _tracksCache['${widget.playlistId}'] = List<dynamic>.from(tracks);
         }
         _isLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      if (kDebugMode) {
-        print('Error loading playlist: $e');
+      // 如果加载失败，尝试使用缓存数据
+      if (_tracksCache.containsKey('${widget.playlistId}')) {
+        setState(() {
+          tracks = List<dynamic>.from(_tracksCache['${widget.playlistId}']!);
+          _isLoading = false;
+        });
+      } else {
+        if (kDebugMode) {
+          print('Error loading playlist: $e');
+        }
+        setState(() {
+          _isLoading = false;
+        });
       }
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
   Future<void> _extractColors() async {
     try {
-      final imageProvider = CachedNetworkImageProvider(widget.playlist['cover'] ?? '');
+      final String cacheKey = widget.playlist['cover'] ?? '';
+      final imageProvider = CachedNetworkImageProvider(cacheKey);
+
+      // 预加载图片
       await precacheImage(imageProvider, context);
 
       final PaletteGenerator paletteGenerator = await PaletteGenerator.fromImageProvider(
@@ -94,14 +168,16 @@ class _PlaylistPageState extends State<PlaylistPage> {
       );
 
       if (!mounted) return;
-      setState(() {
-        // 获取主色和次色
-        dominantColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.darkVibrantColor?.color ?? paletteGenerator.dominantColor?.color ?? const Color(0xff161616);
 
-        // 获取第二主色
+      final Color mainColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.darkVibrantColor?.color ?? paletteGenerator.dominantColor?.color ?? const Color(0xff161616);
+
+      // 缓存颜色
+      _colorCache[cacheKey] = mainColor;
+
+      setState(() {
+        dominantColor = mainColor;
         secondaryColor = paletteGenerator.mutedColor?.color ?? paletteGenerator.vibrantColor?.color ?? dominantColor?.withOpacity(0.7) ?? const Color(0xff161616);
 
-        // 确保颜色足够深
         secondaryColor = HSLColor.fromColor(secondaryColor!).withLightness((HSLColor.fromColor(secondaryColor!).lightness * 0.7).clamp(0.0, 1.0)).toColor();
       });
     } catch (e) {
@@ -116,122 +192,131 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: const [0.0, 0.7],
-            colors: [
-              secondaryColor?.withOpacity(0.95) ?? const Color(0xff161616),
-              secondaryColor?.withOpacity(0.7) ?? const Color(0xff121212),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              Expanded(
-                child: _isLoading
-                    ? _buildSkeleton(context)
-                    : CustomScrollView(
-                        controller: _scrollController,
-                        physics: const BouncingScrollPhysics(),
-                        slivers: [
-                          _buildSliverAppBar(),
-                          SliverToBoxAdapter(
-                            child: _buildPlaylistHeader(),
-                          ),
-                          SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                if (index >= tracks.length) return null;
-                                final track = tracks[index];
-                                return Material(
-                                  type: MaterialType.transparency,
-                                  child: ListTile(
-                                    key: ValueKey('track_${track['id']}'),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                    tileColor: Colors.transparent,
-                                    selectedTileColor: Colors.transparent,
-                                    hoverColor: Colors.white.withOpacity(0.1),
-                                    splashColor: Colors.transparent,
-                                    leading: ClipRRect(
-                                      borderRadius: BorderRadius.circular(4.0),
-                                      child: CachedNetworkImage(
-                                        width: 40,
-                                        height: 40,
-                                        fit: BoxFit.cover,
-                                        imageUrl: track['cover_url'] ?? '',
-                                        placeholder: (context, url) => Container(
-                                          color: Colors.grey[800],
-                                          child: const Icon(
-                                            Icons.music_note,
-                                            color: Colors.white54,
-                                          ),
-                                        ),
-                                        errorWidget: (context, url, error) => Container(
-                                          color: Colors.grey[800],
-                                          child: const Icon(
-                                            Icons.music_note,
-                                            color: Colors.white54,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    title: RichText(
-                                      text: TextSpan(
-                                        children: [
-                                          TextSpan(
-                                            text: '${index + 1}. ',
-                                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                          ),
-                                          TextSpan(
-                                            text: track['name'] ?? '',
-                                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                                  fontWeight: FontWeight.w500,
-                                                  color: Colors.white,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    subtitle: Text(
-                                      track['artist'] ?? '',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                            color: Colors.grey,
-                                          ),
-                                    ),
-                                    onTap: () {
-                                      AudioService.to.playPlaylist(
-                                        List<Map<String, dynamic>>.from(tracks),
-                                        index,
-                                      );
-                                    },
-                                  ),
-                                );
-                              },
-                              childCount: tracks.length,
-                            ),
-                          ),
-                          const SliverToBoxAdapter(
-                            child: SizedBox(height: 32),
-                          ),
-                        ],
-                      ),
+    super.build(context);
+    return WillPopScope(
+      onWillPop: () async {
+        // 在这里处理返回事件
+        return true; // 返回 true 允许返回，false 阻止返回
+      },
+      child: RepaintBoundary(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0.0, 0.7],
+                colors: [
+                  secondaryColor?.withOpacity(0.95) ?? const Color(0xff161616),
+                  secondaryColor?.withOpacity(0.7) ?? const Color(0xff121212),
+                ],
               ),
-              const MiniPlayer(isAboveBottomBar: false),
-            ],
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: _isLoading
+                        ? _buildSkeleton(context)
+                        : CustomScrollView(
+                            controller: _scrollController,
+                            physics: const BouncingScrollPhysics(),
+                            slivers: [
+                              _buildSliverAppBar(),
+                              SliverToBoxAdapter(
+                                child: _buildPlaylistHeader(),
+                              ),
+                              SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) {
+                                    if (index >= tracks.length) return null;
+                                    final track = tracks[index];
+                                    return Material(
+                                      type: MaterialType.transparency,
+                                      child: ListTile(
+                                        key: ValueKey('track_${track['id']}'),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                        tileColor: Colors.transparent,
+                                        selectedTileColor: Colors.transparent,
+                                        hoverColor: Colors.white.withOpacity(0.1),
+                                        splashColor: Colors.transparent,
+                                        leading: ClipRRect(
+                                          borderRadius: BorderRadius.circular(4.0),
+                                          child: CachedNetworkImage(
+                                            width: 40,
+                                            height: 40,
+                                            fit: BoxFit.cover,
+                                            imageUrl: track['cover_url'] ?? '',
+                                            placeholder: (context, url) => Container(
+                                              color: Colors.grey[800],
+                                              child: const Icon(
+                                                Icons.music_note,
+                                                color: Colors.white54,
+                                              ),
+                                            ),
+                                            errorWidget: (context, url, error) => Container(
+                                              color: Colors.grey[800],
+                                              child: const Icon(
+                                                Icons.music_note,
+                                                color: Colors.white54,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        title: RichText(
+                                          text: TextSpan(
+                                            children: [
+                                              TextSpan(
+                                                text: '${index + 1}. ',
+                                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                              ),
+                                              TextSpan(
+                                                text: track['name'] ?? '',
+                                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.white,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        subtitle: Text(
+                                          track['artist'] ?? '',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                color: Colors.grey,
+                                              ),
+                                        ),
+                                        onTap: () {
+                                          AudioService.to.playPlaylist(
+                                            List<Map<String, dynamic>>.from(tracks),
+                                            index,
+                                          );
+                                        },
+                                      ),
+                                    );
+                                  },
+                                  childCount: tracks.length,
+                                ),
+                              ),
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: 32),
+                              ),
+                            ],
+                          ),
+                  ),
+                  const MiniPlayer(isAboveBottomBar: false),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -555,22 +640,37 @@ class _PlaylistPageState extends State<PlaylistPage> {
                     ),
                     child: Material(
                       color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(24),
-                        onTap: () {
-                          AudioService.to.playPlaylist(
-                            List<Map<String, dynamic>>.from(tracks),
-                            0,
-                          );
-                        },
-                        child: const Center(
-                          child: FaIcon(
-                            FontAwesomeIcons.play,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                      ),
+                      child: Obx(() {
+                        final isLoading = AudioService.to.player.processingState == ProcessingState.loading || AudioService.to.player.processingState == ProcessingState.buffering;
+
+                        return isLoading
+                            ? const Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                ),
+                              )
+                            : InkWell(
+                                borderRadius: BorderRadius.circular(24),
+                                onTap: () {
+                                  AudioService.to.playPlaylist(
+                                    List<Map<String, dynamic>>.from(tracks),
+                                    0,
+                                  );
+                                },
+                                child: const Center(
+                                  child: FaIcon(
+                                    FontAwesomeIcons.play,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                              );
+                      }),
                     ),
                   ),
                 ],

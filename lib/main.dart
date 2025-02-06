@@ -12,7 +12,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 // import 'package:potunes_flutter/screens/screen.dart';
 // import 'package:potunes_flutter/theme/app_theme.dart';
 // import 'services/service_locator.dart';
-// import 'package:flutter_displaymode/flutter_displaymode.dart';
+import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'screens/home_screen.dart';
 import 'services/audio_service.dart';
 import 'controllers/navigation_controller.dart';
@@ -104,7 +104,7 @@ Future<void> main() async {
   // await openHiveBox('cache', limit: true);
 
   if (Platform.isAndroid) {
-    // setOptimalDisplayMode();
+    setOptimalDisplayMode();
   }
   // await setupServiceLocator();
   runApp(const MyApp());
@@ -136,23 +136,23 @@ Future<void> main() async {
 //   }
 // }
 
-// Future<void> setOptimalDisplayMode() async {
-//   final List<DisplayMode> supported = await FlutterDisplayMode.supported;
-//   final DisplayMode active = await FlutterDisplayMode.active;
+Future<void> setOptimalDisplayMode() async {
+  final List<DisplayMode> supported = await FlutterDisplayMode.supported;
+  final DisplayMode active = await FlutterDisplayMode.active;
 
-//   final List<DisplayMode> sameResolution = supported
-//       .where(
-//         (DisplayMode m) => m.width == active.width && m.height == active.height,
-//       )
-//       .toList()
-//     ..sort(
-//       (DisplayMode a, DisplayMode b) => b.refreshRate.compareTo(a.refreshRate),
-//     );
+  final List<DisplayMode> sameResolution = supported
+      .where(
+        (DisplayMode m) => m.width == active.width && m.height == active.height,
+      )
+      .toList()
+    ..sort(
+      (DisplayMode a, DisplayMode b) => b.refreshRate.compareTo(a.refreshRate),
+    );
 
-//   final DisplayMode mostOptimalMode = sameResolution.isNotEmpty ? sameResolution.first : active;
+  final DisplayMode mostOptimalMode = sameResolution.isNotEmpty ? sameResolution.first : active;
 
-//   await FlutterDisplayMode.setPreferredMode(mostOptimalMode);
-// }
+  await FlutterDisplayMode.setPreferredMode(mostOptimalMode);
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

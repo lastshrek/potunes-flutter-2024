@@ -5,6 +5,7 @@ import 'package:rxdart/rxdart.dart' as rx;
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AudioService extends GetxService {
@@ -27,6 +28,10 @@ class AudioService extends GetxService {
   final _position = Duration.zero.obs;
   final _duration = Duration.zero.obs;
 
+  // 添加重试计数器
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
+
   AudioPlayer get player => _audioPlayer;
   Map<String, dynamic>? get currentTrack => _currentTrack.value;
   List<Map<String, dynamic>> get playlist => _playlist;
@@ -36,10 +41,10 @@ class AudioService extends GetxService {
   Duration get duration => _duration.value;
 
   @override
-  void onInit() async {
+  void onInit() {
     super.onInit();
     _setupPlayerListeners();
-    await _loadLastPlaybackState();
+    _loadLastState();
   }
 
   void _setupPlayerListeners() {
@@ -100,23 +105,35 @@ class AudioService extends GetxService {
       },
     );
 
-    // 播放完成监听
+    // 修改播放完成监听
     _audioPlayer.playbackEventStream.distinct().listen(
       (event) {
         if (event.processingState == ProcessingState.completed) {
           _audioPlayer.seek(Duration.zero, index: 0);
+          _retryCount = 0;
           print('[DEBUG] Playback completed');
         } else if (event.processingState == ProcessingState.idle) {
+          if (_retryCount >= _maxRetries) {
+            print('[ERROR] Max retries reached, stopping retry attempts');
+            _retryCount = 0;
+            return;
+          }
+
           final currentTrack = _currentTrack.value;
           if (currentTrack != null) {
-            print('[DEBUG] Idle state detected, retrying track: ${currentTrack['name']}');
+            print('[DEBUG] Idle state detected, retry ${_retryCount + 1}/$_maxRetries');
             _retryCurrentTrack();
           }
         }
       },
       onError: (Object e, StackTrace st) {
-        print('Error in playbackEventStream: $e');
-        _handlePlaybackError(e);
+        print('[ERROR] Error in playbackEventStream: $e');
+        if (_retryCount < _maxRetries) {
+          _handlePlaybackError(e);
+        } else {
+          print('[ERROR] Max retries reached, stopping error handling');
+          _retryCount = 0;
+        }
       },
     );
   }
@@ -164,190 +181,236 @@ class AudioService extends GetxService {
     }
   }
 
-  Future<void> _loadLastPlaybackState() async {
+  Future<void> _loadLastState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-
-      // 加载播放列表
       final playlistJson = prefs.getString(_playlistKey);
-      if (playlistJson != null) {
-        final List<dynamic> decodedList = jsonDecode(playlistJson);
-        final List<Map<String, dynamic>> playlist = decodedList.map((item) => Map<String, dynamic>.from(item)).toList();
+      final currentTrackJson = prefs.getString(_currentTrackKey);
+      final lastPosition = prefs.getInt(_positionKey);
 
-        // 加载当前歌曲
-        final trackJson = prefs.getString(_currentTrackKey);
-        if (trackJson != null) {
-          final currentTrack = Map<String, dynamic>.from(jsonDecode(trackJson));
-          final position = Duration(milliseconds: prefs.getInt(_positionKey) ?? 0);
+      if (playlistJson != null && currentTrackJson != null) {
+        final List<dynamic> savedPlaylist = jsonDecode(playlistJson);
+        final Map<String, dynamic> savedTrack = jsonDecode(currentTrackJson);
 
-          // 先更新状态
-          _playlist.clear();
-          _playlist.addAll(playlist);
-          _currentTrack.value = currentTrack;
-          _position.value = position;
+        _playlist.value = savedPlaylist.cast<Map<String, dynamic>>();
+        _currentTrack.value = savedTrack;
+        _currentIndex.value = _playlist.indexWhere((track) => track['id'] == savedTrack['id']);
 
-          // 恢复播放
-          final index = playlist.indexWhere((track) => track['id'] == currentTrack['id']);
-          if (index != -1) {
-            _currentIndex.value = index;
-
-            try {
-              // 创建播放列表
-              final audioSource = ConcatenatingAudioSource(
-                useLazyPreparation: true,
-                shuffleOrder: DefaultShuffleOrder(),
-                children: playlist.map((track) {
-                  final uri = Uri.parse(track['url'] ?? '');
-                  return AudioSource.uri(
-                    uri,
-                    tag: MediaItem(
-                      id: track['id'].toString(),
-                      album: track['album'] ?? '',
-                      title: track['name'] ?? '',
-                      artist: track['artist'] ?? '',
-                      artUri: Uri.parse(track['cover_url'] ?? ''),
-                    ),
-                  );
-                }).toList(),
-              );
-
-              // 设置音频源
-              await _audioPlayer
-                  .setAudioSource(
-                audioSource,
-                initialIndex: index,
-                initialPosition: position,
-              )
-                  .timeout(
-                const Duration(seconds: 10),
-                onTimeout: () {
-                  print('[DEBUG] Timeout setting audio source');
-                  throw TimeoutException('Failed to set audio source');
-                },
-              );
-
-              // 设置播放器状态
-              await _audioPlayer.setVolume(1.0);
-              await _audioPlayer.setSpeed(1.0);
-              await _audioPlayer.setSkipSilenceEnabled(false);
-              await _audioPlayer.setLoopMode(LoopMode.all);
-
-              print('[DEBUG] Last playback state restored');
-              print('[DEBUG] Current track: ${currentTrack['name']}');
-              print('[DEBUG] Position: ${position.inSeconds}s');
-            } catch (e) {
-              print('Error restoring playback: $e');
-              // 清除存储的状态
-              await prefs.remove(_playlistKey);
-              await prefs.remove(_currentTrackKey);
-              await prefs.remove(_positionKey);
-
-              // 重置状态
-              _playlist.clear();
-              _currentTrack.value = null;
-              _position.value = Duration.zero;
-              _currentIndex.value = 0;
-            }
-          }
+        if (lastPosition != null) {
+          _position.value = Duration(milliseconds: lastPosition);
         }
       }
     } catch (e) {
-      print('Error loading playback state: $e');
+      if (kDebugMode) {
+        print('Error loading last state: $e');
+      }
     }
   }
 
-  Future<void> playPlaylist(List<Map<String, dynamic>> tracks, int initialIndex) async {
+  Future<void> _setAudioSource({bool autoPlay = true}) async {
+    if (_playlist.isEmpty) return;
+
     try {
-      print('Playing playlist:');
-      print('Initial track: ${tracks[initialIndex]['name']}');
-      print('URL: ${tracks[initialIndex]['url']}');
-
-      await _audioPlayer.stop();
-
-      _playlist.clear();
-      _playlist.addAll(tracks);
-
-      final playlist = ConcatenatingAudioSource(
-        useLazyPreparation: true,
-        shuffleOrder: DefaultShuffleOrder(),
-        children: tracks.map((track) {
-          final uri = Uri.parse(track['url'] ?? '');
+      final audioSource = ConcatenatingAudioSource(
+        children: _playlist.map((track) {
           return AudioSource.uri(
-            uri,
+            Uri.parse(track['url'] ?? ''),
             tag: MediaItem(
-              id: track['id'].toString(),
-              album: track['album'] ?? '',
+              id: '${track['id']}',
               title: track['name'] ?? '',
               artist: track['artist'] ?? '',
               artUri: Uri.parse(track['cover_url'] ?? ''),
             ),
-            headers: const {
-              'Accept': 'audio/mpeg, audio/mp3, audio/aac, audio/x-m4a, audio/*',
-              'Range': 'bytes=0-',
-              'User-Agent': 'PoTunes/1.0',
-            },
           );
         }).toList(),
       );
 
       await _audioPlayer.setAudioSource(
-        playlist,
-        initialIndex: initialIndex,
-        preload: true,
-        initialPosition: Duration.zero,
+        audioSource,
+        initialIndex: _currentIndex.value,
+        initialPosition: _position.value,
       );
 
-      await Future.delayed(const Duration(milliseconds: 500));
+      if (autoPlay) {
+        await _audioPlayer.play();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error setting audio source: $e');
+      }
+    }
+  }
 
+  Future<void> playPlaylist(List<Map<String, dynamic>> tracks, int initialIndex) async {
+    try {
+      // 验证输入参数
+      if (tracks.isEmpty) {
+        print('[ERROR] Cannot play empty playlist');
+        return;
+      }
+
+      if (initialIndex < 0 || initialIndex >= tracks.length) {
+        print('[ERROR] Invalid initial index: $initialIndex (playlist length: ${tracks.length})');
+        initialIndex = 0;
+      }
+
+      print('[DEBUG] Starting playPlaylist with ${tracks.length} tracks');
+      print('[DEBUG] Initial track: ${tracks[initialIndex]['name']}');
+      print('[DEBUG] URL: ${tracks[initialIndex]['url']}');
+
+      // 停止当前播放
+      await _audioPlayer.stop();
+
+      // 更新播放列表
+      _playlist.clear();
+      _playlist.addAll(tracks);
+      _currentIndex.value = initialIndex;
+      _currentTrack.value = tracks[initialIndex];
+
+      // 创建音频源
+      final playlist = ConcatenatingAudioSource(
+        useLazyPreparation: true,
+        shuffleOrder: DefaultShuffleOrder(),
+        children: tracks.map((track) {
+          final url = track['url'] as String?;
+          if (url == null || url.isEmpty) {
+            print('[WARNING] Track "${track['name']}" has no URL');
+            return AudioSource.uri(
+              Uri.parse('https://example.com/dummy.mp3'),
+              tag: MediaItem(
+                id: 'dummy',
+                title: 'Invalid Track',
+                artist: 'Unknown',
+              ),
+            );
+          }
+
+          print('[DEBUG] Adding track: ${track['name']} - $url');
+          return AudioSource.uri(
+            Uri.parse(url),
+            tag: MediaItem(
+              id: track['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+              title: track['name'] ?? '',
+              artist: track['artist'] ?? '',
+              artUri: Uri.tryParse(track['cover_url'] ?? ''),
+            ),
+          );
+        }).toList(),
+      );
+
+      print('[DEBUG] Setting audio source...');
+      await _audioPlayer
+          .setAudioSource(
+        playlist,
+        initialIndex: initialIndex,
+        initialPosition: Duration.zero,
+      )
+          .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('[ERROR] Timeout setting audio source');
+          throw TimeoutException('Failed to set audio source');
+        },
+      );
+
+      // 设置播放器状态
+      print('[DEBUG] Configuring player...');
       await _audioPlayer.setVolume(1.0);
       await _audioPlayer.setSpeed(1.0);
       await _audioPlayer.setSkipSilenceEnabled(false);
       await _audioPlayer.setLoopMode(LoopMode.all);
 
-      if (!_audioPlayer.playing) {
-        await _audioPlayer.play();
-      }
+      // 开始播放
+      print('[DEBUG] Starting playback...');
+      await _audioPlayer.play();
 
-      // 保存新的播放状态
+      // 保存状态
       await _savePlaybackState();
+      print('[DEBUG] Playback started successfully');
     } catch (e) {
-      print('Error playing playlist: $e');
-      _handlePlaybackError(e);
+      print('[ERROR] Error playing playlist: $e');
+      if (e is TimeoutException) {
+        print('[ERROR] Playback timeout - retrying...');
+        _retryCurrentTrack();
+      } else if (e is PlayerException) {
+        print('[ERROR] Player error code: ${e.code}');
+        print('[ERROR] Player error message: ${e.message}');
+        _handlePlaybackError(e);
+      } else {
+        print('[ERROR] Unknown error: $e');
+        _handlePlaybackError(e);
+      }
     }
   }
 
   void _handlePlaybackError(dynamic error) {
+    print('[ERROR] Handling playback error: $error');
+
+    if (_retryCount >= _maxRetries) {
+      print('[ERROR] Max retries reached, stopping error handling');
+      _retryCount = 0;
+      return;
+    }
+
     if (error is PlatformException) {
-      print('Platform Exception: ${error.code} - ${error.message}');
-      if (error.code == '-16044' || error.code == '0' || error.code == 'abort') {
-        // 处理 iOS 媒体错误
-        _retryWithHttps();
-      }
+      print('[ERROR] Platform Exception: ${error.code} - ${error.message}');
+      _retryCurrentTrack();
     } else if (error is PlayerException) {
-      print('Error code: ${error.code}');
-      print('Error message: ${error.message}');
-      _handlePlayerError(error);
+      print('[ERROR] Player Exception: ${error.code} - ${error.message}');
+      _retryCurrentTrack();
     } else {
-      print('An error occurred: $error');
+      print('[ERROR] Unknown error: $error');
+      _retryCurrentTrack();
     }
   }
 
   Future<void> _retryCurrentTrack() async {
+    print('[DEBUG] Retrying current track...');
     try {
       final currentTrack = _currentTrack.value;
-      if (currentTrack == null) return;
+      if (currentTrack == null) {
+        print('[DEBUG] No current track to retry');
+        return;
+      }
 
-      final index = _currentIndex.value;
+      _retryCount++;
+      if (_retryCount > _maxRetries) {
+        print('[ERROR] Max retries reached, stopping retry attempts');
+        _retryCount = 0;
+        return; // 直接返回，不再继续重试
+      }
+
+      print('[DEBUG] Retrying track: ${currentTrack['name']} (Attempt $_retryCount/$_maxRetries)');
+
+      // 尝试重新加载音频源
+      final url = currentTrack['url'] as String?;
+      if (url == null || url.isEmpty) {
+        print('[ERROR] Invalid URL for track: ${currentTrack['name']}');
+        return;
+      }
+
+      final audioSource = AudioSource.uri(
+        Uri.parse(url),
+        tag: MediaItem(
+          id: currentTrack['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          title: currentTrack['name'] ?? '',
+          artist: currentTrack['artist'] ?? '',
+          artUri: Uri.tryParse(currentTrack['cover_url'] ?? ''),
+        ),
+      );
+
       await _audioPlayer.stop();
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      // 尝试直接跳转到当前曲目
-      await _audioPlayer.seek(Duration.zero, index: index);
+      // 尝试直接设置单个音频源
+      await _audioPlayer.setAudioSource(audioSource);
       await _audioPlayer.play();
     } catch (e) {
-      print('Error retrying current track: $e');
-      // 如果简单重试失败，再尝试完整重载
-      _retryWithFullReload();
+      print('[ERROR] Error retrying current track: $e');
+      if (_retryCount >= _maxRetries) {
+        print('[ERROR] Max retries reached, stopping retry attempts');
+        _retryCount = 0;
+      }
     }
   }
 
@@ -415,11 +478,68 @@ class AudioService extends GetxService {
   }
 
   Future<void> next() async {
-    await _audioPlayer.seekToNext();
+    try {
+      if (_playlist.isEmpty) return;
+
+      final nextIndex = (_currentIndex.value + 1) % _playlist.length;
+      print('[DEBUG] Switching to next track: ${_playlist[nextIndex]['name']}');
+
+      await _audioPlayer.stop();
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // 使用单个音频源
+      final nextTrack = _playlist[nextIndex];
+      final audioSource = AudioSource.uri(
+        Uri.parse(nextTrack['url'] ?? ''),
+        tag: MediaItem(
+          id: nextTrack['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          title: nextTrack['name'] ?? '',
+          artist: nextTrack['artist'] ?? '',
+          artUri: Uri.tryParse(nextTrack['cover_url'] ?? ''),
+        ),
+      );
+
+      await _audioPlayer.setAudioSource(audioSource);
+      _currentIndex.value = nextIndex;
+      _currentTrack.value = nextTrack;
+
+      await _audioPlayer.play();
+    } catch (e) {
+      print('[ERROR] Error switching to next track: $e');
+    }
   }
 
   Future<void> previous() async {
-    await _audioPlayer.seekToPrevious();
+    try {
+      if (_playlist.isEmpty) return;
+
+      final previousIndex = _currentIndex.value > 0 ? _currentIndex.value - 1 : _playlist.length - 1;
+
+      print('[DEBUG] Switching to previous track: ${_playlist[previousIndex]['name']}');
+
+      await _audioPlayer.stop();
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // 使用单个音频源
+      final previousTrack = _playlist[previousIndex];
+      final audioSource = AudioSource.uri(
+        Uri.parse(previousTrack['url'] ?? ''),
+        tag: MediaItem(
+          id: previousTrack['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          title: previousTrack['name'] ?? '',
+          artist: previousTrack['artist'] ?? '',
+          artUri: Uri.tryParse(previousTrack['cover_url'] ?? ''),
+        ),
+      );
+
+      await _audioPlayer.setAudioSource(audioSource);
+      _currentIndex.value = previousIndex;
+      _currentTrack.value = previousTrack;
+
+      await _audioPlayer.play();
+    } catch (e) {
+      print('[ERROR] Error switching to previous track: $e');
+    }
   }
 
   Future<void> _retryPlayback(int index) async {

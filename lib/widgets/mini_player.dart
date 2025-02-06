@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../services/audio_service.dart';
 import 'package:get/get.dart';
+import 'package:just_audio/just_audio.dart';
 
 class MiniPlayer extends StatelessWidget {
   final bool isAboveBottomBar;
@@ -144,14 +145,34 @@ class MiniPlayer extends StatelessWidget {
                                 ),
                                 onPressed: controller.previous,
                               ),
-                              IconButton(
-                                icon: FaIcon(
-                                  controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                onPressed: controller.togglePlay,
-                              ),
+                              // 播放/暂停按钮
+                              Obx(() {
+                                final isLoading = controller.player.processingState == ProcessingState.loading || controller.player.processingState == ProcessingState.buffering;
+
+                                return SizedBox(
+                                  width: 40,
+                                  height: 40,
+                                  child: isLoading
+                                      ? const Center(
+                                          child: SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                            ),
+                                          ),
+                                        )
+                                      : IconButton(
+                                          icon: FaIcon(
+                                            controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          onPressed: controller.togglePlay,
+                                        ),
+                                );
+                              }),
                               IconButton(
                                 icon: const FaIcon(
                                   FontAwesomeIcons.forward,
