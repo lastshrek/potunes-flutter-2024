@@ -21,12 +21,15 @@ class AudioService extends GetxService {
   final _isPlaying = RxBool(false);
   final _position = Rx<Duration>(Duration.zero);
   final _duration = Rx<Duration>(Duration.zero);
+  final _currentPageIndex = 0.obs;
 
   bool get isPlaying => _isPlaying.value;
   Map<String, dynamic>? get currentTrack => _currentTrack.value;
   Duration get position => _position.value;
   Duration get duration => _duration.value;
   AudioPlayer get player => _audioPlayer;
+  int get currentPageIndex => _currentPageIndex.value;
+  set currentPageIndex(int value) => _currentPageIndex.value = value;
 
   @override
   void onInit() {
