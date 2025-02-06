@@ -5,6 +5,8 @@ import 'package:palette_generator/palette_generator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../services/network_service.dart';
+import '../../services/audio_service.dart';
+import '../../widgets/mini_player.dart';
 
 class PlaylistPage extends StatefulWidget {
   final Map<String, dynamic> playlist;
@@ -106,113 +108,102 @@ class _PlaylistPageState extends State<PlaylistPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: const [0.0, 0.3, 1.0],
-            colors: [
-              dominantColor?.withOpacity(0.95) ?? const Color(0xff161616),
-              dominantColor?.withOpacity(0.5) ?? const Color(0xff161616).withOpacity(0.5),
-              Colors.black,
-            ],
-          ),
-        ),
-        child: _isLoading ? _buildSkeleton(context) : _buildContent(),
-      ),
-    );
-  }
-
-  Widget _buildContent() {
-    return Stack(
-      children: [
-        CustomScrollView(
-          controller: _scrollController,
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            _buildSliverAppBar(),
-            SliverToBoxAdapter(
-              child: _buildPlaylistHeader(),
-            ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index >= tracks.length) return null;
-                  final track = tracks[index];
-                  return ListTile(
-                    key: ValueKey('track_${track['id']}'),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    leading: ClipRRect(
-                      borderRadius: BorderRadius.circular(4.0),
-                      child: CachedNetworkImage(
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.cover,
-                        imageUrl: track['cover_url'] ?? '',
-                        placeholder: (context, url) => Container(
-                          color: Colors.grey[800],
-                          child: const Icon(
-                            Icons.music_note,
-                            color: Colors.white54,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 主要内容区域
+            Expanded(
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  _buildSliverAppBar(),
+                  SliverToBoxAdapter(
+                    child: _buildPlaylistHeader(),
+                  ),
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        if (index >= tracks.length) return null;
+                        final track = tracks[index];
+                        return ListTile(
+                          key: ValueKey('track_${track['id']}'),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(4.0),
+                            child: CachedNetworkImage(
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              imageUrl: track['cover_url'] ?? '',
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[800],
+                                child: const Icon(
+                                  Icons.music_note,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey[800],
+                                child: const Icon(
+                                  Icons.music_note,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.grey[800],
-                          child: const Icon(
-                            Icons.music_note,
-                            color: Colors.white54,
+                          title: RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '${index + 1}. ',
+                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                ),
+                                TextSpan(
+                                  text: track['name'] ?? '',
+                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.white,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ),
-                    ),
-                    title: RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '${index + 1}. ',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
+                          subtitle: Text(
+                            track['artist'] ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey,
                                 ),
                           ),
-                          TextSpan(
-                            text: track['name'] ?? '',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                ),
-                          ),
-                        ],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                          onTap: () {
+                            AudioService.to.playPlaylist(
+                              List<Map<String, dynamic>>.from(tracks),
+                              index,
+                            );
+                          },
+                        );
+                      },
+                      childCount: tracks.length,
                     ),
-                    subtitle: Text(
-                      track['artist'] ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey,
-                          ),
-                    ),
-                    onTap: () {
-                      if (kDebugMode) {
-                        print('Playing: ${track['name']} - ${track['artist']}');
-                        print('URL: ${track['url']}');
-                      }
-                    },
-                  );
-                },
-                childCount: tracks.length,
+                  ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: 32),
+                  ),
+                ],
               ),
             ),
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 32),
-            ),
+            // 添加 MiniPlayer
+            const MiniPlayer(),
           ],
         ),
-      ],
+      ),
     );
   }
 
@@ -518,7 +509,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       size: 20,
                     ),
                     onPressed: () {
-                      // TODO: 实现随机播放
+                      final shuffledTracks = List<Map<String, dynamic>>.from(tracks)..shuffle();
+                      AudioService.to.playPlaylist(
+                        shuffledTracks,
+                        0,
+                      );
                     },
                   ),
                   const SizedBox(width: 8),
@@ -534,7 +529,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(24),
                         onTap: () {
-                          // TODO: 实现播放全部
+                          AudioService.to.playPlaylist(
+                            List<Map<String, dynamic>>.from(tracks),
+                            0,
+                          );
                         },
                         child: const Center(
                           child: FaIcon(

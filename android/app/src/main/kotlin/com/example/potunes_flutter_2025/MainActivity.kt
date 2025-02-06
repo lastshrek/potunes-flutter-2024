@@ -1,5 +1,5 @@
 package com.example.potunes_flutter_2025
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 
-class MainActivity: FlutterActivity()
+class MainActivity: AudioServiceActivity()

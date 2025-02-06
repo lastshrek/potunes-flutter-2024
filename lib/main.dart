@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 // import 'package:hive_flutter/hive_flutter.dart';
 // import 'package:path_provider/path_provider.dart';
 // import 'package:potunes_flutter/screens/favourites.dart';
@@ -13,27 +14,40 @@ import 'package:flutter/foundation.dart';
 // import 'services/service_locator.dart';
 // import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'screens/home_screen.dart';
+import 'services/audio_service.dart';
+import 'controllers/navigation_controller.dart';
+// import 'screens/mini_player.dart';
+// import 'controllers/navigation_controller.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 禁用所有系统日志
-  if (Platform.isAndroid) {
-    const MethodChannel('flutter/service_worker').setMethodCallHandler(null);
-    const MethodChannel('flutter/platform').setMethodCallHandler(null);
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.potunes.channel.audio',
+    androidNotificationChannelName: 'Audio playback',
+    androidNotificationOngoing: true,
+  );
 
-    // 尝试禁用系统日志
-    try {
-      await const MethodChannel('flutter/platform').invokeMethod('systemLogger', false);
-      await SystemChannels.platform.invokeMethod('SystemNavigator.setSystemUIOverlayStyle', {
-        'systemNavigationBarColor': '#00000000',
-        'systemNavigationBarDividerColor': '#00000000',
-        'statusBarColor': '#00000000',
-        'systemNavigationBarIconBrightness': Brightness.light.index,
-        'statusBarIconBrightness': Brightness.light.index,
-        'statusBarBrightness': Brightness.dark.index,
-      });
-    } catch (_) {}
+  Get.put(AudioService());
+  Get.put(NavigationController());
+
+  // 修改系统UI配置的方式
+  if (Platform.isAndroid) {
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
+
+    // 禁用调试日志
+    if (!kDebugMode) {
+      debugPrint = (String? message, {int? wrapWidth}) {};
+    }
   }
 
   // 完全禁用调试打印
@@ -122,20 +136,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        systemNavigationBarColor: Colors.black38,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarIconBrightness: Brightness.light,
-      ),
-    );
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     return GetMaterialApp(
       title: 'PoTunes',
       debugShowCheckedModeBanner: false,
@@ -167,23 +167,33 @@ class MyApp extends StatelessWidget {
           circularTrackColor: Color(0x40DA5597), // Custom Pink with opacity
         ),
       ),
-      getPages: [
-        GetPage(name: '/', page: () => const HomeScreen()),
-        // GetPage(name: '/', page: () => SettingScreen()),
-        // GetPage(name: '/playlist', page: () => const PlaylistScreen(), transition: Transition.cupertinoDialog),
-        // GetPage(name: '/nowplaying', page: () => const NowPlayingScreen(), transition: Transition.downToUp),
-        // GetPage(name: '/albums', page: () => const AlbumsScreen(), transition: Transition.cupertinoDialog),
-        // GetPage(name: '/about', page: () => const AboutScreen(), transition: Transition.rightToLeft),
-        // GetPage(name: '/auth', page: () => const AuthScreen(), transition: Transition.downToUp),
-        // GetPage(name: '/library', page: () => const LibraryPage(), transition: Transition.cupertinoDialog),
-        // GetPage(
-        //     name: '/favourite',
-        //     page: () => const Favourites(
-        //           playlistName: 'Favorite Songs',
-        //         )),
-        // GetPage(name: '/settings', page: () => SettingScreen(), transition: Transition.rightToLeft),
-        // GetPage(name: '/album', page: () => const AlbumScreen(), transition: Transition.cupertinoDialog),
-      ],
+      builder: (context, child) {
+        return Scaffold(
+          body: child ?? const SizedBox.shrink(),
+        );
+      },
+      home: FutureBuilder(
+        future: Future.wait([
+          Future.delayed(const Duration(milliseconds: 500)),
+          SystemChrome.setPreferredOrientations([
+            DeviceOrientation.portraitUp,
+            DeviceOrientation.portraitDown,
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]),
+        ]),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done) {
+            return const HomeScreen();
+          }
+          return const Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        },
+      ),
     );
   }
 }
