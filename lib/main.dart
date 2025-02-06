@@ -28,10 +28,24 @@ Future<void> main() async {
     androidNotificationOngoing: true,
   );
 
-  Get.put(AudioService());
-  Get.put(NavigationController());
+  // 初始化 GetX 服务
+  final audioService = Get.put(AudioService());
+  final navigationController = Get.put(NavigationController());
 
-  // 修改系统UI配置的方式
+  // 修改日志处理逻辑
+  if (kDebugMode) {
+    // 在调试模式下启用所有日志
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.dumpErrorToConsole(details);
+    };
+  } else {
+    // 在发布模式下只显示关键错误
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+    };
+  }
+
+  // 只在 Android 上应用特定的系统 UI 配置
   if (Platform.isAndroid) {
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -44,7 +58,7 @@ Future<void> main() async {
       ),
     );
 
-    // 禁用调试日志
+    // 只在 Android 调试模式下禁用日志
     if (!kDebugMode) {
       debugPrint = (String? message, {int? wrapWidth}) {};
     }
@@ -61,14 +75,6 @@ Future<void> main() async {
       }
     };
   }
-
-  // 设置日志过滤器
-  FlutterError.onError = (FlutterErrorDetails details) {
-    // 只在调试模式下打印错误
-    if (kDebugMode) {
-      FlutterError.dumpErrorToConsole(details);
-    }
-  };
 
   // if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
   //   await Hive.initFlutter('Potunes');

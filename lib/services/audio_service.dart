@@ -3,62 +3,113 @@ import 'package:get/get.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:rxdart/rxdart.dart' as rx;
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AudioService extends GetxService {
-  static AudioService get to => Get.find();
-  static final AudioService _instance = AudioService._internal();
+  static AudioService get to => Get.find<AudioService>();
 
-  factory AudioService() => _instance;
-  AudioService._internal();
+  static const String _playlistKey = 'last_playlist';
+  static const String _currentTrackKey = 'current_track';
+  static const String _positionKey = 'last_position';
+
+  // 使用普通构造函数
+  AudioService();
 
   // 使用 late 确保只初始化一次
-  late final AudioPlayer _audioPlayer = AudioPlayer(
-    handleInterruptions: true,
-    androidApplyAudioAttributes: true,
-    handleAudioSessionActivation: true,
-    audioLoadConfiguration: const AudioLoadConfiguration(
-      androidLoadControl: AndroidLoadControl(
-        minBufferDuration: Duration(seconds: 10),
-        maxBufferDuration: Duration(seconds: 30),
-        bufferForPlaybackDuration: Duration(seconds: 2),
-        bufferForPlaybackAfterRebufferDuration: Duration(seconds: 4),
-        targetBufferBytes: 8 * 1024 * 1024,
-        prioritizeTimeOverSizeThresholds: false,
-      ),
-      darwinLoadControl: DarwinLoadControl(
-        preferredForwardBufferDuration: Duration(seconds: 10),
-      ),
-    ),
-  );
+  late final AudioPlayer _audioPlayer = AudioPlayer();
 
   final _currentTrack = Rx<Map<String, dynamic>?>(null);
   final _playlist = RxList<Map<String, dynamic>>([]);
   final _isPlaying = false.obs;
   final _currentIndex = 0.obs;
+  final _position = Duration.zero.obs;
+  final _duration = Duration.zero.obs;
 
   AudioPlayer get player => _audioPlayer;
   Map<String, dynamic>? get currentTrack => _currentTrack.value;
   List<Map<String, dynamic>> get playlist => _playlist;
   bool get isPlaying => _isPlaying.value;
   int get currentIndex => _currentIndex.value;
+  Duration get position => _position.value;
+  Duration get duration => _duration.value;
 
   @override
-  void onInit() {
+  void onInit() async {
     super.onInit();
     _setupPlayerListeners();
+    await _loadLastPlaybackState();
   }
 
   void _setupPlayerListeners() {
-    _audioPlayer.playbackEventStream.throttleTime(const Duration(milliseconds: 300)).listen(
+    // 播放状态监听
+    _audioPlayer.playerStateStream.distinct().listen(
+      (state) {
+        _isPlaying.value = state.playing;
+        print('[DEBUG] Playing state: ${state.playing}');
+        print('[DEBUG] Processing state: ${state.processingState}');
+      },
+      onError: (Object e, StackTrace st) {
+        print('Error in playerStateStream: $e');
+      },
+    );
+
+    // 当前索引监听
+    _audioPlayer.currentIndexStream.distinct().listen(
+      (index) {
+        if (index != null && index < _playlist.length) {
+          _currentIndex.value = index;
+          _currentTrack.value = _playlist[index];
+          print('[DEBUG] Current track changed: ${_currentTrack.value?['name']}');
+        }
+      },
+      onError: (Object e, StackTrace st) {
+        print('Error in currentIndexStream: $e');
+      },
+    );
+
+    // 时长监听
+    _audioPlayer.durationStream.distinct().listen(
+      (duration) {
+        if (duration != null) {
+          _duration.value = duration;
+          print('[DEBUG] Duration updated: ${duration.inSeconds}s');
+        }
+      },
+      onError: (Object e, StackTrace st) {
+        print('Error in durationStream: $e');
+      },
+    );
+
+    // 位置监听
+    _audioPlayer.positionStream.throttleTime(const Duration(milliseconds: 200)).listen(
+      (position) {
+        _position.value = position;
+        if (_isPlaying.value) {
+          final duration = _duration.value;
+          print('[DEBUG] Position: ${position.inSeconds}s / ${duration.inSeconds}s');
+          if (duration.inMilliseconds > 0) {
+            final progress = position.inMilliseconds / duration.inMilliseconds;
+            print('[DEBUG] Progress: ${(progress * 100).toStringAsFixed(1)}%');
+          }
+        }
+      },
+      onError: (Object e, StackTrace st) {
+        print('Error in positionStream: $e');
+      },
+    );
+
+    // 播放完成监听
+    _audioPlayer.playbackEventStream.distinct().listen(
       (event) {
         if (event.processingState == ProcessingState.completed) {
           _audioPlayer.seek(Duration.zero, index: 0);
+          print('[DEBUG] Playback completed');
         } else if (event.processingState == ProcessingState.idle) {
-          // 尝试重新加载当前曲目
           final currentTrack = _currentTrack.value;
           if (currentTrack != null) {
-            print('Current track URL: ${currentTrack['url']}');
+            print('[DEBUG] Idle state detected, retrying track: ${currentTrack['name']}');
             _retryCurrentTrack();
           }
         }
@@ -66,27 +117,6 @@ class AudioService extends GetxService {
       onError: (Object e, StackTrace st) {
         print('Error in playbackEventStream: $e');
         _handlePlaybackError(e);
-      },
-    );
-
-    _audioPlayer.playerStateStream.throttleTime(const Duration(milliseconds: 100)).listen(
-      (state) {
-        _isPlaying.value = state.playing;
-      },
-      onError: (Object e, StackTrace st) {
-        print('Error in playerStateStream: $e');
-      },
-    );
-
-    _audioPlayer.currentIndexStream.throttleTime(const Duration(milliseconds: 100)).listen(
-      (index) {
-        if (index != null && index < _playlist.length) {
-          _currentIndex.value = index;
-          _currentTrack.value = _playlist[index];
-        }
-      },
-      onError: (Object e, StackTrace st) {
-        print('Error in currentIndexStream: $e');
       },
     );
   }
@@ -102,9 +132,128 @@ class AudioService extends GetxService {
   }
 
   @override
-  void onClose() {
-    _audioPlayer.stop();
+  void onClose() async {
+    await _savePlaybackState();
+    await _audioPlayer.stop();
     super.onClose();
+  }
+
+  Future<void> _savePlaybackState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // 保存播放列表
+      if (_playlist.isNotEmpty) {
+        final playlistJson = jsonEncode(_playlist.toList());
+        await prefs.setString(_playlistKey, playlistJson);
+      }
+
+      // 保存当前歌曲
+      if (_currentTrack.value != null) {
+        final trackJson = jsonEncode(_currentTrack.value);
+        await prefs.setString(_currentTrackKey, trackJson);
+
+        // 保存播放位置
+        final position = _position.value.inMilliseconds;
+        await prefs.setInt(_positionKey, position);
+      }
+
+      print('[DEBUG] Playback state saved');
+    } catch (e) {
+      print('Error saving playback state: $e');
+    }
+  }
+
+  Future<void> _loadLastPlaybackState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // 加载播放列表
+      final playlistJson = prefs.getString(_playlistKey);
+      if (playlistJson != null) {
+        final List<dynamic> decodedList = jsonDecode(playlistJson);
+        final List<Map<String, dynamic>> playlist = decodedList.map((item) => Map<String, dynamic>.from(item)).toList();
+
+        // 加载当前歌曲
+        final trackJson = prefs.getString(_currentTrackKey);
+        if (trackJson != null) {
+          final currentTrack = Map<String, dynamic>.from(jsonDecode(trackJson));
+          final position = Duration(milliseconds: prefs.getInt(_positionKey) ?? 0);
+
+          // 先更新状态
+          _playlist.clear();
+          _playlist.addAll(playlist);
+          _currentTrack.value = currentTrack;
+          _position.value = position;
+
+          // 恢复播放
+          final index = playlist.indexWhere((track) => track['id'] == currentTrack['id']);
+          if (index != -1) {
+            _currentIndex.value = index;
+
+            try {
+              // 创建播放列表
+              final audioSource = ConcatenatingAudioSource(
+                useLazyPreparation: true,
+                shuffleOrder: DefaultShuffleOrder(),
+                children: playlist.map((track) {
+                  final uri = Uri.parse(track['url'] ?? '');
+                  return AudioSource.uri(
+                    uri,
+                    tag: MediaItem(
+                      id: track['id'].toString(),
+                      album: track['album'] ?? '',
+                      title: track['name'] ?? '',
+                      artist: track['artist'] ?? '',
+                      artUri: Uri.parse(track['cover_url'] ?? ''),
+                    ),
+                  );
+                }).toList(),
+              );
+
+              // 设置音频源
+              await _audioPlayer
+                  .setAudioSource(
+                audioSource,
+                initialIndex: index,
+                initialPosition: position,
+              )
+                  .timeout(
+                const Duration(seconds: 10),
+                onTimeout: () {
+                  print('[DEBUG] Timeout setting audio source');
+                  throw TimeoutException('Failed to set audio source');
+                },
+              );
+
+              // 设置播放器状态
+              await _audioPlayer.setVolume(1.0);
+              await _audioPlayer.setSpeed(1.0);
+              await _audioPlayer.setSkipSilenceEnabled(false);
+              await _audioPlayer.setLoopMode(LoopMode.all);
+
+              print('[DEBUG] Last playback state restored');
+              print('[DEBUG] Current track: ${currentTrack['name']}');
+              print('[DEBUG] Position: ${position.inSeconds}s');
+            } catch (e) {
+              print('Error restoring playback: $e');
+              // 清除存储的状态
+              await prefs.remove(_playlistKey);
+              await prefs.remove(_currentTrackKey);
+              await prefs.remove(_positionKey);
+
+              // 重置状态
+              _playlist.clear();
+              _currentTrack.value = null;
+              _position.value = Duration.zero;
+              _currentIndex.value = 0;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error loading playback state: $e');
+    }
   }
 
   Future<void> playPlaylist(List<Map<String, dynamic>> tracks, int initialIndex) async {
@@ -158,6 +307,9 @@ class AudioService extends GetxService {
       if (!_audioPlayer.playing) {
         await _audioPlayer.play();
       }
+
+      // 保存新的播放状态
+      await _savePlaybackState();
     } catch (e) {
       print('Error playing playlist: $e');
       _handlePlaybackError(e);
@@ -167,8 +319,8 @@ class AudioService extends GetxService {
   void _handlePlaybackError(dynamic error) {
     if (error is PlatformException) {
       print('Platform Exception: ${error.code} - ${error.message}');
-      if (error.code == '0' || error.code == 'abort') {
-        // 处理连接错误
+      if (error.code == '-16044' || error.code == '0' || error.code == 'abort') {
+        // 处理 iOS 媒体错误
         _retryWithHttps();
       }
     } else if (error is PlayerException) {
