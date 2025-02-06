@@ -4,9 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:just_audio/just_audio.dart';
 
 import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
@@ -631,47 +629,9 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                     },
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: dominantColor ?? const Color(0xff161616),
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: Obx(() {
-                        final isLoading = AudioService.to.player.processingState == ProcessingState.loading || AudioService.to.player.processingState == ProcessingState.buffering;
-
-                        return isLoading
-                            ? const Center(
-                                child: SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                ),
-                              )
-                            : InkWell(
-                                borderRadius: BorderRadius.circular(24),
-                                onTap: () {
-                                  AudioService.to.playPlaylist(
-                                    List<Map<String, dynamic>>.from(tracks),
-                                    0,
-                                  );
-                                },
-                                child: const Center(
-                                  child: FaIcon(
-                                    FontAwesomeIcons.play,
-                                    color: Colors.white,
-                                    size: 24,
-                                  ),
-                                ),
-                              );
-                      }),
-                    ),
+                  PlayButton(
+                    backgroundColor: dominantColor,
+                    tracks: List<Map<String, dynamic>>.from(tracks),
                   ),
                 ],
               ),
@@ -688,6 +648,48 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class PlayButton extends StatelessWidget {
+  final Color? backgroundColor;
+  final List<Map<String, dynamic>> tracks;
+
+  const PlayButton({
+    super.key,
+    required this.backgroundColor,
+    required this.tracks,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: backgroundColor ?? const Color(0xff161616),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: GetX<AudioService>(
+          builder: (controller) => InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () => AudioService.to.playPlaylist(
+              List<Map<String, dynamic>>.from(tracks),
+              0,
+            ),
+            child: const Center(
+              child: FaIcon(
+                FontAwesomeIcons.play,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
