@@ -29,7 +29,7 @@ Future<void> main() async {
   );
 
   // 初始化 GetX 服务
-  final audioService = Get.put(AudioService());
+  Get.put(AudioService(), permanent: true);
   final navigationController = Get.put(NavigationController());
 
   // 修改日志处理逻辑

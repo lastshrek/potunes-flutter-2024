@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../services/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
+import '../screens/pages/now_playing_page.dart';
 
 class MiniPlayer extends StatelessWidget {
   final bool isAboveBottomBar;
@@ -52,30 +53,46 @@ class MiniPlayer extends StatelessWidget {
           curve: Curves.easeInOut,
           builder: (context, bottomMargin, child) {
             return Padding(
-              padding: EdgeInsets.only(
-                bottom: bottomMargin,
-                top: 0, // 当不在底部导航栏上方时，向上移动4像素
-              ),
+              padding: EdgeInsets.only(bottom: bottomMargin),
               child: child,
             );
           },
           child: Hero(
             tag: 'mini_player',
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 播放器主体
-                Container(
-                  height: 64,
-                  color: Colors.black87,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      splashFactory: NoSplash.splashFactory,
-                      highlightColor: Colors.transparent,
-                      onTap: () {
-                        // TODO: 打开播放详情页
+            child: Material(
+              // 添加 Material widget 以支持水波纹效果
+              color: Colors.transparent,
+              child: InkWell(
+                // 使用 InkWell 替代 GestureDetector
+                onTap: () {
+                  Navigator.of(context).push(
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) {
+                        return const NowPlayingPage();
                       },
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(0.0, 1.0);
+                        const end = Offset.zero;
+                        const curve = Curves.easeInOut;
+                        var tween = Tween(begin: begin, end: end).chain(
+                          CurveTween(curve: curve),
+                        );
+                        var offsetAnimation = animation.drive(tween);
+                        return SlideTransition(
+                          position: offsetAnimation,
+                          child: child,
+                        );
+                      },
+                    ),
+                  );
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 播放器主体
+                    Container(
+                      height: 64,
+                      color: Colors.black87,
                       child: Row(
                         children: [
                           // 封面
@@ -169,35 +186,35 @@ class MiniPlayer extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ),
-                ),
-                // 进度条
-                Container(
-                  width: double.infinity,
-                  height: 2,
-                  color: Colors.black87, // 与播放器主体颜色相同
-                  child: StreamBuilder<Duration>(
-                    stream: controller.player.positionStream,
-                    builder: (context, snapshot) {
-                      final position = snapshot.data ?? Duration.zero;
-                      final duration = controller.duration;
-                      final progress = duration.inMilliseconds > 0 ? position.inMilliseconds / duration.inMilliseconds : 0.0;
+                    // 进度条
+                    Container(
+                      width: double.infinity,
+                      height: 2,
+                      color: Colors.black87, // 与播放器主体颜色相同
+                      child: StreamBuilder<Duration>(
+                        stream: controller.player.positionStream,
+                        builder: (context, snapshot) {
+                          final position = snapshot.data ?? Duration.zero;
+                          final duration = controller.duration;
+                          final progress = duration.inMilliseconds > 0 ? position.inMilliseconds / duration.inMilliseconds : 0.0;
 
-                      print('[DEBUG] Progress bar value: $progress');
+                          print('[DEBUG] Progress bar value: $progress');
 
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(1),
-                        child: LinearProgressIndicator(
-                          value: progress.clamp(0.0, 1.0),
-                          backgroundColor: Colors.white.withOpacity(0.1),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                          minHeight: 2,
-                        ),
-                      );
-                    },
-                  ),
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(1),
+                            child: LinearProgressIndicator(
+                              value: progress.clamp(0.0, 1.0),
+                              backgroundColor: Colors.white.withOpacity(0.1),
+                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                              minHeight: 2,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );
