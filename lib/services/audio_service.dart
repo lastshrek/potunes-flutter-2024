@@ -31,8 +31,17 @@ class AudioService extends GetxService {
   String? _currentLyricsId;
   final _isLoadingLyrics = RxBool(false);
 
+  // 添加随机播放状态
+  final _isShuffleMode = RxBool(false);
+  final _shuffledIndices = <int>[].obs;
+  int _currentShuffleIndex = 0;
+
   // 添加 rxPosition getter
   Rx<Duration> get rxPosition => _position;
+
+  // 添加 getter
+  List<Map<String, dynamic>>? get currentPlaylist => _currentPlaylist.value;
+  int get currentIndex => _currentIndex.value;
 
   bool get isPlaying => _isPlaying.value;
   Map<String, dynamic>? get currentTrack => _currentTrack.value;
@@ -44,6 +53,7 @@ class AudioService extends GetxService {
   List<LyricLine>? get lyrics => _parsedLyrics.value;
   int get currentLineIndex => _currentLineIndex.value;
   bool get isLoadingLyrics => _isLoadingLyrics.value;
+  bool get isShuffleMode => _isShuffleMode.value;
 
   @override
   void onInit() {
@@ -149,8 +159,21 @@ class AudioService extends GetxService {
 
   Future<void> previous() async {
     try {
-      if (_currentPlaylist.value == null || _currentIndex.value <= 0) return;
-      _currentIndex.value--;
+      if (_currentPlaylist.value == null) return;
+
+      if (_isShuffleMode.value) {
+        // 随机播放模式
+        _currentShuffleIndex--;
+        if (_currentShuffleIndex < 0) {
+          _currentShuffleIndex = _shuffledIndices.length - 1;
+        }
+        _currentIndex.value = _shuffledIndices[_currentShuffleIndex];
+      } else {
+        // 顺序播放模式
+        if (_currentIndex.value <= 0) return;
+        _currentIndex.value--;
+      }
+
       await playTrack(_currentPlaylist.value![_currentIndex.value]);
       _saveLastState();
     } catch (e) {
@@ -160,8 +183,25 @@ class AudioService extends GetxService {
 
   Future<void> next() async {
     try {
-      if (_currentPlaylist.value == null || _currentIndex.value >= _currentPlaylist.value!.length - 1) return;
-      _currentIndex.value++;
+      if (_currentPlaylist.value == null) return;
+
+      if (_isShuffleMode.value) {
+        // 随机播放模式
+        _currentShuffleIndex++;
+        if (_currentShuffleIndex >= _shuffledIndices.length) {
+          // 如果到达列表末尾，重新打乱
+          final indices = List.generate(_currentPlaylist.value!.length, (i) => i);
+          indices.shuffle();
+          _shuffledIndices.value = indices;
+          _currentShuffleIndex = 0;
+        }
+        _currentIndex.value = _shuffledIndices[_currentShuffleIndex];
+      } else {
+        // 顺序播放模式
+        if (_currentIndex.value >= _currentPlaylist.value!.length - 1) return;
+        _currentIndex.value++;
+      }
+
       await playTrack(_currentPlaylist.value![_currentIndex.value]);
       _saveLastState();
     } catch (e) {
@@ -309,5 +349,20 @@ class AudioService extends GetxService {
     final filteredLyrics = lyrics.where((line) => line.original.isNotEmpty || (line.translation?.isNotEmpty ?? false)).toList();
 
     return filteredLyrics.isNotEmpty ? filteredLyrics : null;
+  }
+
+  // 添加切换随机播放的方法
+  void toggleShuffle() {
+    _isShuffleMode.value = !_isShuffleMode.value;
+
+    if (_isShuffleMode.value) {
+      // 启用随机播放时，生成随机顺序
+      final indices = List.generate(_currentPlaylist.value?.length ?? 0, (i) => i);
+      indices.remove(_currentIndex.value); // 移除当前播放的歌曲
+      indices.shuffle(); // 打乱顺序
+      indices.insert(0, _currentIndex.value); // 将当前歌曲放在第一位
+      _shuffledIndices.value = indices;
+      _currentShuffleIndex = 0;
+    }
   }
 }

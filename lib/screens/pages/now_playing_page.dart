@@ -9,6 +9,7 @@ import '../../config/api_config.dart';
 import '../../models/lyric_line.dart';
 import 'dart:math' as math;
 import 'dart:async';
+import 'dart:ui';
 
 class NowPlayingPage extends StatefulWidget {
   const NowPlayingPage({super.key});
@@ -282,7 +283,8 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       animation: _pageController,
       builder: (context, child) {
         double page = _pageController.hasClients ? _pageController.page ?? 0 : 0;
-        double width = pageIndex == page.round() ? 24.0 : 16.0;
+        bool isSelected = pageIndex == page.round();
+        double width = isSelected ? 16.0 : 4.0; // 选中的长度减半，未选中使用圆点
 
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
@@ -290,8 +292,8 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           height: 4,
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(2),
-            color: Colors.white.withOpacity(pageIndex == page.round() ? 1.0 : 0.5),
+            borderRadius: BorderRadius.circular(isSelected ? 2 : 2), // 圆角保持一致
+            color: Colors.white.withOpacity(isSelected ? 1.0 : 0.5),
           ),
         );
       },
@@ -355,7 +357,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             padding: EdgeInsets.only(
               left: 32.0,
               right: 32.0,
-              bottom: bottomPadding + 32.0,
+              bottom: bottomPadding + 15.0,
             ),
             child: Column(
               children: [
@@ -371,7 +373,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
                   track['artist'] ?? '',
                   style: TextStyle(
@@ -380,7 +382,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 32), // 减小间距
+                const SizedBox(height: 20),
                 // 进度条
                 GetX<AudioService>(
                   builder: (controller) {
@@ -439,20 +441,22 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     );
                   },
                 ),
-                const SizedBox(height: 16), // 减小间距
+                const SizedBox(height: 16),
                 // 播放控制
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     IconButton(
-                      icon: FaIcon(
-                        FontAwesomeIcons.shuffle,
-                        size: 20,
-                        color: Colors.white.withOpacity(0.8),
+                      icon: GetX<AudioService>(
+                        builder: (controller) => FaIcon(
+                          FontAwesomeIcons.shuffle,
+                          size: 20,
+                          color: Colors.white.withOpacity(
+                            controller.isShuffleMode ? 1.0 : 0.4,
+                          ),
+                        ),
                       ),
-                      onPressed: () {
-                        // TODO: 实现随机播放
-                      },
+                      onPressed: AudioService.to.toggleShuffle,
                     ),
                     IconButton(
                       icon: FaIcon(
@@ -510,7 +514,50 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
+                // 添加 Coming Up Next 容器
+                GestureDetector(
+                  onTap: _showPlaylistSheet,
+                  child: Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          height: 40,
+                          width: 160,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.black.withOpacity(0.5),
+                                Colors.black.withOpacity(0.3),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.1),
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Coming Up Next',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -649,14 +696,16 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             IconButton(
-                              icon: FaIcon(
-                                FontAwesomeIcons.shuffle,
-                                size: 20,
-                                color: Colors.white.withOpacity(0.8),
+                              icon: GetX<AudioService>(
+                                builder: (controller) => FaIcon(
+                                  FontAwesomeIcons.shuffle,
+                                  size: 20,
+                                  color: Colors.white.withOpacity(
+                                    controller.isShuffleMode ? 1.0 : 0.4,
+                                  ),
+                                ),
                               ),
-                              onPressed: () {
-                                // TODO: 实现随机播放
-                              },
+                              onPressed: AudioService.to.toggleShuffle,
                             ),
                             IconButton(
                               icon: FaIcon(
@@ -824,5 +873,222 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final extraPadding = hasTranslation ? 12.0 : 0.0;
 
     return math.max(56.0, textHeight + verticalPadding + extraPadding);
+  }
+
+  void _showPlaylistSheet() {
+    final currentIndex = AudioService.to.currentIndex;
+    final scrollController = ScrollController(
+      initialScrollOffset: currentIndex * 72.0, // 72.0 是每个列表项的高度
+    );
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.9),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // 顶部拖动条
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // 标题
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Coming Up Next',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // 播放列表
+            Expanded(
+              child: GetX<AudioService>(
+                builder: (controller) {
+                  final playlist = controller.currentPlaylist;
+                  final currentIndex = controller.currentIndex;
+                  if (playlist == null) return const SizedBox.shrink();
+
+                  // 重新排序列表，将当前播放的歌曲放在第一位
+                  final reorderedPlaylist = [
+                    playlist[currentIndex],
+                    ...playlist.sublist(0, currentIndex),
+                    ...playlist.sublist(currentIndex + 1),
+                  ];
+
+                  return ListView.builder(
+                    controller: scrollController,
+                    padding: const EdgeInsets.only(bottom: 32),
+                    itemCount: reorderedPlaylist.length,
+                    itemBuilder: (context, index) {
+                      final track = reorderedPlaylist[index];
+                      final isPlaying = track['id'] == playlist[currentIndex]['id'];
+
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            // 找到原始索引
+                            final originalIndex = playlist.indexWhere((t) => t['id'] == track['id']);
+                            controller.playTrack(playlist[originalIndex]);
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              children: [
+                                // 播放状态指示器
+                                SizedBox(
+                                  width: 24,
+                                  child: isPlaying
+                                      ? const _PlayingIndicator()
+                                      : Text(
+                                          '${index + 1}',
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.5),
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                ),
+                                const SizedBox(width: 8), // 减小间距
+                                // 歌曲封面
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: CachedNetworkImage(
+                                    imageUrl: track['cover_url'] ?? '',
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                const SizedBox(width: 8), // 减小间距
+                                // 歌曲信息
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        track['name'] ?? '',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(
+                                            isPlaying ? 1.0 : 0.9,
+                                          ),
+                                          fontSize: 16,
+                                          fontWeight: isPlaying ? FontWeight.w600 : FontWeight.normal,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        track['artist'] ?? '',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.5),
+                                          fontSize: 14,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlayingIndicator extends StatefulWidget {
+  const _PlayingIndicator({Key? key}) : super(key: key);
+
+  @override
+  State<_PlayingIndicator> createState() => _PlayingIndicatorState();
+}
+
+class _PlayingIndicatorState extends State<_PlayingIndicator> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<Animation<double>> _animations = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+
+    // 创建三个错开的动画
+    for (int i = 0; i < 3; i++) {
+      _animations.add(
+        Tween<double>(begin: 3, end: 15).animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: Interval(i * 0.2, 0.6 + i * 0.2, curve: Curves.easeInOut),
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 14,
+      height: 15,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(3, (index) {
+          return AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Container(
+                width: 2,
+                height: _animations[index].value,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  borderRadius: BorderRadius.circular(1),
+                ),
+              );
+            },
+          );
+        }),
+      ),
+    );
   }
 }
