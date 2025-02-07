@@ -679,75 +679,38 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         final controlsHeight = 96.0 + bottomPadding; // 控制栏高度
         final appBarHeight = kToolbarHeight;
         final statusBarHeight = MediaQuery.of(context).padding.top;
-        final indicatorHeight = 24.0; // 滑动指示器高度
-        final topPadding = statusBarHeight + appBarHeight + indicatorHeight;
+        final topPadding = statusBarHeight + appBarHeight; // 移除 indicatorHeight
         final availableHeight = totalHeight - controlsHeight - topPadding;
 
         return Stack(
           children: [
-            // 歌词部分
-            GetX<AudioService>(
-              builder: (controller) {
-                _updateCurrentLine(controller.position);
+            // 歌词容器
+            Positioned(
+              top: topPadding,
+              left: 0,
+              right: 0,
+              bottom: controlsHeight,
+              child: GetX<AudioService>(
+                builder: (controller) {
+                  _updateCurrentLine(controller.position);
+                  return Obx(() {
+                    final lyrics = _parsedLyrics.value;
+                    final currentIndex = _currentLineIndex.value;
 
-                return Obx(() {
-                  final lyrics = _parsedLyrics.value;
-                  final currentIndex = _currentLineIndex.value;
-
-                  if (lyrics == null) {
-                    return const Center(
-                      child: Text(
-                        '暂无歌词',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
-                        ),
-                      ),
-                    );
-                  }
-
-                  return Stack(
-                    children: [
-                      // 顶部渐变遮罩
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: topPadding + 32,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                dominantColor?.withOpacity(0.8) ?? Colors.black,
-                                dominantColor?.withOpacity(0.0) ?? Colors.transparent,
-                              ],
-                            ),
+                    if (lyrics == null) {
+                      return const Center(
+                        child: Text(
+                          '暂无歌词',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
                           ),
                         ),
-                      ),
-                      // 底部渐变遮罩
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: controlsHeight + 32,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [
-                                Colors.black,
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      // 歌词列表
-                      ListView.builder(
+                      );
+                    }
+
+                    return ClipRect(
+                      child: ListView.builder(
                         controller: _lyricsScrollController,
                         padding: EdgeInsets.only(
                           top: availableHeight / 2,
@@ -811,16 +774,17 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                           );
                         },
                       ),
-                    ],
-                  );
-                });
-              },
+                    );
+                  });
+                },
+              ),
             ),
-            // 控制部分
+            // 播放控制
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
+              height: controlsHeight,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
