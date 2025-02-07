@@ -24,7 +24,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   String? _lastTrackUrl;
   late final PageController _pageController;
   final NetworkService _networkService = NetworkService();
-  String? _lyrics;
   String? _currentLyricsId;
 
   // 只保留 Rx 变量
@@ -37,6 +36,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   // 添加新的状态变量
   final _showControls = true.obs;
   Timer? _hideControlsTimer;
+
+  // 添加加载状态变量
+  final _isLoadingLyrics = false.obs;
 
   // 添加重置计时器的方法
   void _resetHideControlsTimer() {
@@ -178,52 +180,33 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final id = track['id']?.toString();
     final nId = track['nId']?.toString();
 
-    print('=== Checking lyrics load conditions ===');
-    print('Track ID: $id');
-    print('Track nID: $nId');
-    print('Current lyrics ID: $_currentLyricsId');
-    print('Should load lyrics: ${id != null && nId != null && id != _currentLyricsId}');
-
     if (id == null || nId == null || id == _currentLyricsId) return;
+
+    // 设置加载状态
+    _isLoadingLyrics.value = true;
     _currentLyricsId = id;
 
     try {
-      print('=== Loading lyrics for track: ${track['name']} ===');
-      print('Making request to: ${ApiConfig.getLyricsPath(id, nId)}');
-
       final response = await _networkService.getLyrics(id, nId);
-      print('=== Raw lyrics response: $response ===');
 
       if (!mounted) return;
 
       if (response.containsKey('lrc') || response.containsKey('lrc_cn')) {
         _parsedLyrics.value = _formatLyrics(response);
         _currentLineIndex.value = 0;
-
-        // 重置滚动位置
-        if (_lyricsScrollController.hasClients) {
-          _lyricsScrollController.jumpTo(0);
-        }
-
-        // 延迟一帧后滚动到中间位置
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_lyricsScrollController.hasClients) {
-            final viewportHeight = _lyricsScrollController.position.viewportDimension;
-            final screenCenter = viewportHeight / 2;
-            _lyricsScrollController.jumpTo(-screenCenter + _calculateLineHeight(_parsedLyrics.value!.first.toString()) / 2);
-          }
-        });
       } else {
-        print('=== No lyrics found in response ===');
         _parsedLyrics.value = null;
         _currentLineIndex.value = 0;
       }
     } catch (e) {
-      print('=== Error loading lyrics: $e ===');
+      debugPrint('Error loading lyrics: $e');
       if (mounted) {
         _parsedLyrics.value = null;
         _currentLineIndex.value = 0;
       }
+    } finally {
+      // 重置加载状态
+      _isLoadingLyrics.value = false;
     }
   }
 
@@ -326,18 +309,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     // listViewTopPadding: ListView 的顶部 padding
     final listViewTopPadding = MediaQuery.of(context).size.height / 2 - kToolbarHeight - 65;
     final targetOffset = offset - centerY + (currentLineHeight / 2) + listViewTopPadding;
-
-    print('=== Lyrics Layout Debug ===');
-    print('Current Line Index: $currentIndex');
-    print('Current Line Text: ${lyrics[currentIndex]}');
-    print('Current Line Height: $currentLineHeight');
-    print('Container Height: $containerHeight');
-    print('Center Y: $centerY');
-    print('ListView Top Padding: $listViewTopPadding');
-    print('Total Offset Before Current: $offset');
-    print('Target Offset: $targetOffset');
-    print('Current Scroll Offset: ${_lyricsScrollController.offset}');
-    print('========================');
 
     _lyricsScrollController.animateTo(
       targetOffset.clamp(
@@ -743,14 +714,36 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               children: [
                 // 歌词容器
                 Positioned(
-                  top: appBarHeight,
+                  top: appBarHeight - 30,
                   left: 0,
                   right: 0,
-                  bottom: 0,
+                  bottom: -30,
                   child: GetX<AudioService>(
                     builder: (controller) {
                       final lyrics = controller.lyrics;
                       final currentIndex = controller.currentLineIndex;
+                      final isLoading = _isLoadingLyrics.value;
+
+                      if (isLoading) {
+                        return const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                '加载歌词中...',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
                       if (lyrics == null) {
                         return const Center(
@@ -925,8 +918,10 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
             builder: (context, scale, child) {
-              return Transform.scale(
-                scale: scale,
+              return Transform(
+                transform: Matrix4.identity()
+                  ..scale(scale)
+                  ..translate(0.0, 0.0),
                 alignment: Alignment.centerLeft,
                 child: Text(
                   line.toString(),
