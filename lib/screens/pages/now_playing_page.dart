@@ -75,7 +75,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final textSpan = TextSpan(
       text: text,
       style: TextStyle(
-        fontSize: 16,
+        fontSize: isCurrentLine ? 16 * 1.2 : 16, // 只改变字号，不改变布局宽度
         height: 1.5,
         letterSpacing: 0.5,
         fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
@@ -85,23 +85,20 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final textPainter = TextPainter(
       text: textSpan,
       textDirection: TextDirection.ltr,
-      maxLines: null, // 允许无限换行
+      maxLines: null,
       textAlign: TextAlign.left,
     );
 
-    // 计算实际可用宽度
-    final maxWidth = MediaQuery.of(context).size.width - MediaQuery.of(context).padding.left - 20.0;
-    // 如果是当前行，考虑缩放后的宽度
-    final availableWidth = isCurrentLine ? maxWidth / 1.2 : maxWidth;
-    textPainter.layout(maxWidth: availableWidth);
+    // 始终使用缩放后的宽度计算布局
+    final maxWidth = (MediaQuery.of(context).size.width - MediaQuery.of(context).padding.left - 20.0) / 1.2;
+    textPainter.layout(maxWidth: maxWidth);
 
     final textHeight = textPainter.height;
     const verticalPadding = 24.0;
     final bool hasTranslation = text.contains('\n');
     final extraPadding = hasTranslation ? 12.0 : 0.0;
 
-    final baseHeight = math.max(56.0, textHeight + verticalPadding + extraPadding);
-    return isCurrentLine ? baseHeight * 1.2 : baseHeight;
+    return math.max(56.0, textHeight + verticalPadding + extraPadding);
   }
 
   @override
@@ -805,30 +802,25 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                               return Container(
                                 height: _calculateLineHeight(line.toString(), isCurrentLine: isCurrentLine),
                                 alignment: Alignment.centerLeft,
-                                child: TweenAnimationBuilder<double>(
-                                  tween: Tween<double>(
-                                    begin: isCurrentLine ? 1.0 : 1.2,
-                                    end: isCurrentLine ? 1.2 : 1.0,
+                                child: Container(
+                                  padding: EdgeInsets.only(
+                                    left: MediaQuery.of(context).padding.left + 10.0,
+                                    top: 6.0,
+                                    bottom: 6.0,
                                   ),
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOutCubic,
-                                  builder: (context, scale, child) {
-                                    // 计算固定宽度
-                                    final screenWidth = MediaQuery.of(context).size.width;
-                                    final leftPadding = MediaQuery.of(context).padding.left + 10.0;
-                                    final maxWidth = screenWidth - leftPadding - 20.0; // 减去左右padding
-
-                                    return Container(
-                                      padding: EdgeInsets.only(
-                                        left: leftPadding,
-                                        top: 6.0,
-                                        bottom: 6.0,
+                                  child: SizedBox(
+                                    width: (MediaQuery.of(context).size.width - MediaQuery.of(context).padding.left - 20.0) / 1.2,
+                                    child: TweenAnimationBuilder<double>(
+                                      tween: Tween<double>(
+                                        begin: isCurrentLine ? 1.0 : 1.0,
+                                        end: isCurrentLine ? 1.2 : 1.0,
                                       ),
-                                      child: Transform.scale(
-                                        scale: scale,
-                                        alignment: Alignment.centerLeft,
-                                        child: SizedBox(
-                                          width: maxWidth / scale, // 缩放时调整容器宽度以保持文本宽度不变
+                                      duration: const Duration(milliseconds: 300),
+                                      curve: Curves.easeOutCubic,
+                                      builder: (context, scale, child) {
+                                        return Transform.scale(
+                                          scale: scale,
+                                          alignment: Alignment.centerLeft,
                                           child: Text(
                                             line.toString(),
                                             style: TextStyle(
@@ -844,10 +836,10 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                                             softWrap: true,
                                             overflow: TextOverflow.visible,
                                           ),
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                        );
+                                      },
+                                    ),
+                                  ),
                                 ),
                               );
                             },
