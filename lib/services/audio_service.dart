@@ -7,6 +7,8 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/lyric_line.dart';
+import '../services/network_service.dart';
 
 class AudioService extends GetxService {
   static AudioService get to => Get.find<AudioService>();
@@ -15,6 +17,8 @@ class AudioService extends GetxService {
   static const String _indexKey = 'last_index';
 
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final NetworkService _networkService = NetworkService();
+
   final _currentTrack = Rxn<Map<String, dynamic>>();
   final _currentPlaylist = Rxn<List<Map<String, dynamic>>>();
   final _currentIndex = RxInt(0);
@@ -22,6 +26,12 @@ class AudioService extends GetxService {
   final _position = Rx<Duration>(Duration.zero);
   final _duration = Rx<Duration>(Duration.zero);
   final _currentPageIndex = 0.obs;
+  final _parsedLyrics = Rx<List<LyricLine>?>(null);
+  final _currentLineIndex = RxInt(0);
+  String? _currentLyricsId;
+
+  // 添加 rxPosition getter
+  Rx<Duration> get rxPosition => _position;
 
   bool get isPlaying => _isPlaying.value;
   Map<String, dynamic>? get currentTrack => _currentTrack.value;
@@ -30,12 +40,29 @@ class AudioService extends GetxService {
   AudioPlayer get player => _audioPlayer;
   int get currentPageIndex => _currentPageIndex.value;
   set currentPageIndex(int value) => _currentPageIndex.value = value;
+  List<LyricLine>? get lyrics => _parsedLyrics.value;
+  int get currentLineIndex => _currentLineIndex.value;
 
   @override
   void onInit() {
     super.onInit();
     _setupPlayerListeners();
     _loadLastState();
+
+    // 监听播放位置以更新当前歌词行
+    ever(_position, (position) {
+      _updateCurrentLine(position);
+    });
+
+    // 监听当前歌曲变化以加载歌词
+    ever(_currentTrack, (track) {
+      if (track != null) {
+        _loadLyrics(track);
+      } else {
+        _parsedLyrics.value = null;
+        _currentLineIndex.value = 0;
+      }
+    });
   }
 
   @override
@@ -167,5 +194,114 @@ class AudioService extends GetxService {
     } catch (e) {
       debugPrint('Error loading last state: $e');
     }
+  }
+
+  Future<void> _loadLyrics(Map<String, dynamic> track) async {
+    final id = track['id']?.toString();
+    final nId = track['nId']?.toString();
+
+    if (id == null || nId == null || id == _currentLyricsId) return;
+    _currentLyricsId = id;
+
+    try {
+      final response = await _networkService.getLyrics(id, nId);
+
+      if (response.containsKey('lrc') || response.containsKey('lrc_cn')) {
+        _parsedLyrics.value = _formatLyrics(response);
+        _currentLineIndex.value = 0;
+      } else {
+        _parsedLyrics.value = null;
+        _currentLineIndex.value = 0;
+      }
+    } catch (e) {
+      debugPrint('Error loading lyrics: $e');
+      _parsedLyrics.value = null;
+      _currentLineIndex.value = 0;
+    }
+  }
+
+  void _updateCurrentLine(Duration position) {
+    if (_parsedLyrics.value == null) return;
+
+    int index = _parsedLyrics.value!.indexWhere((line) => line.time > position);
+    if (index == -1) {
+      index = _parsedLyrics.value!.length;
+    }
+    index = (index - 1).clamp(0, _parsedLyrics.value!.length - 1);
+
+    if (index != _currentLineIndex.value) {
+      _currentLineIndex.value = index;
+    }
+  }
+
+  List<LyricLine>? _formatLyrics(Map<String, dynamic> response) {
+    final original = response['lrc'] as String?;
+    final translated = response['lrc_cn'] as String?;
+
+    if (original == null) return null;
+
+    final List<LyricLine> lyrics = [];
+    final Map<Duration, String> translationMap = {};
+
+    // 解析翻译歌词
+    if (translated != null) {
+      final translatedLines = translated.split('\n');
+      for (final line in translatedLines) {
+        final match = RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$').firstMatch(line);
+        if (match != null) {
+          final minutes = int.parse(match.group(1)!);
+          final seconds = int.parse(match.group(2)!);
+          final milliseconds = int.parse(match.group(3)!.padRight(3, '0'));
+          final text = match.group(4)!.trim();
+
+          // 只添加非空的翻译
+          if (text.isNotEmpty) {
+            final time = Duration(
+              minutes: minutes,
+              seconds: seconds,
+              milliseconds: milliseconds,
+            );
+            translationMap[time] = text;
+          }
+        }
+      }
+    }
+
+    // 解析原文歌词
+    final originalLines = original.split('\n');
+    for (final line in originalLines) {
+      final match = RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$').firstMatch(line);
+      if (match != null) {
+        final minutes = int.parse(match.group(1)!);
+        final seconds = int.parse(match.group(2)!);
+        final milliseconds = int.parse(match.group(3)!.padRight(3, '0'));
+        final text = match.group(4)!.trim();
+
+        // 只添加非空的原文
+        if (text.isNotEmpty) {
+          final time = Duration(
+            minutes: minutes,
+            seconds: seconds,
+            milliseconds: milliseconds,
+          );
+
+          // 如果有对应的翻译，添加翻译；如果没有，只添加原文
+          final translation = translationMap[time];
+          if (translation?.isNotEmpty == true || text.isNotEmpty) {
+            lyrics.add(LyricLine(
+              time: time,
+              original: text,
+              translation: translation,
+            ));
+          }
+        }
+      }
+    }
+
+    // 按时间排序并过滤掉完全空白的行
+    lyrics.sort((a, b) => a.time.compareTo(b.time));
+    final filteredLyrics = lyrics.where((line) => line.original.isNotEmpty || (line.translation?.isNotEmpty ?? false)).toList();
+
+    return filteredLyrics.isNotEmpty ? filteredLyrics : null;
   }
 }

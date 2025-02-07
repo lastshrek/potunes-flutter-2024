@@ -6,28 +6,9 @@ import 'package:palette_generator/palette_generator.dart';
 import '../../services/audio_service.dart';
 import '../../services/network_service.dart';
 import '../../config/api_config.dart';
+import '../../models/lyric_line.dart';
 import 'dart:math' as math;
 import 'dart:async';
-
-class LyricLine {
-  final Duration time;
-  final String original;
-  final String? translation;
-
-  LyricLine({
-    required this.time,
-    required this.original,
-    this.translation,
-  });
-
-  @override
-  String toString() {
-    if (translation != null) {
-      return '$original\n$translation';
-    }
-    return original;
-  }
-}
 
 class NowPlayingPage extends StatefulWidget {
   const NowPlayingPage({super.key});
@@ -108,22 +89,41 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       initialPage: AudioService.to.currentPageIndex,
     );
     _extractColors();
-    _loadInitialLyrics();
+
+    // 监听播放位置变化
+    ever(AudioService.to.rxPosition, (position) {
+      if (_pageController.hasClients) {
+        // 添加判断
+        final page = _pageController.page;
+        if (page != null && page == 1) {
+          // 安全访问 page 属性
+          final controller = AudioService.to;
+          if (controller.lyrics != null) {
+            _scrollToCurrentLine(controller.currentLineIndex, 0);
+          }
+        }
+      }
+    });
 
     // 监听页面变化
     _pageController.addListener(() {
       if (_pageController.hasClients && _pageController.page != null) {
         AudioService.to.currentPageIndex = _pageController.page!.round();
-      }
-    });
 
-    // 添加页面切换监听
-    _pageController.addListener(() {
-      if (_pageController.page == 1) {
-        _resetHideControlsTimer();
-      } else {
-        _hideControlsTimer?.cancel();
-        _showControls.value = true;
+        // 当切换到歌词页面时
+        if (_pageController.page == 1) {
+          _resetHideControlsTimer();
+          // 立即获取当前歌词状态
+          final controller = AudioService.to;
+          if (controller.lyrics != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scrollToCurrentLine(controller.currentLineIndex, 0);
+            });
+          }
+        } else {
+          _hideControlsTimer?.cancel();
+          _showControls.value = true;
+        }
       }
     });
   }
@@ -298,27 +298,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     return filteredLyrics.isNotEmpty ? filteredLyrics : null;
   }
 
-  void _loadInitialLyrics() {
-    final track = AudioService.to.currentTrack;
-    if (track != null) {
-      _loadLyrics(track);
-    }
-  }
-
-  void _updateCurrentLine(Duration position) {
-    if (_parsedLyrics.value == null) return;
-
-    int index = _parsedLyrics.value!.indexWhere((line) => line.time > position);
-    if (index == -1) {
-      index = _parsedLyrics.value!.length;
-    }
-    index = (index - 1).clamp(0, _parsedLyrics.value!.length - 1);
-
-    if (index != _currentLineIndex.value) {
-      _currentLineIndex.value = index;
-    }
-  }
-
   // 修改滚动到当前行的方法
   void _scrollToCurrentLine(int currentIndex, double availableHeight) {
     if (!_lyricsScrollController.hasClients) return;
@@ -332,25 +311,31 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       offset += _calculateLineHeight(lyrics[i].toString());
     }
 
-    final viewportHeight = _lyricsScrollController.position.viewportDimension;
-    final currentLineHeight = _calculateLineHeight(lyrics[currentIndex].toString());
-    final topPadding = availableHeight / 2;
+    // 计算目标偏移量：
+    // 1. 计算容器中心点
+    final containerHeight = MediaQuery.of(context).size.height - kToolbarHeight - 65;
+    final centerY = containerHeight / 2;
 
-    // 新的目标偏移量计算：
+    // 2. 计算当前行高度
+    final currentLineHeight = _calculateLineHeight(lyrics[currentIndex].toString());
+
+    // 3. 计算目标偏移量
     // offset: 当前行之前所有行的总高度
-    // topPadding: ListView 的顶部 padding
-    // viewportHeight / 2: 视口中心位置
-    final targetOffset = offset + topPadding - viewportHeight / 2;
+    // centerY: 容器中心点位置
+    // currentLineHeight / 2: 当前行高度的一半，使文本中心对齐
+    // listViewTopPadding: ListView 的顶部 padding
+    final listViewTopPadding = MediaQuery.of(context).size.height / 2 - kToolbarHeight - 65;
+    final targetOffset = offset - centerY + (currentLineHeight / 2) + listViewTopPadding;
 
     print('=== Lyrics Layout Debug ===');
     print('Current Line Index: $currentIndex');
     print('Current Line Text: ${lyrics[currentIndex]}');
     print('Current Line Height: $currentLineHeight');
-    print('Viewport Height: $viewportHeight');
-    print('Top Padding: $topPadding');
+    print('Container Height: $containerHeight');
+    print('Center Y: $centerY');
+    print('ListView Top Padding: $listViewTopPadding');
     print('Total Offset Before Current: $offset');
-    print('Target Offset (before clamp): $targetOffset');
-    print('Max Scroll Extent: ${_lyricsScrollController.position.maxScrollExtent}');
+    print('Target Offset: $targetOffset');
     print('Current Scroll Offset: ${_lyricsScrollController.offset}');
     print('========================');
 
@@ -744,112 +729,69 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       builder: (context, constraints) {
         final totalHeight = constraints.maxHeight;
         final bottomPadding = MediaQuery.of(context).padding.bottom;
-        final controlsHeight = 96.0 + bottomPadding;
-        final appBarHeight = kToolbarHeight + 55;
+        final controlsHeight = 64.0 + bottomPadding + 16.0; // 减小控制栏高度
+        final appBarHeight = kToolbarHeight + 65;
 
         return GestureDetector(
           onTapDown: (_) => _resetHideControlsTimer(),
           onVerticalDragStart: (_) => _resetHideControlsTimer(),
           child: Obx(() {
             final showControls = _showControls.value;
-            final availableHeight = totalHeight - appBarHeight - (showControls ? controlsHeight : 0);
+            final availableHeight = totalHeight - appBarHeight;
 
             return Stack(
               children: [
-                // 歌词容器 - 添加 padding
+                // 歌词容器
                 Positioned(
                   top: appBarHeight,
                   left: 0,
                   right: 0,
-                  bottom: showControls ? controlsHeight : 0,
+                  bottom: 0,
                   child: GetX<AudioService>(
                     builder: (controller) {
-                      _updateCurrentLine(controller.position);
-                      return Obx(() {
-                        final lyrics = _parsedLyrics.value;
-                        final currentIndex = _currentLineIndex.value;
+                      final lyrics = controller.lyrics;
+                      final currentIndex = controller.currentLineIndex;
 
-                        if (lyrics == null) {
-                          return const Center(
-                            child: Text(
-                              '暂无歌词',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 16,
-                              ),
+                      if (lyrics == null) {
+                        return const Center(
+                          child: Text(
+                            '暂无歌词',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
                             ),
-                          );
-                        }
-
-                        return ClipRect(
-                          child: ListView.builder(
-                            controller: _lyricsScrollController,
-                            padding: EdgeInsets.only(
-                              top: availableHeight / 2,
-                              bottom: availableHeight / 2,
-                            ),
-                            itemCount: lyrics.length,
-                            itemBuilder: (context, index) {
-                              final line = lyrics[index];
-                              final isCurrentLine = index == currentIndex;
-
-                              if (isCurrentLine) {
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  _scrollToCurrentLine(currentIndex, availableHeight);
-                                });
-                              }
-
-                              return Container(
-                                height: _calculateLineHeight(line.toString(), isCurrentLine: isCurrentLine),
-                                alignment: Alignment.centerLeft,
-                                child: Container(
-                                  padding: EdgeInsets.only(
-                                    left: MediaQuery.of(context).padding.left + 10.0,
-                                    top: 6.0,
-                                    bottom: 6.0,
-                                  ),
-                                  child: SizedBox(
-                                    width: (MediaQuery.of(context).size.width - MediaQuery.of(context).padding.left - 20.0) / 1.2,
-                                    child: TweenAnimationBuilder<double>(
-                                      tween: Tween<double>(
-                                        begin: isCurrentLine ? 1.0 : 1.0,
-                                        end: isCurrentLine ? 1.2 : 1.0,
-                                      ),
-                                      duration: const Duration(milliseconds: 300),
-                                      curve: Curves.easeOutCubic,
-                                      builder: (context, scale, child) {
-                                        return Transform.scale(
-                                          scale: scale,
-                                          alignment: Alignment.centerLeft,
-                                          child: Text(
-                                            line.toString(),
-                                            style: TextStyle(
-                                              color: Colors.white.withOpacity(
-                                                isCurrentLine ? 1.0 : 0.5,
-                                              ),
-                                              fontSize: 16,
-                                              height: 1.5,
-                                              letterSpacing: 0.5,
-                                              fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
-                                            ),
-                                            textAlign: TextAlign.left,
-                                            softWrap: true,
-                                            overflow: TextOverflow.visible,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
                           ),
                         );
-                      });
+                      }
+
+                      return ClipRect(
+                        child: ListView.builder(
+                          controller: _lyricsScrollController,
+                          padding: EdgeInsets.only(
+                            top: MediaQuery.of(context).size.height / 2 - kToolbarHeight - 65,
+                            bottom: MediaQuery.of(context).size.height / 2,
+                          ),
+                          itemCount: lyrics.length,
+                          itemBuilder: (context, index) {
+                            final line = lyrics[index];
+                            final isCurrentLine = index == currentIndex;
+
+                            if (isCurrentLine) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (_pageController.page == 1) {
+                                  _scrollToCurrentLine(currentIndex, availableHeight);
+                                }
+                              });
+                            }
+
+                            return _buildLyricLine(line, isCurrentLine);
+                          },
+                        ),
+                      );
                     },
                   ),
                 ),
-                // 播放控制 - 覆盖在歌词上方
+                // 播放控制
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
@@ -873,7 +815,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // 播放控制
+                        // 播放控制按钮
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
@@ -943,7 +885,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                             ),
                           ],
                         ),
-                        SizedBox(height: bottomPadding + 32.0),
+                        SizedBox(height: bottomPadding + 8),
                       ],
                     ),
                   ),
@@ -961,5 +903,51 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
     return '$minutes:$seconds';
+  }
+
+  Widget _buildLyricLine(LyricLine line, bool isCurrentLine) {
+    return Container(
+      height: _calculateLineHeight(line.toString(), isCurrentLine: isCurrentLine),
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: EdgeInsets.only(
+          left: MediaQuery.of(context).padding.left + 10.0,
+          top: 6.0,
+          bottom: 6.0,
+        ),
+        child: SizedBox(
+          width: (MediaQuery.of(context).size.width - MediaQuery.of(context).padding.left - 20.0) / 1.2,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(
+              begin: isCurrentLine ? 1.0 : 1.0,
+              end: isCurrentLine ? 1.2 : 1.0,
+            ),
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            builder: (context, scale, child) {
+              return Transform.scale(
+                scale: scale,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  line.toString(),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(
+                      isCurrentLine ? 1.0 : 0.5,
+                    ),
+                    fontSize: 16,
+                    height: 1.5,
+                    letterSpacing: 0.5,
+                    fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  textAlign: TextAlign.left,
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 }
