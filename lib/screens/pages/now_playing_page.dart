@@ -6,6 +6,7 @@ import 'package:palette_generator/palette_generator.dart';
 import '../../services/audio_service.dart';
 import '../../services/network_service.dart';
 import '../../config/api_config.dart';
+import 'dart:math' as math;
 
 class LyricLine {
   final Duration time;
@@ -51,8 +52,35 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   // 添加一个 ScrollController 作为类成员
   final ScrollController _lyricsScrollController = ScrollController();
 
-  // 修改歌词行的高度常量
-  static const double kLyricLineHeight = 96.0; // 从 72.0 改为 96.0
+  // 添加计算文本高度的方法
+  double _calculateLineHeight(String text) {
+    final textSpan = TextSpan(
+      text: text,
+      style: const TextStyle(
+        fontSize: 16,
+        height: 1.5,
+        letterSpacing: 0.5,
+      ),
+    );
+
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+      maxLines: 3, // 限制最大行数
+      textAlign: TextAlign.left,
+    );
+
+    // 使用设备宽度减去左右padding作为最大宽度
+    final maxWidth = MediaQuery.of(context).size.width - 64.0; // 左右各32的padding
+    textPainter.layout(maxWidth: maxWidth);
+
+    // 计算实际需要的高度，并添加上下间距
+    final textHeight = textPainter.height;
+    const verticalPadding = 16.0; // 上下各8的padding
+
+    // 返回文本高度加上padding，并确保最小高度
+    return math.max(48.0, textHeight + verticalPadding);
+  }
 
   @override
   void initState() {
@@ -139,12 +167,22 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       if (!mounted) return;
 
       if (response.containsKey('lrc') || response.containsKey('lrc_cn')) {
-        print('=== Lyrics loaded successfully ===');
-        print('Original lyrics: ${response['lrc']}');
-        print('Translated lyrics: ${response['lrc_cn']}');
-
         _parsedLyrics.value = _formatLyrics(response);
-        _currentLineIndex.value = 0; // 重置当前行索引
+        _currentLineIndex.value = 0;
+
+        // 重置滚动位置
+        if (_lyricsScrollController.hasClients) {
+          _lyricsScrollController.jumpTo(0);
+        }
+
+        // 延迟一帧后滚动到中间位置
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_lyricsScrollController.hasClients) {
+            final viewportHeight = _lyricsScrollController.position.viewportDimension;
+            final screenCenter = viewportHeight / 2;
+            _lyricsScrollController.jumpTo(-screenCenter + _calculateLineHeight(_parsedLyrics.value!.first.toString()) / 2);
+          }
+        });
       } else {
         print('=== No lyrics found in response ===');
         _parsedLyrics.value = null;
@@ -243,25 +281,36 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   void _scrollToCurrentLine(int currentIndex, double availableHeight) {
     if (!_lyricsScrollController.hasClients) return;
 
-    final itemHeight = kLyricLineHeight; // 使用新的行高
+    final lyrics = _parsedLyrics.value;
+    if (lyrics == null) return;
+
+    // 计算当前行之前所有行的总高度
+    double offset = 0.0;
+    for (int i = 0; i < currentIndex; i++) {
+      offset += _calculateLineHeight(lyrics[i].toString());
+    }
+
     final viewportHeight = _lyricsScrollController.position.viewportDimension;
-    final screenCenter = viewportHeight / 2;
-    final currentLineOffset = currentIndex * itemHeight;
-
-    // 考虑 ListView 的顶部 padding
+    final currentLineHeight = _calculateLineHeight(lyrics[currentIndex].toString());
     final topPadding = availableHeight / 2;
-    final targetOffset = currentLineOffset - screenCenter + topPadding;
 
-    print('=== Lyrics Position Debug ===');
-    print('Viewport Height: $viewportHeight');
-    print('Screen Center: $screenCenter');
+    // 新的目标偏移量计算：
+    // offset: 当前行之前所有行的总高度
+    // topPadding: ListView 的顶部 padding
+    // viewportHeight / 2: 视口中心位置
+    final targetOffset = offset + topPadding - viewportHeight / 2;
+
+    print('=== Lyrics Layout Debug ===');
     print('Current Line Index: $currentIndex');
-    print('Current Line Offset: $currentLineOffset');
+    print('Current Line Text: ${lyrics[currentIndex]}');
+    print('Current Line Height: $currentLineHeight');
+    print('Viewport Height: $viewportHeight');
     print('Top Padding: $topPadding');
-    print('Target Scroll Offset: $targetOffset');
-    print('Current Scroll Offset: ${_lyricsScrollController.offset}');
+    print('Total Offset Before Current: $offset');
+    print('Target Offset (before clamp): $targetOffset');
     print('Max Scroll Extent: ${_lyricsScrollController.position.maxScrollExtent}');
-    print('===========================');
+    print('Current Scroll Offset: ${_lyricsScrollController.offset}');
+    print('========================');
 
     _lyricsScrollController.animateTo(
       targetOffset.clamp(
@@ -271,6 +320,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
     );
+  }
+
+  // 添加获取当前行高度的方法
+  double _getCurrentLineHeight() {
+    final lyrics = _parsedLyrics.value;
+    if (lyrics == null || lyrics.isEmpty) return 48.0;
+    return _calculateLineHeight(lyrics[_currentLineIndex.value].toString());
   }
 
   @override
@@ -704,28 +760,16 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                           final line = lyrics[index];
                           final isCurrentLine = index == currentIndex;
 
+                          // 总是触发滚动，包括第一行
                           if (isCurrentLine) {
                             WidgetsBinding.instance.addPostFrameCallback((_) {
-                              final itemPosition = index * kLyricLineHeight; // 使用新的行高
-                              final screenCenter = _lyricsScrollController.position.viewportDimension / 2;
-                              final topPadding = availableHeight / 2;
-
-                              print('=== Item Position Debug ===');
-                              print('Item Index: $index');
-                              print('Item Position: $itemPosition');
-                              print('Screen Center: $screenCenter');
-                              print('Top Padding: $topPadding');
-                              print('Current Scroll Offset: ${_lyricsScrollController.offset}');
-                              print('Item to Center Distance: ${itemPosition - (_lyricsScrollController.offset + screenCenter - topPadding)}');
-                              print('========================');
-
                               _scrollToCurrentLine(currentIndex, availableHeight);
                             });
                           }
 
                           return Container(
-                            height: kLyricLineHeight, // 使用新的行高
-                            alignment: Alignment.center,
+                            height: _calculateLineHeight(line.toString()),
+                            alignment: Alignment.centerLeft,
                             child: TweenAnimationBuilder<double>(
                               tween: Tween<double>(
                                 begin: isCurrentLine ? 1.0 : 1.2,
@@ -734,8 +778,20 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                               duration: const Duration(milliseconds: 300),
                               curve: Curves.easeOutCubic,
                               builder: (context, scale, child) {
+                                // 打印缩放后的实际高度
+                                if (isCurrentLine) {
+                                  final scaledHeight = _calculateLineHeight(line.toString()) * scale;
+                                  print('=== Current Line Scale Debug ===');
+                                  print('Base Height: ${_calculateLineHeight(line.toString())}');
+                                  print('Scale Factor: $scale');
+                                  print('Scaled Height: $scaledHeight');
+                                  print('Container Height: ${_calculateLineHeight(line.toString())}');
+                                  print('========================');
+                                }
+
                                 return Transform.scale(
                                   scale: scale,
+                                  alignment: Alignment.centerLeft,
                                   child: Text(
                                     line.toString(),
                                     style: TextStyle(
@@ -743,11 +799,11 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                                         isCurrentLine ? 1.0 : 0.5,
                                       ),
                                       fontSize: 16,
-                                      height: 1.5, // 保持行内间距不变
+                                      height: 1.5,
                                       letterSpacing: 0.5,
                                       fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
                                     ),
-                                    textAlign: TextAlign.center,
+                                    textAlign: TextAlign.left,
                                   ),
                                 );
                               },
