@@ -53,33 +53,37 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   final ScrollController _lyricsScrollController = ScrollController();
 
   // 修改计算文本高度的方法
-  double _calculateLineHeight(String text) {
+  double _calculateLineHeight(String text, {bool isCurrentLine = false}) {
     final textSpan = TextSpan(
       text: text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 16,
         height: 1.5,
         letterSpacing: 0.5,
+        fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
       ),
     );
 
     final textPainter = TextPainter(
       text: textSpan,
       textDirection: TextDirection.ltr,
-      maxLines: 3,
+      maxLines: null, // 允许无限换行
       textAlign: TextAlign.left,
     );
 
-    // 移除左右padding的计算
-    final maxWidth = MediaQuery.of(context).size.width;
-    textPainter.layout(maxWidth: maxWidth);
+    // 计算实际可用宽度
+    final maxWidth = MediaQuery.of(context).size.width - MediaQuery.of(context).padding.left - 20.0;
+    // 如果是当前行，考虑缩放后的宽度
+    final availableWidth = isCurrentLine ? maxWidth / 1.2 : maxWidth;
+    textPainter.layout(maxWidth: availableWidth);
 
     final textHeight = textPainter.height;
     const verticalPadding = 24.0;
     final bool hasTranslation = text.contains('\n');
     final extraPadding = hasTranslation ? 12.0 : 0.0;
 
-    return math.max(56.0, textHeight + verticalPadding + extraPadding);
+    final baseHeight = math.max(56.0, textHeight + verticalPadding + extraPadding);
+    return isCurrentLine ? baseHeight * 1.2 : baseHeight;
   }
 
   @override
@@ -339,6 +343,32 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final lyrics = _parsedLyrics.value;
     if (lyrics == null || lyrics.isEmpty) return 48.0;
     return _calculateLineHeight(lyrics[_currentLineIndex.value].toString());
+  }
+
+  // 添加计算最大缩放比例的方法
+  double _calculateMaxScale(String text, double maxWidth) {
+    final textSpan = TextSpan(
+      text: text,
+      style: const TextStyle(
+        fontSize: 16,
+        height: 1.5,
+        letterSpacing: 0.5,
+        fontWeight: FontWeight.bold, // 使用加粗字体计算，因为当前行会加粗
+      ),
+    );
+
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+      maxLines: 3,
+      textAlign: TextAlign.left,
+    );
+
+    textPainter.layout(maxWidth: maxWidth);
+
+    // 如果文本宽度超过容器宽度的80%，限制缩放比例
+    final maxScale = math.min(1.2, (maxWidth * 0.8) / textPainter.width);
+    return maxScale;
   }
 
   @override
@@ -740,7 +770,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                           }
 
                           return Container(
-                            height: _calculateLineHeight(line.toString()) * (isCurrentLine ? 1.2 : 1.0),
+                            height: _calculateLineHeight(line.toString(), isCurrentLine: isCurrentLine),
                             alignment: Alignment.centerLeft,
                             child: TweenAnimationBuilder<double>(
                               tween: Tween<double>(
@@ -750,20 +780,22 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                               duration: const Duration(milliseconds: 300),
                               curve: Curves.easeOutCubic,
                               builder: (context, scale, child) {
-                                final baseHeight = _calculateLineHeight(line.toString());
-                                final scaledHeight = baseHeight * scale;
+                                // 计算固定宽度
+                                final screenWidth = MediaQuery.of(context).size.width;
+                                final leftPadding = MediaQuery.of(context).padding.left + 10.0;
+                                final maxWidth = screenWidth - leftPadding - 20.0; // 减去左右padding
 
-                                return SizedBox(
-                                  height: scaledHeight,
+                                return Container(
+                                  padding: EdgeInsets.only(
+                                    left: leftPadding,
+                                    top: 6.0,
+                                    bottom: 6.0,
+                                  ),
                                   child: Transform.scale(
                                     scale: scale,
                                     alignment: Alignment.centerLeft,
-                                    child: Container(
-                                      padding: EdgeInsets.only(
-                                        left: MediaQuery.of(context).padding.left + 10.0,
-                                        top: 6.0,
-                                        bottom: 6.0,
-                                      ),
+                                    child: SizedBox(
+                                      width: maxWidth / scale, // 缩放时调整容器宽度以保持文本宽度不变
                                       child: Text(
                                         line.toString(),
                                         style: TextStyle(
@@ -776,6 +808,8 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                                           fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
                                         ),
                                         textAlign: TextAlign.left,
+                                        softWrap: true,
+                                        overflow: TextOverflow.visible,
                                       ),
                                     ),
                                   ),
