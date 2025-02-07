@@ -52,7 +52,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   // 添加一个 ScrollController 作为类成员
   final ScrollController _lyricsScrollController = ScrollController();
 
-  // 添加计算文本高度的方法
+  // 修改计算文本高度的方法
   double _calculateLineHeight(String text) {
     final textSpan = TextSpan(
       text: text,
@@ -66,20 +66,20 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final textPainter = TextPainter(
       text: textSpan,
       textDirection: TextDirection.ltr,
-      maxLines: 3, // 限制最大行数
+      maxLines: 3,
       textAlign: TextAlign.left,
     );
 
-    // 使用设备宽度减去左右padding作为最大宽度
-    final maxWidth = MediaQuery.of(context).size.width - 64.0; // 左右各32的padding
+    // 移除左右padding的计算
+    final maxWidth = MediaQuery.of(context).size.width;
     textPainter.layout(maxWidth: maxWidth);
 
-    // 计算实际需要的高度，并添加上下间距
     final textHeight = textPainter.height;
-    const verticalPadding = 16.0; // 上下各8的padding
+    const verticalPadding = 24.0;
+    final bool hasTranslation = text.contains('\n');
+    final extraPadding = hasTranslation ? 12.0 : 0.0;
 
-    // 返回文本高度加上padding，并确保最小高度
-    return math.max(48.0, textHeight + verticalPadding);
+    return math.max(56.0, textHeight + verticalPadding + extraPadding);
   }
 
   @override
@@ -217,12 +217,15 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           final milliseconds = int.parse(match.group(3)!.padRight(3, '0'));
           final text = match.group(4)!.trim();
 
-          final time = Duration(
-            minutes: minutes,
-            seconds: seconds,
-            milliseconds: milliseconds,
-          );
-          translationMap[time] = text;
+          // 只添加非空的翻译
+          if (text.isNotEmpty) {
+            final time = Duration(
+              minutes: minutes,
+              seconds: seconds,
+              milliseconds: milliseconds,
+            );
+            translationMap[time] = text;
+          }
         }
       }
     }
@@ -237,23 +240,32 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         final milliseconds = int.parse(match.group(3)!.padRight(3, '0'));
         final text = match.group(4)!.trim();
 
-        final time = Duration(
-          minutes: minutes,
-          seconds: seconds,
-          milliseconds: milliseconds,
-        );
+        // 只添加非空的原文
+        if (text.isNotEmpty) {
+          final time = Duration(
+            minutes: minutes,
+            seconds: seconds,
+            milliseconds: milliseconds,
+          );
 
-        lyrics.add(LyricLine(
-          time: time,
-          original: text,
-          translation: translationMap[time],
-        ));
+          // 如果有对应的翻译，添加翻译；如果没有，只添加原文
+          final translation = translationMap[time];
+          if (translation?.isNotEmpty == true || text.isNotEmpty) {
+            lyrics.add(LyricLine(
+              time: time,
+              original: text,
+              translation: translation,
+            ));
+          }
+        }
       }
     }
 
-    // 按时间排序
+    // 按时间排序并过滤掉完全空白的行
     lyrics.sort((a, b) => a.time.compareTo(b.time));
-    return lyrics.isNotEmpty ? lyrics : null;
+    final filteredLyrics = lyrics.where((line) => line.original.isNotEmpty || (line.translation?.isNotEmpty ?? false)).toList();
+
+    return filteredLyrics.isNotEmpty ? filteredLyrics : null;
   }
 
   void _loadInitialLyrics() {
@@ -715,15 +727,12 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                         padding: EdgeInsets.only(
                           top: availableHeight / 2,
                           bottom: availableHeight / 2 + controlsHeight,
-                          left: 32.0,
-                          right: 32.0,
                         ),
                         itemCount: lyrics.length,
                         itemBuilder: (context, index) {
                           final line = lyrics[index];
                           final isCurrentLine = index == currentIndex;
 
-                          // 总是触发滚动，包括第一行
                           if (isCurrentLine) {
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               _scrollToCurrentLine(currentIndex, availableHeight);
@@ -731,7 +740,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                           }
 
                           return Container(
-                            height: _calculateLineHeight(line.toString()),
+                            height: _calculateLineHeight(line.toString()) * (isCurrentLine ? 1.2 : 1.0),
                             alignment: Alignment.centerLeft,
                             child: TweenAnimationBuilder<double>(
                               tween: Tween<double>(
@@ -741,32 +750,34 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                               duration: const Duration(milliseconds: 300),
                               curve: Curves.easeOutCubic,
                               builder: (context, scale, child) {
-                                // 打印缩放后的实际高度
-                                if (isCurrentLine) {
-                                  final scaledHeight = _calculateLineHeight(line.toString()) * scale;
-                                  print('=== Current Line Scale Debug ===');
-                                  print('Base Height: ${_calculateLineHeight(line.toString())}');
-                                  print('Scale Factor: $scale');
-                                  print('Scaled Height: $scaledHeight');
-                                  print('Container Height: ${_calculateLineHeight(line.toString())}');
-                                  print('========================');
-                                }
+                                final baseHeight = _calculateLineHeight(line.toString());
+                                final scaledHeight = baseHeight * scale;
 
-                                return Transform.scale(
-                                  scale: scale,
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    line.toString(),
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(
-                                        isCurrentLine ? 1.0 : 0.5,
+                                return SizedBox(
+                                  height: scaledHeight,
+                                  child: Transform.scale(
+                                    scale: scale,
+                                    alignment: Alignment.centerLeft,
+                                    child: Container(
+                                      padding: EdgeInsets.only(
+                                        left: MediaQuery.of(context).padding.left + 10.0,
+                                        top: 6.0,
+                                        bottom: 6.0,
                                       ),
-                                      fontSize: 16,
-                                      height: 1.5,
-                                      letterSpacing: 0.5,
-                                      fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
+                                      child: Text(
+                                        line.toString(),
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(
+                                            isCurrentLine ? 1.0 : 0.5,
+                                          ),
+                                          fontSize: 16,
+                                          height: 1.5,
+                                          letterSpacing: 0.5,
+                                          fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
+                                        ),
+                                        textAlign: TextAlign.left,
+                                      ),
                                     ),
-                                    textAlign: TextAlign.left,
                                   ),
                                 );
                               },
