@@ -23,66 +23,11 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   static final Map<String, Color> _colorCache = {};
   String? _lastTrackUrl;
   late final PageController _pageController;
-  final NetworkService _networkService = NetworkService();
-  String? _currentLyricsId;
 
-  // 只保留 Rx 变量
-  final _parsedLyrics = Rx<List<LyricLine>?>(null);
-  final _currentLineIndex = RxInt(0);
-
-  // 添加一个 ScrollController 作为类成员
   final ScrollController _lyricsScrollController = ScrollController();
-
-  // 添加新的状态变量
   final _showControls = true.obs;
-  Timer? _hideControlsTimer;
-
-  // 添加加载状态变量
   final _isLoadingLyrics = false.obs;
-
-  // 添加重置计时器的方法
-  void _resetHideControlsTimer() {
-    _hideControlsTimer?.cancel();
-    _showControls.value = true;
-
-    if (_pageController.page == 1) {
-      // 只在歌词页面启动计时器
-      _hideControlsTimer = Timer(const Duration(seconds: 3), () {
-        _showControls.value = false;
-      });
-    }
-  }
-
-  // 修改计算文本高度的方法
-  double _calculateLineHeight(String text, {bool isCurrentLine = false}) {
-    final textSpan = TextSpan(
-      text: text,
-      style: TextStyle(
-        fontSize: isCurrentLine ? 16 * 1.2 : 16, // 只改变字号，不改变布局宽度
-        height: 1.5,
-        letterSpacing: 0.5,
-        fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
-      ),
-    );
-
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-      maxLines: null,
-      textAlign: TextAlign.left,
-    );
-
-    // 始终使用缩放后的宽度计算布局
-    final maxWidth = (MediaQuery.of(context).size.width - MediaQuery.of(context).padding.left - 20.0) / 1.2;
-    textPainter.layout(maxWidth: maxWidth);
-
-    final textHeight = textPainter.height;
-    const verticalPadding = 24.0;
-    final bool hasTranslation = text.contains('\n');
-    final extraPadding = hasTranslation ? 12.0 : 0.0;
-
-    return math.max(56.0, textHeight + verticalPadding + extraPadding);
-  }
+  Timer? _hideControlsTimer;
 
   @override
   void initState() {
@@ -176,116 +121,11 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     }
   }
 
-  Future<void> _loadLyrics(Map<String, dynamic> track) async {
-    final id = track['id']?.toString();
-    final nId = track['nId']?.toString();
-
-    if (id == null || nId == null || id == _currentLyricsId) return;
-
-    // 设置加载状态
-    _isLoadingLyrics.value = true;
-    _currentLyricsId = id;
-
-    try {
-      final response = await _networkService.getLyrics(id, nId);
-
-      if (!mounted) return;
-
-      if (response.containsKey('lrc') || response.containsKey('lrc_cn')) {
-        _parsedLyrics.value = _formatLyrics(response);
-        _currentLineIndex.value = 0;
-      } else {
-        _parsedLyrics.value = null;
-        _currentLineIndex.value = 0;
-      }
-    } catch (e) {
-      debugPrint('Error loading lyrics: $e');
-      if (mounted) {
-        _parsedLyrics.value = null;
-        _currentLineIndex.value = 0;
-      }
-    } finally {
-      // 重置加载状态
-      _isLoadingLyrics.value = false;
-    }
-  }
-
-  List<LyricLine>? _formatLyrics(Map<String, dynamic> response) {
-    final original = response['lrc'] as String?;
-    final translated = response['lrc_cn'] as String?;
-
-    if (original == null) return null;
-
-    final List<LyricLine> lyrics = [];
-    final Map<Duration, String> translationMap = {};
-
-    // 解析翻译歌词
-    if (translated != null) {
-      final translatedLines = translated.split('\n');
-      for (final line in translatedLines) {
-        final match = RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$').firstMatch(line);
-        if (match != null) {
-          final minutes = int.parse(match.group(1)!);
-          final seconds = int.parse(match.group(2)!);
-          final milliseconds = int.parse(match.group(3)!.padRight(3, '0'));
-          final text = match.group(4)!.trim();
-
-          // 只添加非空的翻译
-          if (text.isNotEmpty) {
-            final time = Duration(
-              minutes: minutes,
-              seconds: seconds,
-              milliseconds: milliseconds,
-            );
-            translationMap[time] = text;
-          }
-        }
-      }
-    }
-
-    // 解析原文歌词
-    final originalLines = original.split('\n');
-    for (final line in originalLines) {
-      final match = RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$').firstMatch(line);
-      if (match != null) {
-        final minutes = int.parse(match.group(1)!);
-        final seconds = int.parse(match.group(2)!);
-        final milliseconds = int.parse(match.group(3)!.padRight(3, '0'));
-        final text = match.group(4)!.trim();
-
-        // 只添加非空的原文
-        if (text.isNotEmpty) {
-          final time = Duration(
-            minutes: minutes,
-            seconds: seconds,
-            milliseconds: milliseconds,
-          );
-
-          // 如果有对应的翻译，添加翻译；如果没有，只添加原文
-          final translation = translationMap[time];
-          if (translation?.isNotEmpty == true || text.isNotEmpty) {
-            lyrics.add(LyricLine(
-              time: time,
-              original: text,
-              translation: translation,
-            ));
-          }
-        }
-      }
-    }
-
-    // 按时间排序并过滤掉完全空白的行
-    lyrics.sort((a, b) => a.time.compareTo(b.time));
-    final filteredLyrics = lyrics.where((line) => line.original.isNotEmpty || (line.translation?.isNotEmpty ?? false)).toList();
-
-    return filteredLyrics.isNotEmpty ? filteredLyrics : null;
-  }
-
   // 修改滚动到当前行的方法
   void _scrollToCurrentLine(int currentIndex, double availableHeight) {
     if (!_lyricsScrollController.hasClients) return;
 
-    final lyrics = _parsedLyrics.value;
+    final lyrics = AudioService.to.lyrics;
     if (lyrics == null) return;
 
     // 计算当前行之前所有行的总高度
@@ -322,9 +162,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   // 添加获取当前行高度的方法
   double _getCurrentLineHeight() {
-    final lyrics = _parsedLyrics.value;
+    final lyrics = AudioService.to.lyrics;
     if (lyrics == null || lyrics.isEmpty) return 48.0;
-    return _calculateLineHeight(lyrics[_currentLineIndex.value].toString());
+    return _calculateLineHeight(lyrics[AudioService.to.currentLineIndex].toString());
   }
 
   // 添加计算最大缩放比例的方法
@@ -362,11 +202,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
         if (track['cover_url'] != _lastTrackUrl) {
           _extractColors();
-        }
-
-        if (track['id']?.toString() != _currentLyricsId) {
-          print('=== Track changed, loading new lyrics ===');
-          _loadLyrics(track);
         }
 
         return WillPopScope(
@@ -468,6 +303,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
     return Column(
       children: [
+        const SizedBox(height: 40),
         // 专辑封面
         Expanded(
           flex: 5,
@@ -722,7 +558,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     builder: (controller) {
                       final lyrics = controller.lyrics;
                       final currentIndex = controller.currentLineIndex;
-                      final isLoading = _isLoadingLyrics.value;
+                      final isLoading = controller.isLoadingLyrics;
 
                       if (isLoading) {
                         return const Center(
@@ -944,5 +780,49 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         ),
       ),
     );
+  }
+
+  // 添加重置计时器的方法
+  void _resetHideControlsTimer() {
+    _hideControlsTimer?.cancel();
+    _showControls.value = true;
+
+    if (_pageController.page == 1) {
+      // 只在歌词页面启动计时器
+      _hideControlsTimer = Timer(const Duration(seconds: 3), () {
+        _showControls.value = false;
+      });
+    }
+  }
+
+  // 修改计算文本高度的方法
+  double _calculateLineHeight(String text, {bool isCurrentLine = false}) {
+    final textSpan = TextSpan(
+      text: text,
+      style: TextStyle(
+        fontSize: isCurrentLine ? 16 * 1.2 : 16, // 只改变字号，不改变布局宽度
+        height: 1.5,
+        letterSpacing: 0.5,
+        fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
+      ),
+    );
+
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+      maxLines: null,
+      textAlign: TextAlign.left,
+    );
+
+    // 始终使用缩放后的宽度计算布局
+    final maxWidth = (MediaQuery.of(context).size.width - MediaQuery.of(context).padding.left - 20.0) / 1.2;
+    textPainter.layout(maxWidth: maxWidth);
+
+    final textHeight = textPainter.height;
+    const verticalPadding = 24.0;
+    final bool hasTranslation = text.contains('\n');
+    final extraPadding = hasTranslation ? 12.0 : 0.0;
+
+    return math.max(56.0, textHeight + verticalPadding + extraPadding);
   }
 }

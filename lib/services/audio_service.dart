@@ -29,6 +29,7 @@ class AudioService extends GetxService {
   final _parsedLyrics = Rx<List<LyricLine>?>(null);
   final _currentLineIndex = RxInt(0);
   String? _currentLyricsId;
+  final _isLoadingLyrics = RxBool(false);
 
   // 添加 rxPosition getter
   Rx<Duration> get rxPosition => _position;
@@ -42,6 +43,7 @@ class AudioService extends GetxService {
   set currentPageIndex(int value) => _currentPageIndex.value = value;
   List<LyricLine>? get lyrics => _parsedLyrics.value;
   int get currentLineIndex => _currentLineIndex.value;
+  bool get isLoadingLyrics => _isLoadingLyrics.value;
 
   @override
   void onInit() {
@@ -201,6 +203,8 @@ class AudioService extends GetxService {
     final nId = track['nId']?.toString();
 
     if (id == null || nId == null || id == _currentLyricsId) return;
+
+    _isLoadingLyrics.value = true;
     _currentLyricsId = id;
 
     try {
@@ -217,6 +221,8 @@ class AudioService extends GetxService {
       debugPrint('Error loading lyrics: $e');
       _parsedLyrics.value = null;
       _currentLineIndex.value = 0;
+    } finally {
+      _isLoadingLyrics.value = false;
     }
   }
 
