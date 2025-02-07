@@ -7,6 +7,7 @@ import '../../services/audio_service.dart';
 import '../../services/network_service.dart';
 import '../../config/api_config.dart';
 import 'dart:math' as math;
+import 'dart:async';
 
 class LyricLine {
   final Duration time;
@@ -51,6 +52,23 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   // 添加一个 ScrollController 作为类成员
   final ScrollController _lyricsScrollController = ScrollController();
+
+  // 添加新的状态变量
+  final _showControls = true.obs;
+  Timer? _hideControlsTimer;
+
+  // 添加重置计时器的方法
+  void _resetHideControlsTimer() {
+    _hideControlsTimer?.cancel();
+    _showControls.value = true;
+
+    if (_pageController.page == 1) {
+      // 只在歌词页面启动计时器
+      _hideControlsTimer = Timer(const Duration(seconds: 3), () {
+        _showControls.value = false;
+      });
+    }
+  }
 
   // 修改计算文本高度的方法
   double _calculateLineHeight(String text, {bool isCurrentLine = false}) {
@@ -101,6 +119,16 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         AudioService.to.currentPageIndex = _pageController.page!.round();
       }
     });
+
+    // 添加页面切换监听
+    _pageController.addListener(() {
+      if (_pageController.page == 1) {
+        _resetHideControlsTimer();
+      } else {
+        _hideControlsTimer?.cancel();
+        _showControls.value = true;
+      }
+    });
   }
 
   @override
@@ -110,6 +138,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     }
     _lyricsScrollController.dispose();
     _pageController.dispose();
+    _hideControlsTimer?.cancel();
     super.dispose();
   }
 
@@ -718,196 +747,218 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       builder: (context, constraints) {
         final totalHeight = constraints.maxHeight;
         final bottomPadding = MediaQuery.of(context).padding.bottom;
-        final controlsHeight = 96.0 + bottomPadding; // 控制栏高度
-        final appBarHeight = kToolbarHeight;
-        final statusBarHeight = MediaQuery.of(context).padding.top;
-        final topPadding = statusBarHeight + appBarHeight; // 移除 indicatorHeight
-        final availableHeight = totalHeight - controlsHeight - topPadding;
+        final controlsHeight = 96.0 + bottomPadding;
+        final appBarHeight = kToolbarHeight + 55;
 
-        return Stack(
-          children: [
-            // 歌词容器
-            Positioned(
-              top: topPadding,
-              left: 0,
-              right: 0,
-              bottom: controlsHeight,
-              child: GetX<AudioService>(
-                builder: (controller) {
-                  _updateCurrentLine(controller.position);
-                  return Obx(() {
-                    final lyrics = _parsedLyrics.value;
-                    final currentIndex = _currentLineIndex.value;
+        return GestureDetector(
+          onTapDown: (_) => _resetHideControlsTimer(),
+          onVerticalDragStart: (_) => _resetHideControlsTimer(),
+          child: Obx(() {
+            final showControls = _showControls.value;
+            final availableHeight = totalHeight - appBarHeight - (showControls ? controlsHeight : 0);
 
-                    if (lyrics == null) {
-                      return const Center(
-                        child: Text(
-                          '暂无歌词',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 16,
-                          ),
-                        ),
-                      );
-                    }
+            return Stack(
+              children: [
+                // 歌词容器 - 添加 padding
+                Positioned(
+                  top: appBarHeight,
+                  left: 0,
+                  right: 0,
+                  bottom: showControls ? controlsHeight : 0,
+                  child: GetX<AudioService>(
+                    builder: (controller) {
+                      _updateCurrentLine(controller.position);
+                      return Obx(() {
+                        final lyrics = _parsedLyrics.value;
+                        final currentIndex = _currentLineIndex.value;
 
-                    return ClipRect(
-                      child: ListView.builder(
-                        controller: _lyricsScrollController,
-                        padding: EdgeInsets.only(
-                          top: availableHeight / 2,
-                          bottom: availableHeight / 2 + controlsHeight,
-                        ),
-                        itemCount: lyrics.length,
-                        itemBuilder: (context, index) {
-                          final line = lyrics[index];
-                          final isCurrentLine = index == currentIndex;
-
-                          if (isCurrentLine) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              _scrollToCurrentLine(currentIndex, availableHeight);
-                            });
-                          }
-
-                          return Container(
-                            height: _calculateLineHeight(line.toString(), isCurrentLine: isCurrentLine),
-                            alignment: Alignment.centerLeft,
-                            child: TweenAnimationBuilder<double>(
-                              tween: Tween<double>(
-                                begin: isCurrentLine ? 1.0 : 1.2,
-                                end: isCurrentLine ? 1.2 : 1.0,
+                        if (lyrics == null) {
+                          return const Center(
+                            child: Text(
+                              '暂无歌词',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
                               ),
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeOutCubic,
-                              builder: (context, scale, child) {
-                                // 计算固定宽度
-                                final screenWidth = MediaQuery.of(context).size.width;
-                                final leftPadding = MediaQuery.of(context).padding.left + 10.0;
-                                final maxWidth = screenWidth - leftPadding - 20.0; // 减去左右padding
+                            ),
+                          );
+                        }
 
-                                return Container(
-                                  padding: EdgeInsets.only(
-                                    left: leftPadding,
-                                    top: 6.0,
-                                    bottom: 6.0,
+                        return ClipRect(
+                          child: ListView.builder(
+                            controller: _lyricsScrollController,
+                            padding: EdgeInsets.only(
+                              top: availableHeight / 2,
+                              bottom: availableHeight / 2,
+                            ),
+                            itemCount: lyrics.length,
+                            itemBuilder: (context, index) {
+                              final line = lyrics[index];
+                              final isCurrentLine = index == currentIndex;
+
+                              if (isCurrentLine) {
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  _scrollToCurrentLine(currentIndex, availableHeight);
+                                });
+                              }
+
+                              return Container(
+                                height: _calculateLineHeight(line.toString(), isCurrentLine: isCurrentLine),
+                                alignment: Alignment.centerLeft,
+                                child: TweenAnimationBuilder<double>(
+                                  tween: Tween<double>(
+                                    begin: isCurrentLine ? 1.0 : 1.2,
+                                    end: isCurrentLine ? 1.2 : 1.0,
                                   ),
-                                  child: Transform.scale(
-                                    scale: scale,
-                                    alignment: Alignment.centerLeft,
-                                    child: SizedBox(
-                                      width: maxWidth / scale, // 缩放时调整容器宽度以保持文本宽度不变
-                                      child: Text(
-                                        line.toString(),
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(
-                                            isCurrentLine ? 1.0 : 0.5,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOutCubic,
+                                  builder: (context, scale, child) {
+                                    // 计算固定宽度
+                                    final screenWidth = MediaQuery.of(context).size.width;
+                                    final leftPadding = MediaQuery.of(context).padding.left + 10.0;
+                                    final maxWidth = screenWidth - leftPadding - 20.0; // 减去左右padding
+
+                                    return Container(
+                                      padding: EdgeInsets.only(
+                                        left: leftPadding,
+                                        top: 6.0,
+                                        bottom: 6.0,
+                                      ),
+                                      child: Transform.scale(
+                                        scale: scale,
+                                        alignment: Alignment.centerLeft,
+                                        child: SizedBox(
+                                          width: maxWidth / scale, // 缩放时调整容器宽度以保持文本宽度不变
+                                          child: Text(
+                                            line.toString(),
+                                            style: TextStyle(
+                                              color: Colors.white.withOpacity(
+                                                isCurrentLine ? 1.0 : 0.5,
+                                              ),
+                                              fontSize: 16,
+                                              height: 1.5,
+                                              letterSpacing: 0.5,
+                                              fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
+                                            ),
+                                            textAlign: TextAlign.left,
+                                            softWrap: true,
+                                            overflow: TextOverflow.visible,
                                           ),
-                                          fontSize: 16,
-                                          height: 1.5,
-                                          letterSpacing: 0.5,
-                                          fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
                                         ),
-                                        textAlign: TextAlign.left,
-                                        softWrap: true,
-                                        overflow: TextOverflow.visible,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      });
+                    },
+                  ),
+                ),
+                // 播放控制 - 覆盖在歌词上方
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  left: 0,
+                  right: 0,
+                  bottom: showControls ? 0 : -controlsHeight,
+                  child: Container(
+                    height: controlsHeight,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.0),
+                          Colors.black.withOpacity(0.8),
+                          Colors.black,
+                        ],
+                        stops: const [0.0, 0.5, 1.0],
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 播放控制
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            IconButton(
+                              icon: FaIcon(
+                                FontAwesomeIcons.shuffle,
+                                size: 20,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                              onPressed: () {
+                                // TODO: 实现随机播放
+                              },
+                            ),
+                            IconButton(
+                              icon: FaIcon(
+                                FontAwesomeIcons.backward,
+                                size: 24,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                              onPressed: AudioService.to.previous,
+                            ),
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: (dominantColor ?? Theme.of(context).colorScheme.secondary).withOpacity(0.2),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.2),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: GetX<AudioService>(
+                                  builder: (controller) => InkWell(
+                                    borderRadius: BorderRadius.circular(32),
+                                    onTap: controller.togglePlay,
+                                    child: Center(
+                                      child: FaIcon(
+                                        controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
+                                        size: 24,
+                                        color: Colors.white,
                                       ),
                                     ),
                                   ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  });
-                },
-              ),
-            ),
-            // 播放控制
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: controlsHeight,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 播放控制
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      IconButton(
-                        icon: FaIcon(
-                          FontAwesomeIcons.shuffle,
-                          size: 20,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        onPressed: () {
-                          // TODO: 实现随机播放
-                        },
-                      ),
-                      IconButton(
-                        icon: FaIcon(
-                          FontAwesomeIcons.backward,
-                          size: 24,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        onPressed: AudioService.to.previous,
-                      ),
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: (dominantColor ?? Theme.of(context).colorScheme.secondary).withOpacity(0.2),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                            width: 1,
-                          ),
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: GetX<AudioService>(
-                            builder: (controller) => InkWell(
-                              borderRadius: BorderRadius.circular(32),
-                              onTap: controller.togglePlay,
-                              child: Center(
-                                child: FaIcon(
-                                  controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
-                                  size: 24,
-                                  color: Colors.white,
                                 ),
                               ),
                             ),
-                          ),
+                            IconButton(
+                              icon: FaIcon(
+                                FontAwesomeIcons.forward,
+                                size: 24,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                              onPressed: AudioService.to.next,
+                            ),
+                            IconButton(
+                              icon: FaIcon(
+                                FontAwesomeIcons.repeat,
+                                size: 20,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                              onPressed: () {
+                                // TODO: 实现循环模式切换
+                              },
+                            ),
+                          ],
                         ),
-                      ),
-                      IconButton(
-                        icon: FaIcon(
-                          FontAwesomeIcons.forward,
-                          size: 24,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        onPressed: AudioService.to.next,
-                      ),
-                      IconButton(
-                        icon: FaIcon(
-                          FontAwesomeIcons.repeat,
-                          size: 20,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                        onPressed: () {
-                          // TODO: 实现循环模式切换
-                        },
-                      ),
-                    ],
+                        SizedBox(height: bottomPadding + 32.0),
+                      ],
+                    ),
                   ),
-                  SizedBox(height: bottomPadding + 32.0),
-                ],
-              ),
-            ),
-          ],
+                ),
+              ],
+            );
+          }),
         );
       },
     );
