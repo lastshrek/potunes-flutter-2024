@@ -25,7 +25,7 @@ class TopChartsPage extends GetView<TopChartsController> {
         ),
       ),
       body: Obx(() {
-        if (controller.isLoading.isTrue) {
+        if (controller.isInitialLoading) {
           return _buildSkeletonList();
         }
 
@@ -48,13 +48,18 @@ class TopChartsPage extends GetView<TopChartsController> {
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: charts.length,
-          itemBuilder: (context, index) {
-            final chart = charts[index];
-            return _buildTrackItem(chart, index);
-          },
+        return RefreshIndicator(
+          onRefresh: controller.refreshData,
+          backgroundColor: Colors.black,
+          color: Colors.white,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: charts.length,
+            itemBuilder: (context, index) {
+              final chart = charts[index];
+              return controller.isRefreshing ? _buildSkeletonItem() : _buildTrackItem(chart, index);
+            },
+          ),
         );
       }),
     );
@@ -156,6 +161,49 @@ class TopChartsPage extends GetView<TopChartsController> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSkeletonItem() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Container(
+            width: 30,
+            height: 20,
+            color: Colors.grey[800],
+          ),
+          const SizedBox(width: 8),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.grey[800],
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  height: 16,
+                  color: Colors.grey[800],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 100,
+                  height: 14,
+                  color: Colors.grey[800],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

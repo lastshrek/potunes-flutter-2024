@@ -2,20 +2,25 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../services/network_service.dart';
-import '../services/audio_service.dart';
 
-class TopChartsController extends GetxController {
+class HomeController extends GetxController {
   final NetworkService _networkService = NetworkService();
-  final AudioService _audioService = Get.find<AudioService>();
-  final _charts = <Map<String, dynamic>>[].obs;
+  final _collections = <Map<String, dynamic>>[].obs;
+  final _finals = <Map<String, dynamic>>[].obs;
+  final _albums = <Map<String, dynamic>>[].obs;
+  final _neteaseToplist = <Map<String, dynamic>>[].obs;
   final _isInitialLoading = true.obs;
   final _isRefreshing = false.obs;
   final _error = Rxn<String>();
 
-  static const String _chartsKey = 'top_charts_data';
-  static const String _lastUpdateKey = 'top_charts_last_update';
+  static const String _collectionsKey = 'home_collections_data';
+  static const String _finalsKey = 'home_finals_data';
+  static const String _lastUpdateKey = 'home_last_update';
 
-  List<Map<String, dynamic>> get charts => _charts;
+  List<Map<String, dynamic>> get collections => _collections;
+  List<Map<String, dynamic>> get finals => _finals;
+  List<Map<String, dynamic>> get albums => _albums;
+  List<Map<String, dynamic>> get neteaseToplist => _neteaseToplist;
   bool get isInitialLoading => _isInitialLoading.value;
   bool get isRefreshing => _isRefreshing.value;
   bool get isLoading => _isInitialLoading.value || _isRefreshing.value;
@@ -31,12 +36,13 @@ class TopChartsController extends GetxController {
   Future<void> _loadCachedData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cachedData = prefs.getString(_chartsKey);
+      final cachedCollections = prefs.getString(_collectionsKey);
+      final cachedFinals = prefs.getString(_finalsKey);
       final lastUpdate = prefs.getInt(_lastUpdateKey);
 
-      if (cachedData != null) {
-        final List<dynamic> decoded = jsonDecode(cachedData);
-        _charts.value = decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      if (cachedCollections != null && cachedFinals != null) {
+        _collections.value = List<Map<String, dynamic>>.from(jsonDecode(cachedCollections).map((x) => Map<String, dynamic>.from(x)));
+        _finals.value = List<Map<String, dynamic>>.from(jsonDecode(cachedFinals).map((x) => Map<String, dynamic>.from(x)));
         _isInitialLoading.value = false;
 
         // 如果数据超过1小时，自动刷新
@@ -54,10 +60,11 @@ class TopChartsController extends GetxController {
   }
 
   // 保存数据到缓存
-  Future<void> _saveToCache(List<Map<String, dynamic>> data) async {
+  Future<void> _saveToCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_chartsKey, jsonEncode(data));
+      await prefs.setString(_collectionsKey, jsonEncode(_collections));
+      await prefs.setString(_finalsKey, jsonEncode(_finals));
       await prefs.setInt(_lastUpdateKey, DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
       print('Error saving to cache: $e');
@@ -69,34 +76,21 @@ class TopChartsController extends GetxController {
     try {
       _isRefreshing.value = true;
       _error.value = null;
-      final response = await _networkService.getTopCharts();
 
-      if (response['charts'] is List) {
-        final chartsList = response['charts'] as List;
-        final newCharts = chartsList.map((item) => item as Map<String, dynamic>).toList();
-        _charts.value = newCharts;
-        await _saveToCache(newCharts);
-      } else {
-        _error.value = 'Invalid data format';
+      final response = await _networkService.getHomeData();
+
+      if (response != null) {
+        _collections.value = List<Map<String, dynamic>>.from(response['collections'] ?? []);
+        _finals.value = List<Map<String, dynamic>>.from(response['finals'] ?? []);
+        _albums.value = List<Map<String, dynamic>>.from(response['albums'] ?? []);
+        _neteaseToplist.value = List<Map<String, dynamic>>.from(response['netease_toplist'] ?? []);
+        await _saveToCache();
       }
     } catch (e) {
       _error.value = e.toString();
     } finally {
       _isRefreshing.value = false;
       _isInitialLoading.value = false;
-    }
-  }
-
-  void openChart(Map<String, dynamic> chart) async {
-    try {
-      _audioService.currentPlaylist = _charts.toList();
-
-      final index = _charts.indexWhere((item) => item['id'] == chart['id']);
-      if (index != -1) {
-        await _audioService.playTrack(chart);
-      }
-    } catch (e) {
-      print('Error playing track: $e');
     }
   }
 }
