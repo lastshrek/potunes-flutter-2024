@@ -1,13 +1,10 @@
 import 'package:dio/dio.dart';
-import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import '../../config/api_config.dart';
-import 'interceptors/error_interceptor.dart';
 import 'package:flutter/foundation.dart';
 import 'api_exception.dart';
 import 'response_handler.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
-import 'dart:developer' as developer;
 
 class HttpClient {
   static HttpClient? _instance;
@@ -67,8 +64,6 @@ class HttpClient {
             ),
         cancelToken: cancelToken,
       );
-
-      print('Response received: ${response.data}');
 
       if (response.data is T) {
         return response.data;

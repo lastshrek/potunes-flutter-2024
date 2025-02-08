@@ -74,6 +74,9 @@ class AudioService extends GetxService {
   bool get isLoadingLyrics => _isLoadingLyrics.value;
   bool get isShuffleMode => _isShuffleMode.value;
 
+  // 添加一个标志来防止重复触发
+  bool _isHandlingCompletion = false;
+
   @override
   void onInit() {
     super.onInit();
@@ -95,8 +98,8 @@ class AudioService extends GetxService {
       }
     });
 
-    // 初始化时设置为列表循环
-    _audioPlayer.setLoopMode(LoopMode.all);
+    // 初始化时设置为列表循环，并禁用自动循环
+    _audioPlayer.setLoopMode(LoopMode.off);
   }
 
   @override
@@ -110,6 +113,25 @@ class AudioService extends GetxService {
       // 监听播放状态
       _audioPlayer.playerStateStream.listen((state) {
         _isPlaying.value = state.playing;
+
+        // 处理播放完成事件
+        if (state.processingState == ProcessingState.completed && !_isHandlingCompletion) {
+          _isHandlingCompletion = true; // 设置标志
+          debugPrint('Track completed, current mode: ${_repeatMode.value}');
+
+          if (_repeatMode.value == RepeatMode.single) {
+            // 单曲循环时重新播放当前歌曲
+            _audioPlayer.seek(Duration.zero).then((_) {
+              _audioPlayer.play();
+              _isHandlingCompletion = false; // 重置标志
+            });
+          } else {
+            // 列表循环时播放下一首
+            next().then((_) {
+              _isHandlingCompletion = false; // 重置标志
+            });
+          }
+        }
       });
 
       // 监听播放位置
@@ -121,15 +143,9 @@ class AudioService extends GetxService {
       _audioPlayer.durationStream.listen((duration) {
         _duration.value = duration ?? Duration.zero;
       });
-
-      // 监听序列结束
-      _audioPlayer.processingStateStream.listen((state) {
-        if (state == ProcessingState.completed) {
-          next();
-        }
-      });
     } catch (e) {
       debugPrint('Error setting up player listeners: $e');
+      _isHandlingCompletion = false; // 确保在发生错误时重置标志
     }
   }
 

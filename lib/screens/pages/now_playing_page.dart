@@ -900,11 +900,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         final itemHeight = 72.0;
         final targetOffset = (currentIndex + 1) * itemHeight;
 
-        print('Scroll calculation:');
-        print('Item height: $itemHeight');
-        print('Current index: $currentIndex');
-        print('Target offset: $targetOffset');
-
         scrollController.animateTo(
           math.max(0, targetOffset),
           duration: const Duration(milliseconds: 300),
