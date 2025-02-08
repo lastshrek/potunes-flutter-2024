@@ -9,11 +9,13 @@ class UserService extends GetxService {
   static const String _userDataKey = 'user_data';
 
   final _isLoggedIn = false.obs;
-  final _token = RxString('');
+  final _token = ''.obs;
+  final _userId = 0.obs;
   final _userData = Rxn<Map<String, dynamic>>();
 
   bool get isLoggedIn => _isLoggedIn.value;
   String get token => _token.value;
+  int get userId => _userId.value;
   Map<String, dynamic>? get userData => _userData.value;
 
   Future<UserService> init() async {
@@ -65,6 +67,7 @@ class UserService extends GetxService {
   }
 
   Future<void> logout() async {
+    print('=== UserService.logout() called ===');
     try {
       final prefs = await SharedPreferences.getInstance();
       // 清除存储的用户数据
@@ -77,9 +80,12 @@ class UserService extends GetxService {
       _isLoggedIn.value = false;
 
       print('=== Logout Successful ===');
-      print('User data and token cleared');
+      print('Token cleared: ${_token.value}');
+      print('User data cleared: ${_userData.value}');
+      print('Login status: ${_isLoggedIn.value}');
     } catch (e) {
       print('Error during logout: $e');
+      print('Stack trace: ${StackTrace.current}');
       rethrow;
     }
   }

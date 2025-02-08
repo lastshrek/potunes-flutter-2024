@@ -4,6 +4,7 @@ import '../../services/user_service.dart';
 import 'dart:convert';
 import '../../controllers/navigation_controller.dart';
 import '../../screens/pages/favourites_page.dart';
+import '../../screens/pages/login_page.dart';
 
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});
@@ -167,11 +168,33 @@ class LibraryPage extends StatelessWidget {
               alignment: Alignment.bottomCenter,
               child: ElevatedButton(
                 onPressed: () async {
-                  await UserService.to.logout();
-                  // 更新导航控制器的当前页面为首页
-                  Get.find<NavigationController>().changePage(0);
-                  // 返回首页
-                  Get.until((route) => route.isFirst);
+                  try {
+                    // 先执行登出
+                    await UserService.to.logout();
+
+                    // 切换到首页
+                    NavigationController.to.changePage(0);
+
+                    // 显示退出成功提示
+                    Get.snackbar(
+                      'Success',
+                      'Logged out successfully',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: Colors.green,
+                      colorText: Colors.white,
+                      margin: const EdgeInsets.all(16),
+                    );
+                  } catch (e) {
+                    print('Error during logout: $e');
+                    Get.snackbar(
+                      'Error',
+                      'Failed to logout',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: Colors.red,
+                      colorText: Colors.white,
+                      margin: const EdgeInsets.all(16),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,

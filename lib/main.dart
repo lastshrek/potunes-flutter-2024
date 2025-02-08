@@ -20,6 +20,7 @@ import 'controllers/navigation_controller.dart';
 import 'routes/app_pages.dart';
 import 'bindings/initial_binding.dart';
 import 'services/user_service.dart';
+import 'controllers/app_controller.dart';
 // import 'screens/mini_player.dart';
 // import 'controllers/navigation_controller.dart';
 
@@ -120,6 +121,9 @@ Future<void> main() async {
   }
 
   await Get.putAsync(() => UserService().init());
+
+  // 初始化 AppController
+  Get.put(AppController());
 
   runApp(const MyApp());
   if (Platform.isAndroid) {

@@ -4,6 +4,7 @@ import '../../services/network_service.dart';
 import '../../config/api_config.dart';
 import 'dart:async';
 import '../../services/user_service.dart';
+import '../../controllers/app_controller.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -145,6 +146,40 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  void _navigateToHome() async {
+    try {
+      // 先执行登出
+      await UserService.to.logout();
+
+      // 更新底部导航栏索引
+      final appController = Get.find<AppController>();
+      appController.currentIndex = 0;
+
+      // 使用 Get.offAllNamed 确保清除导航栈并跳转到首页
+      Get.offAllNamed('/', arguments: {'index': 0});
+
+      // 显示退出成功提示
+      Get.snackbar(
+        'Success',
+        'Logged out successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+      );
+    } catch (e) {
+      print('Error during logout: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to logout',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -154,7 +189,7 @@ class _LoginPageState extends State<LoginPage> {
     return GestureDetector(
       onTap: () {
         print('=== Background tapped ===');
-        Navigator.of(context).pop();
+        _navigateToHome();
       },
       child: Material(
         type: MaterialType.transparency,
@@ -187,7 +222,7 @@ class _LoginPageState extends State<LoginPage> {
                               behavior: HitTestBehavior.opaque,
                               onTap: () {
                                 print('=== Close button tapped ===');
-                                Navigator.of(context).pop();
+                                _navigateToHome();
                               },
                               child: Container(
                                 width: 48,
