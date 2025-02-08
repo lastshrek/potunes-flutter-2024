@@ -349,9 +349,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               ),
               child: Column(
                 children: [
-                  // 歌曲信息
+                  // 歌曲标题
                   Text(
-                    track['name'] ?? '',
+                    track['name'] ?? 'Unknown',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -361,14 +361,18 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
+
+                  // 歌手和专辑信息
                   Text(
-                    track['artist'] ?? '',
+                    '${track['artist'] ?? 'Unknown Artist'} • ${track['album'] ?? 'Unknown Album'}',
                     style: TextStyle(
-                      color: Colors.grey[400],
+                      color: Colors.white.withOpacity(0.7),
                       fontSize: 16,
                     ),
                     textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 20),
                   // 进度条
@@ -543,9 +547,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 歌曲信息
+                // 歌曲标题
                 Text(
-                  track['name'] ?? '',
+                  track['name'] ?? 'Unknown',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -555,14 +559,18 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
+
+                // 歌手和专辑信息
                 Text(
-                  track['artist'] ?? '',
+                  '${track['artist'] ?? 'Unknown Artist'} • ${track['album'] ?? 'Unknown Album'}',
                   style: TextStyle(
-                    color: Colors.grey[400],
+                    color: Colors.white.withOpacity(0.7),
                     fontSize: 16,
                   ),
                   textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 20),
                 // 进度条
