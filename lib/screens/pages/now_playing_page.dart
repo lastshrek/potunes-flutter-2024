@@ -12,6 +12,7 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'dart:ui';
 import '../../services/user_service.dart';
+import '../../widgets/scrolling_text.dart';
 
 class NowPlayingPage extends StatefulWidget {
   const NowPlayingPage({super.key});
@@ -350,29 +351,19 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               child: Column(
                 children: [
                   // 歌曲标题
-                  Text(
-                    track['name'] ?? 'Unknown',
-                    style: const TextStyle(
+                  ScrollingText(
+                    title: track['name'] ?? 'Unknown',
+                    subtitle: '${track['artist'] ?? 'Unknown Artist'} • ${track['album'] ?? 'Unknown Album'}',
+                    titleStyle: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 歌手和专辑信息
-                  Text(
-                    '${track['artist'] ?? 'Unknown Artist'} • ${track['album'] ?? 'Unknown Album'}',
-                    style: TextStyle(
+                    subtitleStyle: TextStyle(
                       color: Colors.white.withOpacity(0.7),
                       fontSize: 16,
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    width: MediaQuery.of(context).size.width - 64, // 考虑左右padding
                   ),
                   const SizedBox(height: 20),
                   // 进度条
@@ -548,29 +539,19 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // 歌曲标题
-                Text(
-                  track['name'] ?? 'Unknown',
-                  style: const TextStyle(
+                ScrollingText(
+                  title: track['name'] ?? 'Unknown',
+                  subtitle: '${track['artist'] ?? 'Unknown Artist'} • ${track['album'] ?? 'Unknown Album'}',
+                  titleStyle: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-
-                // 歌手和专辑信息
-                Text(
-                  '${track['artist'] ?? 'Unknown Artist'} • ${track['album'] ?? 'Unknown Album'}',
-                  style: TextStyle(
+                  subtitleStyle: TextStyle(
                     color: Colors.white.withOpacity(0.7),
                     fontSize: 16,
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  width: MediaQuery.of(context).size.width - 64, // 考虑左右padding
                 ),
                 const SizedBox(height: 20),
                 // 进度条
