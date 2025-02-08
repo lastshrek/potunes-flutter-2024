@@ -11,6 +11,7 @@ import '../../widgets/empty_screen.dart';
 import 'dart:math' as math;
 import 'dart:async';
 import 'dart:ui';
+import '../../services/user_service.dart';
 
 class NowPlayingPage extends StatefulWidget {
   const NowPlayingPage({super.key});
@@ -211,6 +212,22 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                       _buildPageIndicator(1),
                     ],
                   ),
+                  actions: [
+                    // 添加喜欢按钮 - 只在登录时显示
+                    Obx(() {
+                      if (UserService.to.isLoggedIn) {
+                        return IconButton(
+                          icon: FaIcon(
+                            controller.isLike ? FontAwesomeIcons.solidHeart : FontAwesomeIcons.heart,
+                            color: controller.isLike ? const Color(0xFFFF69B4) : Colors.white,
+                            size: 20,
+                          ),
+                          onPressed: controller.toggleLike,
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }),
+                  ],
                 ),
               ),
             ),
