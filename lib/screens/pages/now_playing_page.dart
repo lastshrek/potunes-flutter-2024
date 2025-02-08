@@ -161,39 +161,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     );
   }
 
-  // 添加获取当前行高度的方法
-  double _getCurrentLineHeight() {
-    final lyrics = AudioService.to.lyrics;
-    if (lyrics == null || lyrics.isEmpty) return 48.0;
-    return _calculateLineHeight(lyrics[AudioService.to.currentLineIndex].toString());
-  }
-
-  // 添加计算最大缩放比例的方法
-  double _calculateMaxScale(String text, double maxWidth) {
-    final textSpan = TextSpan(
-      text: text,
-      style: const TextStyle(
-        fontSize: 16,
-        height: 1.5,
-        letterSpacing: 0.5,
-        fontWeight: FontWeight.bold, // 使用加粗字体计算，因为当前行会加粗
-      ),
-    );
-
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-      maxLines: 3,
-      textAlign: TextAlign.left,
-    );
-
-    textPainter.layout(maxWidth: maxWidth);
-
-    // 如果文本宽度超过容器宽度的80%，限制缩放比例
-    final maxScale = math.min(1.2, (maxWidth * 0.8) / textPainter.width);
-    return maxScale;
-  }
-
   @override
   Widget build(BuildContext context) {
     return GetX<AudioService>(
@@ -566,18 +533,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     );
   }
 
-  double _getControlsPosition(double page, double totalHeight) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final flex4Height = (totalHeight * 4) / 9;
-    final normalPosition = flex4Height * 0.4; // 正常位置
-    final bottomPosition = flex4Height - bottomPadding - 96; // 使用整个 flex4Height
-
-    // 根据页面滑动进度计算位置
-    if (page <= 0) return normalPosition;
-    if (page >= 1) return bottomPosition;
-    return normalPosition + (bottomPosition - normalPosition) * page;
-  }
-
   Widget _buildLyricsPage(Map<String, dynamic> track) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -876,10 +831,26 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   }
 
   void _showPlaylistSheet() {
-    final currentIndex = AudioService.to.currentIndex;
-    final scrollController = ScrollController(
-      initialScrollOffset: currentIndex * 72.0, // 72.0 是每个列表项的高度
-    );
+    final scrollController = ScrollController();
+
+    void scrollToCurrentSong() {
+      if (scrollController.hasClients) {
+        final currentIndex = AudioService.to.currentIndex; // 获取最新的索引
+        final itemHeight = 72.0;
+        final targetOffset = (currentIndex + 1) * itemHeight;
+
+        print('Scroll calculation:');
+        print('Item height: $itemHeight');
+        print('Current index: $currentIndex');
+        print('Target offset: $targetOffset');
+
+        scrollController.animateTo(
+          math.max(0, targetOffset),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    }
 
     showModalBottomSheet(
       context: context,
@@ -925,28 +896,27 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                   final currentIndex = controller.currentIndex;
                   if (playlist == null) return const SizedBox.shrink();
 
-                  // 重新排序列表，将当前播放的歌曲放在第一位
-                  final reorderedPlaylist = [
-                    playlist[currentIndex],
-                    ...playlist.sublist(0, currentIndex),
-                    ...playlist.sublist(currentIndex + 1),
-                  ];
+                  // 在构建列表时触发滚动
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    scrollToCurrentSong();
+                  });
 
                   return ListView.builder(
                     controller: scrollController,
-                    padding: const EdgeInsets.only(bottom: 32),
-                    itemCount: reorderedPlaylist.length,
+                    padding: const EdgeInsets.only(
+                      top: 72.0, // 保持固定的顶部 padding
+                      bottom: 72.0,
+                    ),
+                    itemCount: playlist.length,
                     itemBuilder: (context, index) {
-                      final track = reorderedPlaylist[index];
-                      final isPlaying = track['id'] == playlist[currentIndex]['id'];
+                      final track = playlist[index];
+                      final isPlaying = index == currentIndex;
 
                       return Material(
                         color: Colors.transparent,
                         child: InkWell(
                           onTap: () {
-                            // 找到原始索引
-                            final originalIndex = playlist.indexWhere((t) => t['id'] == track['id']);
-                            controller.playTrack(playlist[originalIndex]);
+                            controller.playTrack(playlist[index]);
                             Navigator.pop(context);
                           },
                           child: Container(
@@ -959,15 +929,19 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                                 // 播放状态指示器
                                 SizedBox(
                                   width: 24,
-                                  child: isPlaying
-                                      ? const _PlayingIndicator()
-                                      : Text(
-                                          '${index + 1}',
-                                          style: TextStyle(
-                                            color: Colors.white.withOpacity(0.5),
-                                            fontSize: 14,
+                                  height: 24, // 添加固定高度
+                                  child: Center(
+                                    // 添加居中对齐
+                                    child: isPlaying
+                                        ? const _PlayingIndicator()
+                                        : Text(
+                                            '${index + 1}',
+                                            style: TextStyle(
+                                              color: Colors.white.withOpacity(0.5),
+                                              fontSize: 14,
+                                            ),
                                           ),
-                                        ),
+                                  ),
                                 ),
                                 const SizedBox(width: 8), // 减小间距
                                 // 歌曲封面
@@ -1044,16 +1018,16 @@ class _PlayingIndicatorState extends State<_PlayingIndicator> with SingleTickerP
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 800),
     )..repeat();
 
     // 创建三个错开的动画
     for (int i = 0; i < 3; i++) {
       _animations.add(
-        Tween<double>(begin: 3, end: 15).animate(
+        Tween<double>(begin: 3, end: 12).animate(
           CurvedAnimation(
             parent: _controller,
-            curve: Interval(i * 0.2, 0.6 + i * 0.2, curve: Curves.easeInOut),
+            curve: Interval(i * 0.15, 0.45 + i * 0.15, curve: Curves.easeInOut),
           ),
         ),
       );
@@ -1068,24 +1042,30 @@ class _PlayingIndicatorState extends State<_PlayingIndicator> with SingleTickerP
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 14,
+    return Container(
+      // 添加一个容器来显示边界
+      width: 24, // 匹配父容器宽度
       height: 15,
+      alignment: Alignment.center, // 居中对齐
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.center, // 居中对齐
+        mainAxisSize: MainAxisSize.min, // 最小宽度
         children: List.generate(3, (index) {
-          return AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Container(
-                width: 2,
-                height: _animations[index].value,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              );
-            },
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 1), // 添加间距
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return Container(
+                  width: 2,
+                  height: _animations[index].value,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9), // 稍微调整透明度
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                );
+              },
+            ),
           );
         }),
       ),

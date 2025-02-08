@@ -125,6 +125,7 @@ class AudioService extends GetxService {
   Future<void> playTrack(Map<String, dynamic> track) async {
     try {
       _currentTrack.value = track;
+      _updateCurrentIndex(track);
       final url = track['url'];
       if (url == null) return;
 
@@ -363,6 +364,16 @@ class AudioService extends GetxService {
       indices.insert(0, _currentIndex.value); // 将当前歌曲放在第一位
       _shuffledIndices.value = indices;
       _currentShuffleIndex = 0;
+    }
+  }
+
+  // 添加一个方法来更新当前索引
+  void _updateCurrentIndex(Map<String, dynamic> track) {
+    if (_currentPlaylist.value != null) {
+      final index = _currentPlaylist.value!.indexWhere((t) => t['id'] == track['id']);
+      if (index != -1) {
+        _currentIndex.value = index;
+      }
     }
   }
 }
