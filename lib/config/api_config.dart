@@ -10,6 +10,9 @@ class ApiConfig {
   static const String playlist = '/playlists/by';
   static const String lyrics = '/v1/lyrics';
   static const String topCharts = '/tracks/topCharts/week';
+  static const String allCollections = '/v1/playlists/collection/all';
+  static const String allFinals = '/v1/playlists/finals';
+  static const String allAlbums = '/v1/playlists/albums';
   // HTTP 状态码
   static const int successCode = 200;
   static const int unauthorizedCode = 401;

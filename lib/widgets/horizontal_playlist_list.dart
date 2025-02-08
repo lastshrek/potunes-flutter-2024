@@ -42,26 +42,27 @@ class HorizontalPlaylistList extends StatelessWidget {
                         color: Colors.white,
                       ),
                     ),
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: isLoading
-                    ? const SkeletonLoading(
-                        width: 24,
-                        height: 24,
-                      )
-                    : IconButton(
-                        icon: const Icon(
-                          Icons.arrow_outward,
-                          color: Colors.white,
-                          size: 20,
+              if (onTitleTap != null)
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: isLoading
+                      ? const SkeletonLoading(
+                          width: 24,
+                          height: 24,
+                        )
+                      : IconButton(
+                          icon: const Icon(
+                            Icons.arrow_outward,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: onTitleTap,
                         ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        visualDensity: VisualDensity.compact,
-                        onPressed: onTitleTap,
-                      ),
-              ),
+                ),
             ],
           ),
         ),

@@ -15,6 +15,12 @@ class TopChartsPage extends GetView<TopChartsController> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {
+            Scaffold.of(context).openDrawer();
+          },
+        ),
         title: const Text(
           'Top Charts',
           style: TextStyle(
@@ -57,7 +63,7 @@ class TopChartsPage extends GetView<TopChartsController> {
               left: 16,
               right: 16,
               top: 16,
-              bottom: kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom + 40,
+              bottom: 16,
             ),
             itemCount: charts.length,
             itemBuilder: (context, index) {

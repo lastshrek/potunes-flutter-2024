@@ -227,4 +227,64 @@ class NetworkService {
       rethrow;
     }
   }
+
+  Future<List<dynamic>> getAllCollections() async {
+    try {
+      print('=== Getting all collections ===');
+      final response = await _client.get<dynamic>(ApiConfig.allCollections);
+      print('=== All collections response: $response ===');
+
+      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+        return response['data'] as List<dynamic>;
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: '无效的响应格式',
+      );
+    } catch (e) {
+      print('=== Error getting all collections: $e ===');
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getAllFinals() async {
+    try {
+      print('=== Getting all finals ===');
+      final response = await _client.get<dynamic>(ApiConfig.allFinals);
+      print('=== All finals response: $response ===');
+
+      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+        return response['data'] as List<dynamic>;
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: '无效的响应格式',
+      );
+    } catch (e) {
+      print('=== Error getting all finals: $e ===');
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getAllAlbums() async {
+    try {
+      print('=== Getting all albums ===');
+      final response = await _client.get<dynamic>(ApiConfig.allAlbums);
+      print('=== All albums response: $response ===');
+
+      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+        return response['data'] as List<dynamic>;
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: '无效的响应格式',
+      );
+    } catch (e) {
+      print('=== Error getting all albums: $e ===');
+      rethrow;
+    }
+  }
 }

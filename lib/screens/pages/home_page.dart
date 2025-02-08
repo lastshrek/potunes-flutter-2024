@@ -11,6 +11,7 @@ import '../../config/api_config.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../controllers/home_controller.dart';
+import '../../screens/pages/all_playlists_page.dart';
 
 class HomePage extends GetView<HomeController> {
   const HomePage({super.key});
@@ -148,7 +149,16 @@ class HomePage extends GetView<HomeController> {
                             constraints: const BoxConstraints(),
                             visualDensity: VisualDensity.compact,
                             onPressed: () {
-                              // TODO: 处理点击事件
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AllPlaylistsPage(
+                                    title: 'Collections',
+                                    playlists: collections,
+                                    apiPath: ApiConfig.allCollections,
+                                  ),
+                                ),
+                              );
                             },
                           ),
                   ),
@@ -318,10 +328,20 @@ class HomePage extends GetView<HomeController> {
           playlists: finalPlaylists,
           isLoading: controller.isRefreshing,
           onTitleTap: () {
-            // TODO: 处理标题点击事件
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AllPlaylistsPage(
+                  title: 'Final',
+                  playlists: finalPlaylists,
+                  apiPath: ApiConfig.allFinals,
+                ),
+              ),
+            );
           },
           onPlaylistTap: (playlist) {
-            Navigator.of(context).push(
+            Navigator.push(
+              context,
               MaterialPageRoute(
                 builder: (context) => PlaylistPage(
                   playlist: playlist,
@@ -338,7 +358,16 @@ class HomePage extends GetView<HomeController> {
           playlists: albums,
           isLoading: controller.isRefreshing,
           onTitleTap: () {
-            // TODO: 处理标题点击事件
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AllPlaylistsPage(
+                  title: 'Albums',
+                  playlists: albums,
+                  apiPath: ApiConfig.allAlbums,
+                ),
+              ),
+            );
           },
           onPlaylistTap: (playlist) {
             Navigator.push(
@@ -358,9 +387,7 @@ class HomePage extends GetView<HomeController> {
           title: 'Netease Toplist',
           playlists: neteaseToplist,
           isLoading: controller.isRefreshing,
-          onTitleTap: () {
-            // TODO: 处理标题点击事件
-          },
+          onTitleTap: null,
           onPlaylistTap: (playlist) {
             Navigator.push(
               context,
@@ -375,7 +402,7 @@ class HomePage extends GetView<HomeController> {
         ),
         // 添加底部 padding，考虑 mini player 和底部导航栏的高度
         SizedBox(
-          height: kBottomNavigationBarHeight + (MediaQuery.of(context).padding.bottom) + 40, // mini player 的高度
+          height: 16, // mini player 的高度
         ),
       ]),
     );
