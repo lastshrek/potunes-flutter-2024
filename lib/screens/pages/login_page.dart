@@ -104,8 +104,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    print('Building LoginPage');
-
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final topPadding = MediaQuery.of(context).padding.top;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
@@ -148,10 +146,7 @@ class _LoginPageState extends State<LoginPage> {
                       left: 4,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque, // 确保点击事件被捕获
-                        onTapDown: (_) => print('Tap down on close button'),
-                        onTapUp: (_) => print('Tap up on close button'),
                         onTap: () {
-                          print('Close button tapped!');
                           Navigator.of(context).pop();
                         },
                         child: Container(
