@@ -36,11 +36,14 @@ class AudioService extends GetxService {
   final _shuffledIndices = <int>[].obs;
   int _currentShuffleIndex = 0;
 
+  // 添加随机播放列表
+  final _shuffledPlaylist = Rxn<List<Map<String, dynamic>>>();
+
   // 添加 rxPosition getter
   Rx<Duration> get rxPosition => _position;
 
   // 添加 getter
-  List<Map<String, dynamic>>? get currentPlaylist => _currentPlaylist.value;
+  List<Map<String, dynamic>>? get currentPlaylist => _isShuffleMode.value ? _shuffledPlaylist.value : _currentPlaylist.value;
   int get currentIndex => _currentIndex.value;
 
   bool get isPlaying => _isPlaying.value;
@@ -162,21 +165,14 @@ class AudioService extends GetxService {
     try {
       if (_currentPlaylist.value == null) return;
 
-      if (_isShuffleMode.value) {
-        // 随机播放模式
-        _currentShuffleIndex--;
-        if (_currentShuffleIndex < 0) {
-          _currentShuffleIndex = _shuffledIndices.length - 1;
-        }
-        _currentIndex.value = _shuffledIndices[_currentShuffleIndex];
-      } else {
-        // 顺序播放模式
-        if (_currentIndex.value <= 0) return;
+      if (_currentIndex.value > 0) {
         _currentIndex.value--;
+        final playlist = currentPlaylist; // 使用 getter 获取当前应该使用的列表
+        if (playlist != null) {
+          await playTrack(playlist[_currentIndex.value]);
+          _saveLastState();
+        }
       }
-
-      await playTrack(_currentPlaylist.value![_currentIndex.value]);
-      _saveLastState();
     } catch (e) {
       debugPrint('Error playing previous track: $e');
     }
@@ -186,25 +182,12 @@ class AudioService extends GetxService {
     try {
       if (_currentPlaylist.value == null) return;
 
-      if (_isShuffleMode.value) {
-        // 随机播放模式
-        _currentShuffleIndex++;
-        if (_currentShuffleIndex >= _shuffledIndices.length) {
-          // 如果到达列表末尾，重新打乱
-          final indices = List.generate(_currentPlaylist.value!.length, (i) => i);
-          indices.shuffle();
-          _shuffledIndices.value = indices;
-          _currentShuffleIndex = 0;
-        }
-        _currentIndex.value = _shuffledIndices[_currentShuffleIndex];
-      } else {
-        // 顺序播放模式
-        if (_currentIndex.value >= _currentPlaylist.value!.length - 1) return;
+      final playlist = currentPlaylist; // 使用 getter 获取当前应该使用的列表
+      if (playlist != null && _currentIndex.value < playlist.length - 1) {
         _currentIndex.value++;
+        await playTrack(playlist[_currentIndex.value]);
+        _saveLastState();
       }
-
-      await playTrack(_currentPlaylist.value![_currentIndex.value]);
-      _saveLastState();
     } catch (e) {
       debugPrint('Error playing next track: $e');
     }
@@ -352,25 +335,39 @@ class AudioService extends GetxService {
     return filteredLyrics.isNotEmpty ? filteredLyrics : null;
   }
 
-  // 添加切换随机播放的方法
+  // 修改切换随机播放的方法
   void toggleShuffle() {
     _isShuffleMode.value = !_isShuffleMode.value;
 
     if (_isShuffleMode.value) {
-      // 启用随机播放时，生成随机顺序
-      final indices = List.generate(_currentPlaylist.value?.length ?? 0, (i) => i);
-      indices.remove(_currentIndex.value); // 移除当前播放的歌曲
-      indices.shuffle(); // 打乱顺序
-      indices.insert(0, _currentIndex.value); // 将当前歌曲放在第一位
-      _shuffledIndices.value = indices;
-      _currentShuffleIndex = 0;
+      // 启用随机播放时，生成随机顺序的播放列表
+      if (_currentPlaylist.value != null) {
+        final currentTrack = _currentTrack.value;
+        final List<Map<String, dynamic>> shuffled = List.from(_currentPlaylist.value!);
+        shuffled.remove(currentTrack); // 移除当前播放的歌曲
+        shuffled.shuffle(); // 打乱顺序
+        shuffled.insert(0, currentTrack!); // 将当前歌曲放在第一位
+        _shuffledPlaylist.value = shuffled;
+        _currentIndex.value = 0; // 重置当前索引
+      }
+    } else {
+      // 关闭随机播放时，恢复原始顺序
+      if (_currentTrack.value != null && _currentPlaylist.value != null) {
+        // 找到当前歌曲在原始列表中的位置
+        final index = _currentPlaylist.value!.indexWhere((t) => t['id'] == _currentTrack.value!['id']);
+        if (index != -1) {
+          _currentIndex.value = index;
+        }
+      }
+      _shuffledPlaylist.value = null;
     }
   }
 
-  // 添加一个方法来更新当前索引
+  // 修改 _updateCurrentIndex 方法
   void _updateCurrentIndex(Map<String, dynamic> track) {
-    if (_currentPlaylist.value != null) {
-      final index = _currentPlaylist.value!.indexWhere((t) => t['id'] == track['id']);
+    final playlist = currentPlaylist; // 使用 getter 获取当前应该使用的列表
+    if (playlist != null) {
+      final index = playlist.indexWhere((t) => t['id'] == track['id']);
       if (index != -1) {
         _currentIndex.value = index;
       }
