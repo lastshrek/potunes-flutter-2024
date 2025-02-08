@@ -22,13 +22,6 @@ class LibraryPage extends StatelessWidget {
       final userData = UserService.to.userData;
       final phone = userData?['phone']?.toString() ?? '';
 
-      // 添加调试信息
-      print('=== User Data Debug ===');
-      print('UserData: $userData');
-      print('Phone: $phone');
-      print('Nickname: ${userData?['nickname']}');
-      print('Formatted Phone: ${_formatPhone(phone)}');
-
       return CustomScrollView(
         slivers: [
           // 用户信息区域

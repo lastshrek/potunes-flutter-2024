@@ -189,7 +189,6 @@ class _LoginPageState extends State<LoginPage> {
     return GestureDetector(
       onTap: () {
         print('=== Background tapped ===');
-        _navigateToHome();
       },
       child: Material(
         type: MaterialType.transparency,
@@ -222,7 +221,6 @@ class _LoginPageState extends State<LoginPage> {
                               behavior: HitTestBehavior.opaque,
                               onTap: () {
                                 print('=== Close button tapped ===');
-                                _navigateToHome();
                               },
                               child: Container(
                                 width: 48,
