@@ -7,6 +7,7 @@ import '../../services/audio_service.dart';
 import '../../services/network_service.dart';
 import '../../config/api_config.dart';
 import '../../models/lyric_line.dart';
+import '../../widgets/empty_screen.dart';
 import 'dart:math' as math;
 import 'dart:async';
 import 'dart:ui';
@@ -664,7 +665,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       builder: (context, constraints) {
         final totalHeight = constraints.maxHeight;
         final bottomPadding = MediaQuery.of(context).padding.bottom;
-        final controlsHeight = 64.0 + bottomPadding + 16.0; // 减小控制栏高度
+        final controlsHeight = 64.0 + bottomPadding + 16.0;
         final appBarHeight = kToolbarHeight + 65;
 
         return GestureDetector(
@@ -698,7 +699,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                               ),
                               SizedBox(height: 16),
                               Text(
-                                '加载歌词中...',
+                                'Loading Lyrics...',
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 16,
@@ -710,13 +711,17 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                       }
 
                       if (lyrics == null) {
-                        return const Center(
-                          child: Text(
-                            '暂无歌词',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                            ),
+                        return Center(
+                          child: emptyScreen(
+                            context,
+                            0,
+                            ':( ',
+                            100.0,
+                            'Lyrics',
+                            60.0,
+                            'notAvailable',
+                            20.0,
+                            useWhite: Theme.of(context).brightness == Brightness.light ? false : true,
                           ),
                         );
                       }

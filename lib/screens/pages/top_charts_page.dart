@@ -53,7 +53,12 @@ class TopChartsPage extends GetView<TopChartsController> {
           backgroundColor: Colors.black,
           color: Colors.white,
           child: ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom + 40,
+            ),
             itemCount: charts.length,
             itemBuilder: (context, index) {
               final chart = charts[index];

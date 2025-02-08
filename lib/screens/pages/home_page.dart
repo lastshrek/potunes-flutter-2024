@@ -122,9 +122,9 @@ class HomePage extends GetView<HomeController> {
                           width: 100,
                           height: 18,
                         )
-                      : Text(
+                      : const Text(
                           'Collections',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -156,75 +156,158 @@ class HomePage extends GetView<HomeController> {
               ),
             ),
             const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: AspectRatio(
-                aspectRatio: 32 / 15,
-                child: controller.isRefreshing
-                    ? const SkeletonLoading()
-                    : Swiper(
-                        itemBuilder: (context, index) {
-                          final item = collections[index];
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PlaylistPage(
-                                    playlist: item,
-                                    playlistId: item['id'] ?? 0,
-                                  ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
+                if (isLandscape) {
+                  // 横屏布局
+                  return SizedBox(
+                    height: 140, // 调整高度以适应 32:15 的比例
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: controller.isRefreshing ? 3 : collections.length,
+                      itemBuilder: (context, index) {
+                        if (controller.isRefreshing) {
+                          return Container(
+                            width: 298, // 32:15 的比例，高度 140
+                            margin: const EdgeInsets.only(right: 12),
+                            child: const SkeletonLoading(),
+                          );
+                        }
+                        final item = collections[index];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PlaylistPage(
+                                  playlist: item,
+                                  playlistId: item['id'] ?? 0,
                                 ),
-                              );
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: CachedNetworkImage(
-                                  imageUrl: item['cover'] ?? '',
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) => Container(
-                                    color: Colors.grey[800],
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.music_note,
-                                        color: Colors.white54,
-                                        size: 32,
-                                      ),
+                            );
+                          },
+                          child: Container(
+                            width: 298, // 保持 32:15 的比例
+                            margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: item['cover'] ?? '',
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.grey[800],
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.music_note,
+                                      color: Colors.white54,
+                                      size: 32,
                                     ),
                                   ),
-                                  errorWidget: (context, url, error) => Container(
-                                    color: Colors.grey[800],
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.error_outline,
-                                        color: Colors.white54,
-                                        size: 32,
-                                      ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.grey[800],
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.error_outline,
+                                      color: Colors.white54,
+                                      size: 32,
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                          );
-                        },
-                        itemCount: collections.length,
-                        autoplay: true,
-                        autoplayDelay: 3000,
-                        viewportFraction: 1.0,
-                        scale: 1.0,
-                      ),
-              ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                } else {
+                  // 竖屏布局
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: AspectRatio(
+                      aspectRatio: 32 / 15,
+                      child: controller.isRefreshing
+                          ? const SkeletonLoading()
+                          : Swiper(
+                              itemBuilder: (context, index) {
+                                final item = collections[index];
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => PlaylistPage(
+                                          playlist: item,
+                                          playlistId: item['id'] ?? 0,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: CachedNetworkImage(
+                                        imageUrl: item['cover'] ?? '',
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(
+                                          color: Colors.grey[800],
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.music_note,
+                                              color: Colors.white54,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        ),
+                                        errorWidget: (context, url, error) => Container(
+                                          color: Colors.grey[800],
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.error_outline,
+                                              color: Colors.white54,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                              itemCount: collections.length,
+                              autoplay: true,
+                              autoplayDelay: 3000,
+                              viewportFraction: 1.0,
+                              scale: 1.0,
+                            ),
+                    ),
+                  );
+                }
+              },
             ),
           ],
         ),
@@ -289,6 +372,10 @@ class HomePage extends GetView<HomeController> {
               ),
             );
           },
+        ),
+        // 添加底部 padding，考虑 mini player 和底部导航栏的高度
+        SizedBox(
+          height: kBottomNavigationBarHeight + (MediaQuery.of(context).padding.bottom) + 40, // mini player 的高度
         ),
       ]),
     );
