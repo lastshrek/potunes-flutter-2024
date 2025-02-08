@@ -202,4 +202,29 @@ class NetworkService {
       );
     }
   }
+
+  Future<Map<String, dynamic>> getTopCharts() async {
+    try {
+      print('=== Getting top charts ===');
+      final response = await _client.get<dynamic>(ApiConfig.topCharts);
+      print('=== Top charts response: $response ===');
+
+      if (response is Map && response['statusCode'] == 200) {
+        if (response['data'] is List) {
+          // 将数据包装成期望的格式
+          return {
+            'charts': response['data'],
+          };
+        }
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: '无效的响应格式',
+      );
+    } catch (e) {
+      print('=== Error getting top charts: $e ===');
+      rethrow;
+    }
+  }
 }

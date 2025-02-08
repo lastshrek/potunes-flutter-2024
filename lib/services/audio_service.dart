@@ -52,8 +52,14 @@ class AudioService extends GetxService {
   // 添加 rxPosition getter
   Rx<Duration> get rxPosition => _position;
 
+  // 添加 currentPlaylist 的 getter 和 setter
+  List<Map<String, dynamic>>? get currentPlaylist => _currentPlaylist.value;
+  set currentPlaylist(List<Map<String, dynamic>>? value) {
+    _currentPlaylist.value = value;
+    _saveLastState();
+  }
+
   // 添加 getter
-  List<Map<String, dynamic>>? get currentPlaylist => _isShuffleMode.value ? _shuffledPlaylist.value : _currentPlaylist.value;
   int get currentIndex => _currentIndex.value;
 
   bool get isPlaying => _isPlaying.value;

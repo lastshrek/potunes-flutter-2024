@@ -9,6 +9,7 @@ class ApiConfig {
   static const String latestFinal = '/v1/playlists/final/latest';
   static const String playlist = '/playlists/by';
   static const String lyrics = '/v1/lyrics';
+  static const String topCharts = '/tracks/topCharts/week';
   // HTTP 状态码
   static const int successCode = 200;
   static const int unauthorizedCode = 401;

@@ -1,25 +1,162 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shimmer/shimmer.dart';
+import '../../controllers/top_charts_controller.dart';
 
-class TopChartsPage extends StatelessWidget {
+class TopChartsPage extends GetView<TopChartsController> {
   const TopChartsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.all(16.0),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'Top Charts',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: Obx(() {
+        if (controller.isLoading.isTrue) {
+          return _buildSkeletonList();
+        }
+
+        if (controller.error?.value != null) {
+          return Center(
             child: Text(
-              'Top Charts',
+              'Error: ${controller.error?.value}',
+              style: const TextStyle(color: Colors.white),
+            ),
+          );
+        }
+
+        final charts = controller.charts;
+        if (charts.isEmpty) {
+          return const Center(
+            child: Text(
+              'No charts available',
+              style: TextStyle(color: Colors.white),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: charts.length,
+          itemBuilder: (context, index) {
+            final chart = charts[index];
+            return _buildTrackItem(chart, index);
+          },
+        );
+      }),
+    );
+  }
+
+  Widget _buildTrackItem(Map<String, dynamic> chart, int index) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      onTap: () => controller.openChart(chart),
+      leading: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 30,
+            child: Text(
+              '${index + 1}',
               style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+                color: index < 3 ? Colors.white : Colors.grey[400],
+                fontSize: index < 3 ? 18 : 14,
+                fontWeight: index < 3 ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              chart['cover_url'] ?? '',
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ],
+      ),
+      title: Text(
+        chart['name'] ?? '',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
         ),
-      ],
+      ),
+      subtitle: Text(
+        chart['artist'] ?? '',
+        style: TextStyle(
+          color: Colors.grey[400],
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonList() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[900]!,
+      highlightColor: Colors.grey[800]!,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 10,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 20,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        height: 16,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 100,
+                        height: 14,
+                        color: Colors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

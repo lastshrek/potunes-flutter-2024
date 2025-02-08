@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 import 'package:get/get.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../controllers/navigation_controller.dart';
 import 'pages/home_page.dart';
 import 'pages/top_charts_page.dart';
@@ -16,8 +17,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final NavigationController navigationController;
-  int _selectedIndex = 0;
-  final PageController _pageController = PageController(initialPage: 0);
+  final PageController _pageController = PageController();
 
   final List<Widget> _pages = const [
     HomePage(),
@@ -28,14 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    navigationController = Get.find<NavigationController>();
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    navigationController.changePage(index);
+    navigationController = Get.put(NavigationController());
   }
 
   @override
@@ -90,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: PageView(
                 controller: _pageController,
                 physics: const NeverScrollableScrollPhysics(),
-                onPageChanged: _onItemTapped,
+                onPageChanged: navigationController.changePage,
                 children: _pages,
               ),
             ),
@@ -110,34 +103,39 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        child: SalomonBottomBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          selectedItemColor: Theme.of(context).colorScheme.secondary,
-          unselectedItemColor: Colors.white54,
-          margin: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 10,
-          ),
-          items: [
-            SalomonBottomBarItem(
-              icon: const Icon(Icons.home_rounded),
-              title: const Text("Home"),
-              selectedColor: Theme.of(context).colorScheme.secondary,
+        child: GetX<NavigationController>(
+          builder: (controller) => SalomonBottomBar(
+            currentIndex: controller.currentPage,
+            onTap: (index) {
+              controller.changePage(index);
+              _pageController.jumpToPage(index);
+            },
+            selectedItemColor: Theme.of(context).colorScheme.secondary,
+            unselectedItemColor: Colors.white54,
+            margin: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 10,
             ),
-            SalomonBottomBarItem(
-              icon: const Icon(Icons.trending_up_rounded),
-              title: const Text(
-                "TopCharts",
+            items: [
+              SalomonBottomBarItem(
+                icon: const Icon(Icons.home_rounded),
+                title: const Text("Home"),
+                selectedColor: Theme.of(context).colorScheme.secondary,
               ),
-              selectedColor: Theme.of(context).colorScheme.secondary,
-            ),
-            SalomonBottomBarItem(
-              icon: const Icon(Icons.my_library_music_rounded),
-              title: const Text("Library"),
-              selectedColor: Theme.of(context).colorScheme.secondary,
-            ),
-          ],
+              SalomonBottomBarItem(
+                icon: const Icon(Icons.trending_up_rounded),
+                title: const Text(
+                  "TopCharts",
+                ),
+                selectedColor: Theme.of(context).colorScheme.secondary,
+              ),
+              SalomonBottomBarItem(
+                icon: const Icon(Icons.my_library_music_rounded),
+                title: const Text("Library"),
+                selectedColor: Theme.of(context).colorScheme.secondary,
+              ),
+            ],
+          ),
         ),
       ),
     );

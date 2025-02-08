@@ -17,6 +17,8 @@ import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'screens/home_screen.dart';
 import 'services/audio_service.dart';
 import 'controllers/navigation_controller.dart';
+import 'routes/app_pages.dart';
+import 'bindings/initial_binding.dart';
 // import 'screens/mini_player.dart';
 // import 'controllers/navigation_controller.dart';
 
@@ -245,6 +247,8 @@ class MyApp extends StatelessWidget {
       ),
       defaultTransition: Transition.fadeIn,
       transitionDuration: const Duration(milliseconds: 300),
+      initialBinding: InitialBinding(),
+      getPages: AppPages.pages,
     );
   }
 }
