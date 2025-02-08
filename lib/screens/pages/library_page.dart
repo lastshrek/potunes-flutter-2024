@@ -166,40 +166,92 @@ class LibraryPage extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(16.0),
               alignment: Alignment.bottomCenter,
-              child: ElevatedButton(
+              child: TextButton(
                 onPressed: () async {
-                  try {
-                    // 先执行登出
-                    await UserService.to.logout();
+                  // 显示确认对话框
+                  final bool? confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        backgroundColor: Colors.grey[900],
+                        title: const Text(
+                          'Confirm Logout',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        content: const Text(
+                          'Are you sure you want to logout?',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            style: TextButton.styleFrom(
+                              backgroundColor: const Color(0xFFFF69B4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Logout',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
 
-                    // 切换到首页
-                    NavigationController.to.changePage(0);
-
-                    // 显示退出成功提示
-                    Get.snackbar(
-                      'Success',
-                      'Logged out successfully',
-                      snackPosition: SnackPosition.BOTTOM,
-                      backgroundColor: Colors.green,
-                      colorText: Colors.white,
-                      margin: const EdgeInsets.all(16),
-                    );
-                  } catch (e) {
-                    print('Error during logout: $e');
-                    Get.snackbar(
-                      'Error',
-                      'Failed to logout',
-                      snackPosition: SnackPosition.BOTTOM,
-                      backgroundColor: Colors.red,
-                      colorText: Colors.white,
-                      margin: const EdgeInsets.all(16),
-                    );
+                  // 如果用户确认登出
+                  if (confirm == true) {
+                    try {
+                      await UserService.to.logout();
+                      NavigationController.to.changePage(0);
+                      Get.snackbar(
+                        'Success',
+                        'Logged out successfully',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.green,
+                        colorText: Colors.white,
+                        margin: const EdgeInsets.all(16),
+                      );
+                    } catch (e) {
+                      print('Error during logout: $e');
+                      Get.snackbar(
+                        'Error',
+                        'Failed to logout',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                        margin: const EdgeInsets.all(16),
+                      );
+                    }
                   }
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
+                style: TextButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF69B4),
                   minimumSize: const Size(double.infinity, 48),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -207,8 +259,9 @@ class LibraryPage extends StatelessWidget {
                 child: const Text(
                   'Logout',
                   style: TextStyle(
+                    color: Colors.white,
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
