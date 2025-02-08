@@ -15,6 +15,8 @@ class HomeController extends GetxController {
 
   static const String _collectionsKey = 'home_collections_data';
   static const String _finalsKey = 'home_finals_data';
+  static const String _albumsKey = 'home_albums_data';
+  static const String _neteaseKey = 'home_netease_data';
   static const String _lastUpdateKey = 'home_last_update';
 
   List<Map<String, dynamic>> get collections => _collections;
@@ -38,11 +40,15 @@ class HomeController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final cachedCollections = prefs.getString(_collectionsKey);
       final cachedFinals = prefs.getString(_finalsKey);
+      final cachedAlbums = prefs.getString(_albumsKey);
+      final cachedNetease = prefs.getString(_neteaseKey);
       final lastUpdate = prefs.getInt(_lastUpdateKey);
 
-      if (cachedCollections != null && cachedFinals != null) {
+      if (cachedCollections != null && cachedFinals != null && cachedAlbums != null && cachedNetease != null) {
         _collections.value = List<Map<String, dynamic>>.from(jsonDecode(cachedCollections).map((x) => Map<String, dynamic>.from(x)));
         _finals.value = List<Map<String, dynamic>>.from(jsonDecode(cachedFinals).map((x) => Map<String, dynamic>.from(x)));
+        _albums.value = List<Map<String, dynamic>>.from(jsonDecode(cachedAlbums).map((x) => Map<String, dynamic>.from(x)));
+        _neteaseToplist.value = List<Map<String, dynamic>>.from(jsonDecode(cachedNetease).map((x) => Map<String, dynamic>.from(x)));
         _isInitialLoading.value = false;
 
         // 如果数据超过1小时，自动刷新
@@ -65,6 +71,8 @@ class HomeController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_collectionsKey, jsonEncode(_collections));
       await prefs.setString(_finalsKey, jsonEncode(_finals));
+      await prefs.setString(_albumsKey, jsonEncode(_albums));
+      await prefs.setString(_neteaseKey, jsonEncode(_neteaseToplist));
       await prefs.setInt(_lastUpdateKey, DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
       print('Error saving to cache: $e');

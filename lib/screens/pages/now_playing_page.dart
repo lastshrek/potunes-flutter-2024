@@ -269,18 +269,214 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   Widget _buildPlayerPage(Map<String, dynamic> track, AudioService controller) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
-    return Column(
+    if (!isLandscape) {
+      // 保持原有的竖屏布局
+      return Column(
+        children: [
+          const SizedBox(height: 40),
+          // 专辑封面
+          Expanded(
+            flex: 5,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.8,
+                  maxHeight: MediaQuery.of(context).size.width * 0.8,
+                ),
+                child: Hero(
+                  tag: 'mini_player',
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: track['cover_url'] ?? '',
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[900],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[900],
+                          child: const Icon(Icons.error),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // 歌曲信息和控制部分
+          Expanded(
+            flex: 4,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 32.0,
+                right: 32.0,
+                bottom: bottomPadding + 15.0,
+              ),
+              child: Column(
+                children: [
+                  // 歌曲信息
+                  Text(
+                    track['name'] ?? '',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    track['artist'] ?? '',
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  // 进度条
+                  GetX<AudioService>(
+                    builder: (controller) {
+                      final position = controller.position;
+                      final duration = controller.duration;
+                      return Column(
+                        children: [
+                          SliderTheme(
+                            data: SliderThemeData(
+                              trackHeight: 2,
+                              thumbShape: const RoundSliderThumbShape(
+                                enabledThumbRadius: 6,
+                              ),
+                              overlayShape: const RoundSliderOverlayShape(
+                                overlayRadius: 12,
+                              ),
+                              activeTrackColor: Colors.white,
+                              inactiveTrackColor: Colors.white24,
+                              thumbColor: Colors.white,
+                              overlayColor: Colors.white24,
+                            ),
+                            child: Slider(
+                              value: position.inMilliseconds.toDouble(),
+                              min: 0,
+                              max: duration.inMilliseconds.toDouble(),
+                              onChanged: (value) {
+                                controller.player.seek(
+                                  Duration(milliseconds: value.toInt()),
+                                );
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _formatDuration(position),
+                                  style: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDuration(duration),
+                                  style: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // 播放控制
+                  _buildControlButtons(),
+                  const SizedBox(height: 16),
+                  // 添加 Coming Up Next 容器
+                  GestureDetector(
+                    onTap: _showPlaylistSheet,
+                    child: Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            height: 40,
+                            width: 160,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.black.withOpacity(0.5),
+                                  Colors.black.withOpacity(0.3),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.1),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Coming Up Next',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // 横屏布局
+    return Row(
       children: [
-        const SizedBox(height: 40),
-        // 专辑封面
+        // 左侧专辑封面
         Expanded(
-          flex: 5,
+          flex: 1,
           child: Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.8,
-                maxHeight: MediaQuery.of(context).size.width * 0.8,
+                maxWidth: MediaQuery.of(context).size.height * 0.7,
+                maxHeight: MediaQuery.of(context).size.height * 0.7,
               ),
               child: Hero(
                 tag: 'mini_player',
@@ -317,9 +513,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             ),
           ),
         ),
-        // 歌曲信息和控制部分
+        // 右侧歌曲信息和控制部分
         Expanded(
-          flex: 4,
+          flex: 1,
           child: Padding(
             padding: EdgeInsets.only(
               left: 32.0,
@@ -327,6 +523,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               bottom: bottomPadding + 15.0,
             ),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // 歌曲信息
                 Text(
@@ -412,7 +609,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                 // 播放控制
                 _buildControlButtons(),
                 const SizedBox(height: 16),
-                // 添加 Coming Up Next 容器
+                // Coming Up Next 容器
                 GestureDetector(
                   onTap: _showPlaylistSheet,
                   child: Center(
@@ -454,7 +651,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
               ],
             ),
           ),

@@ -79,7 +79,6 @@ class HomePage extends GetView<HomeController> {
                 toolbarHeight: 64,
               ),
               _buildCollectionsSection(context),
-              _buildFinalsSection(context),
             ],
           ),
         );
@@ -275,35 +274,6 @@ class HomePage extends GetView<HomeController> {
         HorizontalPlaylistList(
           title: 'Netease Toplist',
           playlists: neteaseToplist,
-          isLoading: controller.isRefreshing,
-          onTitleTap: () {
-            // TODO: 处理标题点击事件
-          },
-          onPlaylistTap: (playlist) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PlaylistPage(
-                  playlist: playlist,
-                  playlistId: playlist['id'] ?? 0,
-                ),
-              ),
-            );
-          },
-        ),
-      ]),
-    );
-  }
-
-  Widget _buildFinalsSection(BuildContext context) {
-    final finalPlaylists = controller.finals;
-
-    return SliverList(
-      delegate: SliverChildListDelegate([
-        const SizedBox(height: 24),
-        HorizontalPlaylistList(
-          title: 'Final',
-          playlists: finalPlaylists,
           isLoading: controller.isRefreshing,
           onTitleTap: () {
             // TODO: 处理标题点击事件
