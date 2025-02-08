@@ -109,7 +109,7 @@ class FavouritesPage extends StatelessWidget {
 
                     return Column(
                       children: [
-                        // 顶部统计信息
+                        // 顶部统计信息和控制按钮
                         Container(
                           padding: const EdgeInsets.all(16),
                           child: Row(
@@ -126,6 +126,34 @@ class FavouritesPage extends StatelessWidget {
                                   color: Colors.grey,
                                   fontSize: 14,
                                 ),
+                              ),
+                              const Spacer(),
+                              // 随机播放按钮
+                              IconButton(
+                                icon: const FaIcon(
+                                  FontAwesomeIcons.shuffle,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  if (favourites.isNotEmpty) {
+                                    final shuffledList = List<Map<String, dynamic>>.from(favourites)..shuffle();
+                                    _playSong(shuffledList[0], shuffledList, 0);
+                                  }
+                                },
+                              ),
+                              // 播放全部按钮
+                              IconButton(
+                                icon: const FaIcon(
+                                  FontAwesomeIcons.play,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  if (favourites.isNotEmpty) {
+                                    _playSong(favourites[0], favourites, 0);
+                                  }
+                                },
                               ),
                             ],
                           ),
