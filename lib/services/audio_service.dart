@@ -9,6 +9,9 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lyric_line.dart';
 import '../services/network_service.dart';
+import 'package:dio/dio.dart';
+import '../services/user_service.dart';
+import 'package:flutter/material.dart';
 
 // 修改循环模式枚举
 enum RepeatMode {
@@ -77,6 +80,9 @@ class AudioService extends GetxService {
 
   // 添加一个标志来防止重复触发
   bool _isHandlingCompletion = false;
+
+  final _isLike = 0.obs;
+  bool get isLike => _isLike.value == 1;
 
   @override
   void onInit() {
@@ -152,20 +158,31 @@ class AudioService extends GetxService {
 
   Future<void> playPlaylist(List<Map<String, dynamic>> tracks, {int initialIndex = 0}) async {
     try {
+      // 确保每个歌曲都有 type 字段
+      final processedTracks = tracks.map((track) {
+        if (track['type'] == null) {
+          return {
+            ...track,
+            'type': 'potunes',
+          };
+        }
+        return track;
+      }).toList();
+
       // 转换播放列表为 AudioSource
-      final audioSources = tracks.map((track) {
+      final audioSources = processedTracks.map((track) {
         return AudioSource.uri(
           Uri.parse(track['url']),
           tag: MediaItem(
-            // 确保 id 是字符串类型
             id: track['id'].toString(),
             title: track['name']?.toString() ?? '',
             artist: track['artist']?.toString() ?? '',
             album: track['album']?.toString() ?? '',
-            // 确保 duration 是整数
             duration: Duration(milliseconds: int.parse(track['duration'].toString())),
-            // 确保 cover_url 是字符串
             artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
+            extras: {
+              'type': track['type'], // 保存 type 字段
+            },
           ),
         );
       }).toList();
@@ -174,9 +191,9 @@ class AudioService extends GetxService {
       final playlistSource = ConcatenatingAudioSource(children: audioSources);
 
       // 保存当前播放列表
-      _currentPlaylist.value = tracks;
+      _currentPlaylist.value = processedTracks;
       _currentIndex.value = initialIndex;
-      _currentTrack.value = tracks[initialIndex];
+      _currentTrack.value = processedTracks[initialIndex];
 
       // 加载并播放
       await _audioPlayer.setAudioSource(playlistSource, initialIndex: initialIndex);
@@ -186,7 +203,6 @@ class AudioService extends GetxService {
       _saveLastState();
     } catch (e) {
       print('Error playing playlist: $e');
-      // 添加更详细的错误信息
       if (tracks.isNotEmpty) {
         print('First track data: ${tracks[0]}');
       }
@@ -195,19 +211,25 @@ class AudioService extends GetxService {
 
   Future<void> playTrack(Map<String, dynamic> track) async {
     try {
-      _currentTrack.value = track;
-      _updateCurrentIndex(track);
-      final url = track['url'];
+      // 确保有 type 字段
+      final processedTrack = track['type'] == null ? {...track, 'type': 'potunes'} : track;
+      _currentTrack.value = processedTrack;
+      _updateCurrentIndex(processedTrack);
+
+      final url = processedTrack['url'];
       if (url == null) return;
 
       await _audioPlayer.setAudioSource(
         AudioSource.uri(
           Uri.parse(url),
           tag: MediaItem(
-            id: track['id']?.toString() ?? '',
-            title: track['name'] ?? '',
-            artist: track['artist'] ?? '',
-            artUri: Uri.parse(track['cover_url'] ?? ''),
+            id: processedTrack['id']?.toString() ?? '',
+            title: processedTrack['name'] ?? '',
+            artist: processedTrack['artist'] ?? '',
+            artUri: Uri.parse(processedTrack['cover_url'] ?? ''),
+            extras: {
+              'type': processedTrack['type'], // 保存 type 字段
+            },
           ),
         ),
       );
@@ -337,9 +359,6 @@ class AudioService extends GetxService {
     final id = track['id']?.toString();
     final nId = track['nId']?.toString();
 
-    print('ID: $id');
-    print('NID: $nId');
-
     if (id == null || nId == null) {
       print('Missing ID or NID, skipping lyrics load');
       return;
@@ -358,6 +377,9 @@ class AudioService extends GetxService {
       print('Calling NetworkService.getLyrics');
       final response = await _networkService.getLyrics(id, nId);
       print('Lyrics response received: $response');
+
+      // 更新 isLike 状态，直接保存数字
+      _isLike.value = response['isLike'] ?? 0;
 
       if (response.containsKey('lrc') || response.containsKey('lrc_cn')) {
         _parsedLyrics.value = _formatLyrics(response);
@@ -538,5 +560,52 @@ class AudioService extends GetxService {
   // 修改 currentPlaylist 的 getter
   bool isCurrentPlaylist(List<Map<String, dynamic>> playlist) {
     return isSamePlaylist(_currentPlaylist.value?.cast<Map<String, dynamic>>(), playlist);
+  }
+
+  // 添加喜欢/取消喜欢的方法
+  Future<void> toggleLike() async {
+    if (_currentTrack.value == null) return;
+
+    try {
+      print('=== Toggle Like ===');
+      print('Current track: ${_currentTrack.value}');
+      print('Track type: ${_currentTrack.value!['type']}');
+
+      final success = await _networkService.likeTrack(_currentTrack.value!);
+
+      if (success) {
+        // 更新本地状态
+        _isLike.value = _isLike.value == 1 ? 0 : 1;
+
+        // 显示提示
+        Get.snackbar(
+          'Success',
+          _isLike.value == 1 ? '已添加到我喜欢的音乐' : '已取消喜欢',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+        );
+      } else {
+        Get.snackbar(
+          'Error',
+          '操作失败，请重试',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+        );
+      }
+    } catch (e) {
+      print('Error toggling like: $e');
+      Get.snackbar(
+        'Error',
+        '操作失败，请重试',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+      );
+    }
   }
 }

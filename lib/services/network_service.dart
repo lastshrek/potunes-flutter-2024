@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../utils/http/response_handler.dart';
 import 'dart:developer' as developer;
 import 'dart:convert';
+import '../services/user_service.dart';
 
 class NetworkService {
   // 改名为 NetworkService
@@ -54,7 +55,21 @@ class NetworkService {
       print('=== Home data response: $response ===');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
-        return response['data'] as Map<String, dynamic>;
+        final data = response['data'] as Map<String, dynamic>;
+
+        // 处理所有可能包含歌曲的列表
+        if (data['tracks'] is List) {
+          final tracks = (data['tracks'] as List).map((track) {
+            if (track is Map<String, dynamic>) {
+              return _processTrackData(track);
+            }
+            return track;
+          }).toList();
+
+          data['tracks'] = tracks;
+        }
+
+        return data;
       }
 
       throw ApiException(
@@ -72,7 +87,28 @@ class NetworkService {
       final response = await _client.get<dynamic>('${ApiConfig.playlist}/$id');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
-        return response['data'] as Map<String, dynamic>;
+        final data = response['data'] as Map<String, dynamic>;
+
+        // 处理 tracks 数组
+        if (data['tracks'] is List) {
+          final tracks = (data['tracks'] as List).map((track) {
+            if (track is Map<String, dynamic>) {
+              return _processTrackData(track);
+            }
+            return track;
+          }).toList();
+
+          data['tracks'] = tracks;
+
+          // 打印第一首歌的 type
+          if (tracks.isNotEmpty && tracks[0] is Map<String, dynamic>) {
+            print('=== First Track Type ===');
+            print('Track: ${tracks[0]}');
+            print('Type: ${tracks[0]['type']}');
+          }
+        }
+
+        return data;
       }
 
       throw ApiException(
@@ -87,19 +123,32 @@ class NetworkService {
 
   Future<Map<String, dynamic>> getLyrics(String id, String nId) async {
     try {
-      final path = ApiConfig.getLyricsPath(id, nId);
-      final fullUrl = '${ApiConfig.baseUrl}$path';
-      print('=== Fetching Lyrics ===');
-      print('Full URL: $fullUrl');
-      print('ID: $id');
-      print('NID: $nId');
+      final response = await _client.get<dynamic>(
+        '${ApiConfig.lyrics}/$id/$nId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+        ),
+      );
 
-      final response = await _client.get<dynamic>(path);
+      print('=== Lyrics Response ===');
+      print('Request URL: ${ApiConfig.lyrics}/$id/$nId');
+      print('Raw response: $response');
 
-      print('Lyrics Response: $response');
+      // 检查响应格式并提取数据
+      if (response is Map && response['statusCode'] == 200 && response['data'] is Map) {
+        final data = response['data'] as Map<String, dynamic>;
 
-      if (response is Map && response['statusCode'] == 200) {
-        return response['data'] as Map<String, dynamic>;
+        // 将 isLike 字段添加到返回数据中
+        final Map<String, dynamic> result = {
+          'lrc': data['lrc'],
+          'lrc_cn': data['lrc_cn'],
+          'isLike': data['isLike'] ?? 0,
+        };
+
+        print('Processed result: $result');
+        return result;
       }
 
       throw ApiException(
@@ -107,7 +156,9 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('=== Error getting lyrics: $e ===');
+      print('Error getting lyrics: $e');
+      print('Request params - id: $id, nId: $nId');
+      print('Request URL: ${ApiConfig.lyrics}/$id/$nId');
       rethrow;
     }
   }
@@ -198,9 +249,17 @@ class NetworkService {
 
       if (response is Map && response['statusCode'] == 200) {
         if (response['data'] is List) {
-          // 将数据包装成期望的格式
+          // 处理每个歌曲的数据
+          final processedTracks = (response['data'] as List).map((track) {
+            if (track is Map<String, dynamic>) {
+              return _processTrackData(track);
+            }
+            return track;
+          }).toList();
+
+          // 将处理后的数据包装成期望的格式
           return {
-            'charts': response['data'],
+            'charts': processedTracks,
           };
         }
       }
@@ -334,8 +393,8 @@ class NetworkService {
         // 转换并验证数据
         final List<Map<String, dynamic>> favourites = rawFavourites.map((item) {
           if (item is Map) {
-            // 确保所有必要字段都存在
-            final processed = {
+            // 使用 _processTrackData 处理歌曲数据
+            final processed = _processTrackData({
               'id': item['id'],
               'nId': item['nId'],
               'name': item['name'],
@@ -344,7 +403,12 @@ class NetworkService {
               'duration': item['duration'],
               'cover_url': item['cover_url'],
               'url': item['url'],
-            };
+              'playlist_id': item['playlist_id'],
+              'ar': item['ar'],
+              'original_album': item['original_album'],
+              'original_album_id': item['original_album_id'],
+              'mv': item['mv'],
+            });
 
             print('Processed favourite item: $processed');
             return processed;
@@ -366,5 +430,70 @@ class NetworkService {
       print('=== Error getting favourites: $e ===');
       rethrow;
     }
+  }
+
+  Future<bool> likeTrack(Map<String, dynamic> track) async {
+    try {
+      print('=== Like Track Request ===');
+      print('Track data: $track');
+
+      // 根据 id 确定 type
+      final trackType = track['id'] == 0 ? 'netease' : 'potunes';
+      print('Track type determined: $trackType');
+
+      // 构建请求体
+      final requestBody = {
+        'id': track['id'],
+        'nId': track['nId'],
+        'name': track['name'],
+        'artist': track['artist'],
+        'album': track['album'],
+        'duration': track['duration'],
+        'cover_url': track['cover_url'],
+        'url': track['url'],
+        'type': trackType, // 使用确定的 type
+        'playlist_id': track['playlist_id'],
+        'ar': track['ar'] ?? [],
+        'original_album': track['original_album'] ?? '',
+        'original_album_id': track['original_album_id'] ?? 0,
+        'mv': track['mv'] ?? 0,
+      };
+
+      print('Request body: $requestBody');
+
+      final response = await _client.post<dynamic>(
+        ApiConfig.like,
+        data: requestBody,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+          contentType: 'application/json',
+        ),
+      );
+
+      print('Like track response: $response');
+
+      if (response is Map && response['statusCode'] == 200) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Error liking track: $e');
+      print('Error details: ${e.toString()}');
+      return false;
+    }
+  }
+
+  // 添加一个工具方法来处理歌曲数据
+  Map<String, dynamic> _processTrackData(Map<String, dynamic> track) {
+    return {
+      ...track,
+      'type': track['id'] == 0 ? 'netease' : 'potunes', // 根据 id 设置不同的 type
+      'ar': track['ar'] ?? [],
+      'original_album': track['original_album'] ?? '',
+      'original_album_id': track['original_album_id'] ?? 0,
+      'mv': track['mv'] ?? 0,
+    };
   }
 }

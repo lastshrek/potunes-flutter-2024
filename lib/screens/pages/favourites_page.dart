@@ -24,18 +24,23 @@ class FavouritesPage extends StatelessWidget {
   void _playSong(Map<String, dynamic> song, List<dynamic> playlist, int index) {
     final audioService = Get.find<AudioService>();
 
-    // 转换歌曲数据为播放列表格式，并添加 source 标记
+    // 转换歌曲数据为播放列表格式，保持 id 和 nId 为数字类型
     final tracks = playlist
         .map((item) => {
-              'id': item['id'].toString(),
-              'nId': item['nId'].toString(),
+              'id': item['id'], // 不转换为字符串
+              'nId': item['nId'], // 不转换为字符串
               'name': item['name'],
               'artist': item['artist'],
               'album': item['album'] ?? '',
               'duration': item['duration'],
               'cover_url': item['cover_url'],
               'url': item['url'],
-              'source': 'favourites', // 添加来源标记
+              'source': 'favourites',
+              'ar': item['ar'] ?? [], // 保持其他必要字段
+              'original_album': item['original_album'] ?? '',
+              'original_album_id': item['original_album_id'] ?? 0,
+              'mv': item['mv'] ?? 0,
+              'playlist_id': item['playlist_id'],
             })
         .toList();
 
@@ -43,7 +48,7 @@ class FavouritesPage extends StatelessWidget {
     print('=== Converted Track Data ===');
     print('First track: ${tracks[0]}');
 
-    // 使用 AudioService 的正确方法来播放
+    // 使用 AudioService 播放
     audioService.playPlaylist(
       tracks,
       initialIndex: index,

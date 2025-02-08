@@ -300,14 +300,12 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                                   Obx(() {
                                     if (UserService.to.isLoggedIn) {
                                       return IconButton(
-                                        icon: const FaIcon(
-                                          FontAwesomeIcons.heart,
-                                          color: Colors.white,
+                                        icon: FaIcon(
+                                          controller.isLike ? FontAwesomeIcons.solidHeart : FontAwesomeIcons.heart,
+                                          color: controller.isLike ? const Color(0xFFFF69B4) : Colors.white,
                                           size: 18,
                                         ),
-                                        onPressed: () {
-                                          // TODO: 处理喜欢/取消喜欢
-                                        },
+                                        onPressed: controller.toggleLike,
                                       );
                                     }
                                     return const SizedBox.shrink();

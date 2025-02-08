@@ -17,6 +17,7 @@ class ApiConfig {
   static const String captcha = '/users/captcha';
   static const String verifyCaptcha = '/users/verify';
   static const String fav = '/v1/users/favs';
+  static const String like = '/v1/tracks/like';
   // HTTP 状态码
   static const int successCode = 200;
   static const int unauthorizedCode = 401;
