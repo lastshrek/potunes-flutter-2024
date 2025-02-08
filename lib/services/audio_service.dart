@@ -84,6 +84,14 @@ class AudioService extends GetxService {
   final _isLike = 0.obs;
   bool get isLike => _isLike.value == 1;
 
+  // 添加一个 getter 来获取当前显示的播放列表
+  List<Map<String, dynamic>>? get displayPlaylist {
+    if (_isShuffleMode.value) {
+      return _shuffledPlaylist.value;
+    }
+    return _currentPlaylist.value;
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -411,16 +419,21 @@ class AudioService extends GetxService {
       _currentLyricsNId = nId;
 
       final response = await _networkService.getLyrics(id, nId);
+      print('=== Loading Lyrics ===');
+      print('Track: ${track['name']}');
+      print('Response: $response');
 
-      // 确保解析歌词返回正确的类型
-      if (response.containsKey('lrc') || response.containsKey('lrc_cn')) {
-        _parsedLyrics.value = _formatLyrics(response);
-        _currentLineIndex.value = 0;
+      _parsedLyrics.value = _formatLyrics(response);
+      _currentLineIndex.value = 0;
+
+      if (_parsedLyrics.value != null) {
+        print('Lyrics loaded: ${_parsedLyrics.value?.length} lines');
       } else {
-        _parsedLyrics.value = null;
-        _currentLineIndex.value = 0;
+        print('No lyrics found');
       }
     } catch (e) {
+      print('Error loading lyrics: $e');
+      print('Error details: ${e.toString()}');
       _parsedLyrics.value = null;
       _currentLineIndex.value = 0;
     } finally {
@@ -443,18 +456,42 @@ class AudioService extends GetxService {
   }
 
   List<LyricLine>? _formatLyrics(Map<String, dynamic> response) {
-    final original = response['lrc'] as String?;
-    final translated = response['lrc_cn'] as String?;
+    try {
+      final original = response['lrc'] as String?;
+      final translated = response['lrc_cn'] as String?;
 
-    if (original == null) return null;
+      if (original == null) return null;
 
-    final List<LyricLine> lyrics = [];
-    final Map<Duration, String> translationMap = {};
+      final List<LyricLine> lyrics = [];
+      final Map<Duration, String> translationMap = {};
 
-    // 解析翻译歌词
-    if (translated != null) {
-      final translatedLines = translated.split('\n');
-      for (final line in translatedLines) {
+      // 解析翻译歌词
+      if (translated != null) {
+        final translatedLines = translated.split('\n');
+        for (final line in translatedLines) {
+          final match = RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$').firstMatch(line);
+          if (match != null) {
+            final minutes = int.parse(match.group(1)!);
+            final seconds = int.parse(match.group(2)!);
+            final milliseconds = int.parse(match.group(3)!.padRight(3, '0'));
+            final text = match.group(4)!.trim();
+
+            // 只添加非空的翻译
+            if (text.isNotEmpty) {
+              final time = Duration(
+                minutes: minutes,
+                seconds: seconds,
+                milliseconds: milliseconds,
+              );
+              translationMap[time] = text;
+            }
+          }
+        }
+      }
+
+      // 解析原文歌词
+      final originalLines = original.split('\n');
+      for (final line in originalLines) {
         final match = RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$').firstMatch(line);
         if (match != null) {
           final minutes = int.parse(match.group(1)!);
@@ -462,82 +499,152 @@ class AudioService extends GetxService {
           final milliseconds = int.parse(match.group(3)!.padRight(3, '0'));
           final text = match.group(4)!.trim();
 
-          // 只添加非空的翻译
+          // 只添加非空的原文
           if (text.isNotEmpty) {
             final time = Duration(
               minutes: minutes,
               seconds: seconds,
               milliseconds: milliseconds,
             );
-            translationMap[time] = text;
+
+            // 如果有对应的翻译，添加翻译；如果没有，只添加原文
+            final translation = translationMap[time];
+            if (translation?.isNotEmpty == true || text.isNotEmpty) {
+              lyrics.add(LyricLine(
+                time: time,
+                original: text,
+                translation: translation,
+              ));
+            }
           }
         }
       }
+
+      // 按时间排序并过滤掉完全空白的行
+      lyrics.sort((a, b) => a.time.compareTo(b.time));
+      final filteredLyrics = lyrics.where((line) => line.original.isNotEmpty || (line.translation?.isNotEmpty ?? false)).toList();
+
+      print('=== Lyrics Parsed ===');
+      print('Total lines: ${filteredLyrics.length}');
+      print('First line: ${filteredLyrics.firstOrNull?.original} / ${filteredLyrics.firstOrNull?.translation}');
+      print('Last line: ${filteredLyrics.lastOrNull?.original} / ${filteredLyrics.lastOrNull?.translation}');
+
+      return filteredLyrics.isNotEmpty ? filteredLyrics : null;
+    } catch (e) {
+      print('Error formatting lyrics: $e');
+      return null;
     }
-
-    // 解析原文歌词
-    final originalLines = original.split('\n');
-    for (final line in originalLines) {
-      final match = RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$').firstMatch(line);
-      if (match != null) {
-        final minutes = int.parse(match.group(1)!);
-        final seconds = int.parse(match.group(2)!);
-        final milliseconds = int.parse(match.group(3)!.padRight(3, '0'));
-        final text = match.group(4)!.trim();
-
-        // 只添加非空的原文
-        if (text.isNotEmpty) {
-          final time = Duration(
-            minutes: minutes,
-            seconds: seconds,
-            milliseconds: milliseconds,
-          );
-
-          // 如果有对应的翻译，添加翻译；如果没有，只添加原文
-          final translation = translationMap[time];
-          if (translation?.isNotEmpty == true || text.isNotEmpty) {
-            lyrics.add(LyricLine(
-              time: time,
-              original: text,
-              translation: translation,
-            ));
-          }
-        }
-      }
-    }
-
-    // 按时间排序并过滤掉完全空白的行
-    lyrics.sort((a, b) => a.time.compareTo(b.time));
-    final filteredLyrics = lyrics.where((line) => line.original.isNotEmpty || (line.translation?.isNotEmpty ?? false)).toList();
-
-    return filteredLyrics.isNotEmpty ? filteredLyrics : null;
   }
 
-  // 修改切换随机播放的方法
-  void toggleShuffle() {
-    _isShuffleMode.value = !_isShuffleMode.value;
+  // 修改 toggleShuffle 方法
+  Future<void> toggleShuffle() async {
+    try {
+      _isShuffleMode.value = !_isShuffleMode.value;
+      print('=== Shuffle Mode Changed ===');
+      print('Shuffle enabled: ${_isShuffleMode.value}');
 
-    if (_isShuffleMode.value) {
-      // 启用随机播放时，生成随机顺序的播放列表
-      if (_currentPlaylist.value != null) {
-        final currentTrack = _currentTrack.value;
-        final List<Map<String, dynamic>> shuffled = List.from(_currentPlaylist.value!);
-        shuffled.remove(currentTrack); // 移除当前播放的歌曲
-        shuffled.shuffle(); // 打乱顺序
-        shuffled.insert(0, currentTrack!); // 将当前歌曲放在第一位
-        _shuffledPlaylist.value = shuffled;
-        _currentIndex.value = 0; // 重置当前索引
-      }
-    } else {
-      // 关闭随机播放时，恢复原始顺序
-      if (_currentTrack.value != null && _currentPlaylist.value != null) {
-        // 找到当前歌曲在原始列表中的位置
-        final index = _currentPlaylist.value!.indexWhere((t) => t['id'] == _currentTrack.value!['id']);
-        if (index != -1) {
-          _currentIndex.value = index;
+      if (_isShuffleMode.value) {
+        // 启用随机播放时
+        if (_currentPlaylist.value != null) {
+          // 保存当前播放的歌曲
+          final currentTrack = _currentTrack.value;
+
+          // 创建随机播放列表
+          final List<Map<String, dynamic>> shuffled = List.from(_currentPlaylist.value!);
+          shuffled.remove(currentTrack); // 移除当前播放的歌曲
+          shuffled.shuffle(); // 打乱顺序
+          shuffled.insert(0, currentTrack!); // 将当前歌曲放在第一位
+
+          // 保存随机播放列表
+          _shuffledPlaylist.value = shuffled;
+
+          // 重新创建音频源
+          final audioSources = shuffled.map((track) {
+            return AudioSource.uri(
+              Uri.parse(track['url']),
+              tag: MediaItem(
+                id: track['id'].toString(),
+                title: track['name']?.toString() ?? '',
+                artist: track['artist']?.toString() ?? '',
+                album: track['album']?.toString() ?? '',
+                duration: Duration(milliseconds: int.parse(track['duration'].toString())),
+                artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
+                playable: true,
+                displayTitle: track['name']?.toString() ?? '',
+                displaySubtitle: track['artist']?.toString() ?? '',
+                extras: {
+                  'type': track['type'],
+                },
+              ),
+            );
+          }).toList();
+
+          final playlistSource = ConcatenatingAudioSource(
+            useLazyPreparation: true,
+            shuffleOrder: DefaultShuffleOrder(),
+            children: audioSources,
+          );
+
+          // 设置新的音频源
+          await _audioPlayer.setAudioSource(
+            playlistSource,
+            initialIndex: 0, // 当前歌曲在第一位
+          );
+
+          _currentIndex.value = 0;
+          print('Created shuffled playlist with ${shuffled.length} tracks');
         }
+      } else {
+        // 关闭随机播放时，恢复原始顺序
+        if (_currentTrack.value != null && _currentPlaylist.value != null) {
+          // 找到当前歌曲在原始列表中的位置
+          final index = _currentPlaylist.value!.indexWhere((t) => t['id'] == _currentTrack.value!['id'] && t['nId'] == _currentTrack.value!['nId']);
+
+          if (index != -1) {
+            // 重新创建原始音频源
+            final audioSources = _currentPlaylist.value!.map((track) {
+              return AudioSource.uri(
+                Uri.parse(track['url']),
+                tag: MediaItem(
+                  id: track['id'].toString(),
+                  title: track['name']?.toString() ?? '',
+                  artist: track['artist']?.toString() ?? '',
+                  album: track['album']?.toString() ?? '',
+                  duration: Duration(milliseconds: int.parse(track['duration'].toString())),
+                  artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
+                  playable: true,
+                  displayTitle: track['name']?.toString() ?? '',
+                  displaySubtitle: track['artist']?.toString() ?? '',
+                  extras: {
+                    'type': track['type'],
+                  },
+                ),
+              );
+            }).toList();
+
+            final playlistSource = ConcatenatingAudioSource(
+              useLazyPreparation: true,
+              shuffleOrder: DefaultShuffleOrder(),
+              children: audioSources,
+            );
+
+            // 设置原始音频源
+            await _audioPlayer.setAudioSource(
+              playlistSource,
+              initialIndex: index,
+            );
+
+            _currentIndex.value = index;
+            print('Restored original playlist, current index: $index');
+          }
+        }
+        _shuffledPlaylist.value = null;
       }
-      _shuffledPlaylist.value = null;
+
+      // 设置播放器的随机模式
+      await _audioPlayer.setShuffleModeEnabled(_isShuffleMode.value);
+    } catch (e) {
+      print('Error toggling shuffle: $e');
     }
   }
 
@@ -645,18 +752,22 @@ class AudioService extends GetxService {
       print('Requested index: $index');
       print('Current playlist length: ${_currentPlaylist.value?.length}');
       print('Current index: ${_currentIndex.value}');
+      print('Shuffle mode: ${_isShuffleMode.value}');
 
       if (_currentPlaylist.value == null || index < 0 || index >= _currentPlaylist.value!.length) {
         print('Invalid index or no playlist');
         return;
       }
 
-      final targetTrack = _currentPlaylist.value![index];
+      // 获取目标歌曲
+      final targetTrack = _isShuffleMode.value ? _shuffledPlaylist.value![index] : _currentPlaylist.value![index];
+
       print('Target track: ${targetTrack['name']}');
       print('Current track: ${_currentTrack.value?['name']}');
 
       // 重新创建播放列表
-      final audioSources = _currentPlaylist.value!.map((track) {
+      final playlist = _isShuffleMode.value ? _shuffledPlaylist.value! : _currentPlaylist.value!;
+      final audioSources = playlist.map((track) {
         return AudioSource.uri(
           Uri.parse(track['url']),
           tag: MediaItem(
@@ -682,6 +793,13 @@ class AudioService extends GetxService {
         children: audioSources,
       );
 
+      // 更新状态
+      _currentIndex.value = index;
+      _currentTrack.value = targetTrack;
+
+      // 先加载歌词
+      await _loadLyrics(targetTrack);
+
       // 设置音频源并指定初始索引
       await _audioPlayer.setAudioSource(
         playlistSource,
@@ -689,15 +807,8 @@ class AudioService extends GetxService {
         preload: true,
       );
 
-      // 更新状态
-      _currentIndex.value = index;
-      _currentTrack.value = targetTrack;
-
       // 开始播放
       await _audioPlayer.play();
-
-      // 加载歌词
-      await _loadLyrics(targetTrack);
 
       // 保存状态
       await _saveLastState();

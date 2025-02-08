@@ -957,7 +957,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
               Expanded(
                 child: GetX<AudioService>(
                   builder: (controller) {
-                    final playlist = controller.currentPlaylist;
+                    final playlist = controller.displayPlaylist;
                     final currentIndex = controller.currentIndex;
                     print('Building playlist view - Current index: $currentIndex');
 
@@ -982,7 +982,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                         print('Building item $index: ${track['name']}');
 
                         return GestureDetector(
-                          // 使用 GestureDetector 替代 InkWell
                           onTap: () {
                             print('=== Coming Up Next Item Clicked ===');
                             print('Clicked index: $index');
@@ -992,14 +991,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                             Navigator.pop(context);
                           },
                           child: Container(
-                            color: Colors.transparent, // 添加透明背景
+                            color: Colors.transparent,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 12,
                             ),
                             child: Row(
                               children: [
-                                // 播放状态指示器
                                 SizedBox(
                                   width: 24,
                                   height: 24,
@@ -1016,7 +1014,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                // 歌曲封面
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
                                   child: CachedNetworkImage(
@@ -1027,7 +1024,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                // 歌曲信息
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,

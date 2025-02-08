@@ -133,19 +133,18 @@ class NetworkService {
       );
 
       // 检查响应格式并提取数据
-      if (response.data is Map && response.data['statusCode'] == 200) {
-        final data = response.data['data'];
-        if (data is Map) {
-          final result = {
-            'lrc': data['lrc'],
-            'lrc_cn': data['lrc_cn'],
-            'isLike': data['isLike'],
-          };
-          return result;
-        }
+      if (response['data'] is Map && response['statusCode'] == 200) {
+        final data = response['data'] as Map<String, dynamic>;
+        return {
+          'lrc': data['lrc'] as String?,
+          'lrc_cn': data['lrc_cn'] as String?,
+          'isLike': data['isLike'] as int?,
+        };
       }
+
       throw Exception('Invalid response format');
     } catch (e) {
+      print('Error getting lyrics: $e');
       rethrow;
     }
   }
