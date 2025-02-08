@@ -184,10 +184,17 @@ class AudioService extends GetxService {
           // 单曲循环时重新播放当前歌曲
           await playTrack(playlist[_currentIndex.value]);
         } else {
-          // 列表循环：如果是第一首则跳到最后一首
-          final previousIndex = _currentIndex.value > 0 ? _currentIndex.value - 1 : playlist.length - 1;
-          _currentIndex.value = previousIndex;
-          await playTrack(playlist[previousIndex]);
+          // 检查当前播放时间
+          if (_position.value.inSeconds > 10) {
+            // 如果播放超过10秒，重新播放当前歌曲
+            await _audioPlayer.seek(Duration.zero);
+            await _audioPlayer.play();
+          } else {
+            // 播放上一首，如果是第一首则跳到最后一首
+            final previousIndex = _currentIndex.value > 0 ? _currentIndex.value - 1 : playlist.length - 1;
+            _currentIndex.value = previousIndex;
+            await playTrack(playlist[previousIndex]);
+          }
         }
         _saveLastState();
       }
