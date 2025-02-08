@@ -630,7 +630,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                   ),
                   const SizedBox(width: 8),
                   PlayButton(
-                    backgroundColor: dominantColor,
+                    backgroundColor: dominantColor?.withOpacity(0.8),
                     tracks: List<Map<String, dynamic>>.from(tracks),
                   ),
                 ],
