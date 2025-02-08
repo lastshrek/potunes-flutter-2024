@@ -35,6 +35,7 @@ class AudioService extends GetxService {
   final _parsedLyrics = Rx<List<LyricLine>?>(null);
   final _currentLineIndex = RxInt(0);
   String? _currentLyricsId;
+  String? _currentLyricsNId;
   final _isLoadingLyrics = RxBool(false);
 
   // 添加随机播放状态
@@ -149,14 +150,46 @@ class AudioService extends GetxService {
     }
   }
 
-  Future<void> playPlaylist(List<Map<String, dynamic>> playlist, int index) async {
+  Future<void> playPlaylist(List<Map<String, dynamic>> tracks, {int initialIndex = 0}) async {
     try {
-      _currentPlaylist.value = playlist;
-      _currentIndex.value = index;
-      await playTrack(playlist[index]);
+      // 转换播放列表为 AudioSource
+      final audioSources = tracks.map((track) {
+        return AudioSource.uri(
+          Uri.parse(track['url']),
+          tag: MediaItem(
+            // 确保 id 是字符串类型
+            id: track['id'].toString(),
+            title: track['name']?.toString() ?? '',
+            artist: track['artist']?.toString() ?? '',
+            album: track['album']?.toString() ?? '',
+            // 确保 duration 是整数
+            duration: Duration(milliseconds: int.parse(track['duration'].toString())),
+            // 确保 cover_url 是字符串
+            artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
+          ),
+        );
+      }).toList();
+
+      // 创建播放列表
+      final playlistSource = ConcatenatingAudioSource(children: audioSources);
+
+      // 保存当前播放列表
+      _currentPlaylist.value = tracks;
+      _currentIndex.value = initialIndex;
+      _currentTrack.value = tracks[initialIndex];
+
+      // 加载并播放
+      await _audioPlayer.setAudioSource(playlistSource, initialIndex: initialIndex);
+      await _audioPlayer.play();
+
+      // 保存状态
       _saveLastState();
     } catch (e) {
-      debugPrint('Error playing playlist: $e');
+      print('Error playing playlist: $e');
+      // 添加更详细的错误信息
+      if (tracks.isNotEmpty) {
+        print('First track data: ${tracks[0]}');
+      }
     }
   }
 
@@ -298,26 +331,45 @@ class AudioService extends GetxService {
   }
 
   Future<void> _loadLyrics(Map<String, dynamic> track) async {
+    print('=== Starting _loadLyrics ===');
+    print('Track data: $track');
+
     final id = track['id']?.toString();
     final nId = track['nId']?.toString();
 
-    if (id == null || nId == null || id == _currentLyricsId) return;
+    print('ID: $id');
+    print('NID: $nId');
+
+    if (id == null || nId == null) {
+      print('Missing ID or NID, skipping lyrics load');
+      return;
+    }
+
+    if (id == _currentLyricsId && nId == _currentLyricsNId) {
+      print('Same lyrics as current, skipping load');
+      return;
+    }
 
     _isLoadingLyrics.value = true;
     _currentLyricsId = id;
+    _currentLyricsNId = nId;
 
     try {
+      print('Calling NetworkService.getLyrics');
       final response = await _networkService.getLyrics(id, nId);
+      print('Lyrics response received: $response');
 
       if (response.containsKey('lrc') || response.containsKey('lrc_cn')) {
         _parsedLyrics.value = _formatLyrics(response);
         _currentLineIndex.value = 0;
+        print('Lyrics loaded successfully');
       } else {
+        print('No lyrics found in response');
         _parsedLyrics.value = null;
         _currentLineIndex.value = 0;
       }
     } catch (e) {
-      debugPrint('Error loading lyrics: $e');
+      print('Error loading lyrics: $e');
       _parsedLyrics.value = null;
       _currentLineIndex.value = 0;
     } finally {
@@ -440,9 +492,9 @@ class AudioService extends GetxService {
 
   // 修改 _updateCurrentIndex 方法
   void _updateCurrentIndex(Map<String, dynamic> track) {
-    final playlist = currentPlaylist; // 使用 getter 获取当前应该使用的列表
+    final playlist = currentPlaylist;
     if (playlist != null) {
-      final index = playlist.indexWhere((t) => t['id'] == track['id']);
+      final index = playlist.indexWhere((t) => isSameSong(t, track));
       if (index != -1) {
         _currentIndex.value = index;
       }
@@ -461,5 +513,30 @@ class AudioService extends GetxService {
         _audioPlayer.setLoopMode(LoopMode.all);
         break;
     }
+  }
+
+  bool isSamePlaylist(List<Map<String, dynamic>>? list1, List<Map<String, dynamic>>? list2) {
+    if (list1 == null || list2 == null) return false;
+    if (list1.length != list2.length) return false;
+
+    // 比较第一首歌的 id、nId 和 source
+    if (list1.isNotEmpty && list2.isNotEmpty) {
+      final song1 = list1[0];
+      final song2 = list2[0];
+      return song1['id'] == song2['id'] && song1['nId'] == song2['nId'] && song1['source'] == song2['source'];
+    }
+
+    return false;
+  }
+
+  // 添加一个方法来比较单个歌曲
+  bool isSameSong(Map<String, dynamic>? song1, Map<String, dynamic>? song2) {
+    if (song1 == null || song2 == null) return false;
+    return song1['id'] == song2['id'] && song1['nId'] == song2['nId'];
+  }
+
+  // 修改 currentPlaylist 的 getter
+  bool isCurrentPlaylist(List<Map<String, dynamic>> playlist) {
+    return isSamePlaylist(_currentPlaylist.value?.cast<Map<String, dynamic>>(), playlist);
   }
 }

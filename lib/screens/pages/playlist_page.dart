@@ -296,7 +296,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                         onTap: () {
                                           AudioService.to.playPlaylist(
                                             List<Map<String, dynamic>>.from(tracks),
-                                            index,
+                                            initialIndex: index,
                                           );
                                         },
                                       ),
@@ -624,7 +624,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                       final shuffledTracks = List<Map<String, dynamic>>.from(tracks)..shuffle();
                       AudioService.to.playPlaylist(
                         shuffledTracks,
-                        0,
+                        initialIndex: 0,
                       );
                     },
                   ),
@@ -678,7 +678,7 @@ class PlayButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           onTap: () => AudioService.to.playPlaylist(
             List<Map<String, dynamic>>.from(tracks),
-            0,
+            initialIndex: 0,
           ),
           child: Obx(() => Center(
                 child: FaIcon(

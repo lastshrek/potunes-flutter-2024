@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../services/network_service.dart';
 import '../../config/api_config.dart';
 import 'dart:async';
+import '../../services/user_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -61,20 +62,31 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       _isLoading.value = true;
-      // TODO: 调用发送验证码的 API
-      // await NetworkService().sendCaptcha(phone);
-
-      // 模拟API调用成功
-      await Future.delayed(const Duration(seconds: 1));
+      final networkService = NetworkService();
+      await networkService.sendCaptcha(phone);
 
       _showCaptchaInput.value = true;
       _error.value = null;
-      _startCountdown(); // 开始倒计时
+      _startCountdown();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('验证码已发送'),
+          content: Text(
+            '验证码已发送',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: 20.0,
+            left: 16.0,
+            right: 16.0,
+          ),
+          duration: Duration(seconds: 2),
         ),
       );
     } catch (e) {
@@ -92,9 +104,40 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       _isLoading.value = true;
-      // TODO: 调用登录 API
-      // await NetworkService().login(_phoneController.text, _captchaController.text);
-      Navigator.pop(context, true); // 返回 true 表示登录成功
+      final networkService = NetworkService();
+      final response = await networkService.verifyCaptcha(
+        _phoneController.text.trim(),
+        _captchaController.text.trim(),
+      );
+
+      print('Login response: $response');
+
+      // 保存登录数据
+      await UserService.to.saveLoginData(response);
+
+      // 登录成功
+      Navigator.pop(context, true);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '登录成功',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: 20.0,
+            left: 16.0,
+            right: 16.0,
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
       _error.value = e.toString();
     } finally {

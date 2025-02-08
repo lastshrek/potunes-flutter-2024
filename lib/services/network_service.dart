@@ -5,6 +5,7 @@ import '../utils/http/api_exception.dart';
 import 'package:flutter/foundation.dart';
 import '../utils/http/response_handler.dart';
 import 'dart:developer' as developer;
+import 'dart:convert';
 
 class NetworkService {
   // 改名为 NetworkService
@@ -86,30 +87,27 @@ class NetworkService {
 
   Future<Map<String, dynamic>> getLyrics(String id, String nId) async {
     try {
-      final response = await _client.get<dynamic>(ApiConfig.getLyricsPath(id, nId));
+      final path = ApiConfig.getLyricsPath(id, nId);
+      final fullUrl = '${ApiConfig.baseUrl}$path';
+      print('=== Fetching Lyrics ===');
+      print('Full URL: $fullUrl');
+      print('ID: $id');
+      print('NID: $nId');
 
-      // 检查响应格式
-      if (response is Map) {
-        // 如果是标准的包装格式
-        if (response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
-          return response['data'] as Map<String, dynamic>;
-        }
-        // 如果直接返回歌词数据
-        if (response['lrc'] != null || response['lrc_cn'] != null) {
-          return response as Map<String, dynamic>;
-        }
+      final response = await _client.get<dynamic>(path);
+
+      print('Lyrics Response: $response');
+
+      if (response is Map && response['statusCode'] == 200) {
+        return response['data'] as Map<String, dynamic>;
       }
 
       throw ApiException(
         statusCode: 500,
-        message: '无效的歌词格式',
+        message: '无效的响应格式',
       );
     } catch (e) {
       print('=== Error getting lyrics: $e ===');
-      if (e is ApiException) {
-        rethrow;
-      }
-      _handleError(e);
       rethrow;
     }
   }
@@ -267,6 +265,105 @@ class NetworkService {
       );
     } catch (e) {
       print('=== Error getting all albums: $e ===');
+      rethrow;
+    }
+  }
+
+  Future<void> sendCaptcha(String phone) async {
+    try {
+      final response = await _client.post<dynamic>(
+        ApiConfig.captcha,
+        data: {
+          "phone": phone,
+        },
+      );
+
+      if (response is Map && (response['statusCode'] == 200 || response['statusCode'] == 201)) {
+        return;
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: response['message'] ?? '发送验证码失败',
+      );
+    } catch (e) {
+      if (e is DioException && e.response?.statusCode == 201) {
+        return;
+      }
+      print('=== Error sending captcha: $e ===');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> verifyCaptcha(String phone, String captcha) async {
+    try {
+      final response = await _client.post<dynamic>(
+        ApiConfig.verifyCaptcha,
+        data: {
+          "phone": phone,
+          "captcha": captcha,
+        },
+      );
+
+      print('Verify captcha response: $response'); // 打印响应内容
+
+      if (response is Map && (response['statusCode'] == 200 || response['statusCode'] == 201)) {
+        return response as Map<String, dynamic>;
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: response['message'] ?? '验证失败',
+      );
+    } catch (e) {
+      print('=== Error verifying captcha: $e ===');
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getFavourites() async {
+    try {
+      final response = await _client.get<dynamic>(ApiConfig.fav);
+
+      print('=== Favourites Response ===');
+      print('Full Response: $response');
+
+      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+        final List<dynamic> rawFavourites = response['data'];
+
+        // 转换并验证数据
+        final List<Map<String, dynamic>> favourites = rawFavourites.map((item) {
+          if (item is Map) {
+            // 确保所有必要字段都存在
+            final processed = {
+              'id': item['id'],
+              'nId': item['nId'],
+              'name': item['name'],
+              'artist': item['artist'],
+              'album': item['album'],
+              'duration': item['duration'],
+              'cover_url': item['cover_url'],
+              'url': item['url'],
+            };
+
+            print('Processed favourite item: $processed');
+            return processed;
+          }
+          throw ApiException(
+            statusCode: 500,
+            message: '歌曲数据格式错误',
+          );
+        }).toList();
+
+        return favourites;
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: '无效的响应格式',
+      );
+    } catch (e) {
+      print('=== Error getting favourites: $e ===');
       rethrow;
     }
   }

@@ -19,6 +19,7 @@ import 'services/audio_service.dart';
 import 'controllers/navigation_controller.dart';
 import 'routes/app_pages.dart';
 import 'bindings/initial_binding.dart';
+import 'services/user_service.dart';
 // import 'screens/mini_player.dart';
 // import 'controllers/navigation_controller.dart';
 
@@ -117,6 +118,9 @@ Future<void> main() async {
       developer.log(message);
     };
   }
+
+  await Get.putAsync(() => UserService().init());
+
   runApp(const MyApp());
   if (Platform.isAndroid) {
     //覆盖状态栏，写在渲染之前MaterialApp组件会覆盖掉这个值。

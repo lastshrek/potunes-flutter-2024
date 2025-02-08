@@ -5,43 +5,42 @@ import 'api_exception.dart';
 import 'response_handler.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
+import '../../services/user_service.dart';
 
 class HttpClient {
-  static HttpClient? _instance;
-  late Dio _dio;
+  static final HttpClient instance = HttpClient._internal();
+  late final Dio _dio;
 
   HttpClient._internal() {
-    _dio = Dio(
-      BaseOptions(
-        baseUrl: ApiConfig.baseUrl,
-        connectTimeout: const Duration(milliseconds: ApiConfig.connectTimeout),
-        receiveTimeout: const Duration(milliseconds: ApiConfig.receiveTimeout),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      ),
+    final options = BaseOptions(
+      baseUrl: ApiConfig.baseUrl,
+      connectTimeout: const Duration(milliseconds: ApiConfig.connectTimeout),
+      receiveTimeout: const Duration(milliseconds: ApiConfig.receiveTimeout),
     );
 
-    // 添加拦截器
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) {
-          print('REQUEST[${options.method}] => PATH: ${options.path}');
-          return handler.next(options);
-        },
-        onResponse: (response, handler) {
-          print('RESPONSE[${response.statusCode}] => DATA: ${response.data}');
-          return handler.next(response);
-        },
-        onError: (DioException e, handler) {
-          print('ERROR[${e.response?.statusCode}] => ${e.message}');
-          return handler.next(e);
-        },
-      ),
-    );
+    _dio = Dio(options);
+
+    // 添加拦截器处理 token
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        // 从 UserService 获取 token
+        final token = Get.find<UserService>().token;
+        if (token.isNotEmpty) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+        return handler.next(options);
+      },
+    ));
+
+    _dio.interceptors.add(LogInterceptor(
+      request: true,
+      requestHeader: true,
+      requestBody: true,
+      responseHeader: true,
+      responseBody: true,
+      error: true,
+    ));
   }
-
-  static HttpClient get instance => _instance ??= HttpClient._internal();
 
   Future<T> get<T>(
     String path, {
@@ -89,57 +88,38 @@ class HttpClient {
     CancelToken? cancelToken,
   }) async {
     try {
-      final response = await _dio.post(
+      final response = await _dio.post<T>(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: options ??
-            Options(
-              headers: {
-                'Accept': 'application/json',
-              },
-              validateStatus: (status) => status! < 500,
-            ),
+        options: options,
         cancelToken: cancelToken,
       );
 
-      return ResponseHandler.handle<T>(
-        response: response.data,
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.data != null) {
+          return response.data as T;
+        }
+        throw ApiException(
+          statusCode: response.statusCode ?? 500,
+          message: '响应数据为空',
+        );
+      }
+
+      throw ApiException(
         statusCode: response.statusCode ?? 500,
-        errorMessage: response.statusMessage,
+        message: '请求失败',
       );
     } on DioException catch (e) {
-      if (kDebugMode) {
-        print('DioException: ${e.type}');
-        print('Error message: ${e.message}');
-        print('Error response: ${e.response}');
+      if (e.response?.statusCode == 201 && e.response?.data != null) {
+        return e.response!.data as T;
       }
-
-      Get.snackbar(
-        '错误',
-        e.message ?? '网络请求失败',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-      );
-
-      rethrow;
+      throw ApiException.fromDioError(e);
     } catch (e) {
-      if (kDebugMode) {
-        print('Unexpected error: $e');
-      }
-
-      Get.snackbar(
-        '错误',
-        '发生未知错误',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
+      throw ApiException(
+        statusCode: 500,
+        message: e.toString(),
       );
-
-      rethrow;
     }
   }
 

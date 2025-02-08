@@ -8,6 +8,7 @@ import 'pages/top_charts_page.dart';
 import 'pages/library_page.dart';
 import '../widgets/mini_player.dart';
 import 'pages/login_page.dart';
+import '../services/user_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -141,36 +142,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onTabTapped(int index) {
     if (index == 2) {
-      // Library tab
-      // TODO: 检查登录状态
-      final isLoggedIn = false; // 从本地存储或状态管理中获取登录状态
+      final isLoggedIn = UserService.to.isLoggedIn;
+      final userData = UserService.to.userData;
+
+      print('=== Library Tab Tapped ===');
+      print('Is Logged In: $isLoggedIn');
+      print('User Data: $userData');
+      print('Token: ${UserService.to.token}');
+
       if (!isLoggedIn) {
-        Navigator.of(context)
-            .push(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) {
-              return SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 1),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                )),
-                child: FadeTransition(
-                  opacity: animation,
-                  child: const LoginPage(),
-                ),
-              );
-            },
-            opaque: false,
-            barrierDismissible: true,
-            barrierColor: Colors.black.withOpacity(0.5),
-            transitionDuration: const Duration(milliseconds: 300),
-            reverseTransitionDuration: const Duration(milliseconds: 200),
-          ),
-        )
-            .then((value) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          enableDrag: true,
+          isDismissible: true,
+          useSafeArea: false,
+          builder: (context) => const LoginPage(),
+        ).then((value) {
           if (value == true) {
             setState(() {
               navigationController.changePage(index);
