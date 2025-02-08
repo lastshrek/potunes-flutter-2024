@@ -30,7 +30,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   final ScrollController _lyricsScrollController = ScrollController();
   final _showControls = true.obs;
-  final _isLoadingLyrics = false.obs;
   Timer? _hideControlsTimer;
 
   @override
@@ -899,10 +898,12 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   void _showPlaylistSheet() {
     final scrollController = ScrollController();
+    print('=== Opening Playlist Sheet ===');
 
     void scrollToCurrentSong() {
       if (scrollController.hasClients) {
-        final currentIndex = AudioService.to.currentIndex; // 获取最新的索引
+        final currentIndex = AudioService.to.currentIndex;
+        print('Scrolling to index: $currentIndex');
         final itemHeight = 72.0;
         final targetOffset = (currentIndex + 1) * itemHeight;
 
@@ -918,70 +919,80 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.9),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            // 顶部拖动条
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // 标题
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'Coming Up Next',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+      builder: (context) {
+        print('Building bottom sheet');
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.9),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // 顶部拖动条
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            // 播放列表
-            Expanded(
-              child: GetX<AudioService>(
-                builder: (controller) {
-                  final playlist = controller.currentPlaylist;
-                  final currentIndex = controller.currentIndex;
-                  if (playlist == null) return const SizedBox.shrink();
+              const SizedBox(height: 16),
+              // 标题
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'Coming Up Next',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // 播放列表
+              Expanded(
+                child: GetX<AudioService>(
+                  builder: (controller) {
+                    final playlist = controller.currentPlaylist;
+                    final currentIndex = controller.currentIndex;
+                    print('Building playlist view - Current index: $currentIndex');
 
-                  // 在构建列表时触发滚动
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    scrollToCurrentSong();
-                  });
+                    if (playlist == null) {
+                      print('Playlist is null');
+                      return const SizedBox.shrink();
+                    }
 
-                  return ListView.builder(
-                    controller: scrollController,
-                    padding: const EdgeInsets.only(
-                      top: 72.0, // 保持固定的顶部 padding
-                      bottom: 72.0,
-                    ),
-                    itemCount: playlist.length,
-                    itemBuilder: (context, index) {
-                      final track = playlist[index];
-                      final isPlaying = index == currentIndex;
+                    print('Playlist length: ${playlist.length}');
 
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
+                    return ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.only(
+                        top: 72.0,
+                        bottom: 72.0,
+                      ),
+                      itemCount: playlist.length,
+                      itemBuilder: (context, index) {
+                        final track = playlist[index];
+                        final isPlaying = index == currentIndex;
+
+                        print('Building item $index: ${track['name']}');
+
+                        return GestureDetector(
+                          // 使用 GestureDetector 替代 InkWell
                           onTap: () {
-                            controller.playTrack(playlist[index]);
+                            print('=== Coming Up Next Item Clicked ===');
+                            print('Clicked index: $index');
+                            print('Track name: ${track['name']}');
+
+                            controller.skipToQueueItem(index);
                             Navigator.pop(context);
                           },
                           child: Container(
+                            color: Colors.transparent, // 添加透明背景
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 12,
@@ -991,9 +1002,8 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                                 // 播放状态指示器
                                 SizedBox(
                                   width: 24,
-                                  height: 24, // 添加固定高度
+                                  height: 24,
                                   child: Center(
-                                    // 添加居中对齐
                                     child: isPlaying
                                         ? const _PlayingIndicator()
                                         : Text(
@@ -1005,7 +1015,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                                           ),
                                   ),
                                 ),
-                                const SizedBox(width: 8), // 减小间距
+                                const SizedBox(width: 8),
                                 // 歌曲封面
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
@@ -1016,7 +1026,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                                     fit: BoxFit.cover,
                                   ),
                                 ),
-                                const SizedBox(width: 8), // 减小间距
+                                const SizedBox(width: 8),
                                 // 歌曲信息
                                 Expanded(
                                   child: Column(
@@ -1050,16 +1060,16 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                               ],
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  );
-                },
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 

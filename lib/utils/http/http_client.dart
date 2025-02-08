@@ -49,8 +49,6 @@ class HttpClient {
     CancelToken? cancelToken,
   }) async {
     try {
-      print('Starting request to: ${_dio.options.baseUrl}$path');
-
       final response = await _dio.get(
         path,
         queryParameters: queryParameters,

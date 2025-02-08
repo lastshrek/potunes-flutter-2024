@@ -123,7 +123,7 @@ class NetworkService {
 
   Future<Map<String, dynamic>> getLyrics(String id, String nId) async {
     try {
-      final response = await _client.get<dynamic>(
+      final response = await _client.get(
         '${ApiConfig.lyrics}/$id/$nId',
         options: Options(
           headers: {
@@ -132,33 +132,20 @@ class NetworkService {
         ),
       );
 
-      print('=== Lyrics Response ===');
-      print('Request URL: ${ApiConfig.lyrics}/$id/$nId');
-      print('Raw response: $response');
-
       // 检查响应格式并提取数据
-      if (response is Map && response['statusCode'] == 200 && response['data'] is Map) {
-        final data = response['data'] as Map<String, dynamic>;
-
-        // 将 isLike 字段添加到返回数据中
-        final Map<String, dynamic> result = {
-          'lrc': data['lrc'],
-          'lrc_cn': data['lrc_cn'],
-          'isLike': data['isLike'] ?? 0,
-        };
-
-        print('Processed result: $result');
-        return result;
+      if (response.data is Map && response.data['statusCode'] == 200) {
+        final data = response.data['data'];
+        if (data is Map) {
+          final result = {
+            'lrc': data['lrc'],
+            'lrc_cn': data['lrc_cn'],
+            'isLike': data['isLike'],
+          };
+          return result;
+        }
       }
-
-      throw ApiException(
-        statusCode: 500,
-        message: '无效的响应格式',
-      );
+      throw Exception('Invalid response format');
     } catch (e) {
-      print('Error getting lyrics: $e');
-      print('Request params - id: $id, nId: $nId');
-      print('Request URL: ${ApiConfig.lyrics}/$id/$nId');
       rethrow;
     }
   }
