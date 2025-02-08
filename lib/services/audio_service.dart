@@ -358,8 +358,25 @@ class AudioService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (_currentPlaylist.value != null) {
-        await prefs.setString(_playlistKey, jsonEncode(_currentPlaylist.value));
+        // 保存当前播放列表
+        final playlistToSave = _isShuffleMode.value ? _shuffledPlaylist.value : _currentPlaylist.value;
+        await prefs.setString(_playlistKey, jsonEncode(playlistToSave));
+
+        // 保存当前索引
         await prefs.setInt(_indexKey, _currentIndex.value);
+
+        // 保存随机播放状态
+        await prefs.setBool('shuffle_mode', _isShuffleMode.value);
+
+        // 如果是随机播放模式，同时保存原始播放列表
+        if (_isShuffleMode.value) {
+          await prefs.setString('original_playlist', jsonEncode(_currentPlaylist.value));
+        }
+
+        print('=== Saved State ===');
+        print('Playlist length: ${playlistToSave?.length}');
+        print('Current index: ${_currentIndex.value}');
+        print('Shuffle mode: ${_isShuffleMode.value}');
       }
     } catch (e) {
       print('Error saving last state: $e');
@@ -371,32 +388,74 @@ class AudioService extends GetxService {
       final prefs = await SharedPreferences.getInstance();
       final playlistJson = prefs.getString(_playlistKey);
       final index = prefs.getInt(_indexKey);
+      final isShuffleMode = prefs.getBool('shuffle_mode') ?? false;
 
       if (playlistJson != null && index != null) {
+        // 解析播放列表
         final playlist = List<Map<String, dynamic>>.from(jsonDecode(playlistJson).map((x) => Map<String, dynamic>.from(x)));
 
         if (playlist.isNotEmpty && index < playlist.length) {
-          // 只设置播放列表和当前歌曲，但不开始播放
-          _currentPlaylist.value = playlist;
+          print('=== Loading State ===');
+          print('Playlist length: ${playlist.length}');
+          print('Saved index: $index');
+          print('Shuffle mode: $isShuffleMode');
+
+          // 设置随机播放状态
+          _isShuffleMode.value = isShuffleMode;
+
+          if (isShuffleMode) {
+            // 如果是随机播放模式，加载原始播放列表
+            final originalPlaylistJson = prefs.getString('original_playlist');
+            if (originalPlaylistJson != null) {
+              _currentPlaylist.value = List<Map<String, dynamic>>.from(jsonDecode(originalPlaylistJson).map((x) => Map<String, dynamic>.from(x)));
+              _shuffledPlaylist.value = playlist;
+            }
+          } else {
+            _currentPlaylist.value = playlist;
+          }
+
+          // 设置当前索引和曲目
           _currentIndex.value = index;
           _currentTrack.value = playlist[index];
 
-          // 加载音频源但不播放
-          final track = playlist[index];
-          final url = track['url'];
-          if (url != null) {
-            await _audioPlayer.setAudioSource(
-              AudioSource.uri(
-                Uri.parse(url),
-                tag: MediaItem(
-                  id: track['id']?.toString() ?? '',
-                  title: track['name'] ?? '',
-                  artist: track['artist'] ?? '',
-                  artUri: Uri.parse(track['cover_url'] ?? ''),
-                ),
+          // 创建音频源
+          final audioSources = playlist.map((track) {
+            return AudioSource.uri(
+              Uri.parse(track['url']),
+              tag: MediaItem(
+                id: track['id'].toString(),
+                title: track['name']?.toString() ?? '',
+                artist: track['artist']?.toString() ?? '',
+                album: track['album']?.toString() ?? '',
+                duration: Duration(milliseconds: int.parse(track['duration'].toString())),
+                artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
+                playable: true,
+                displayTitle: track['name']?.toString() ?? '',
+                displaySubtitle: track['artist']?.toString() ?? '',
+                extras: {
+                  'type': track['type'],
+                },
               ),
             );
-          }
+          }).toList();
+
+          final playlistSource = ConcatenatingAudioSource(
+            useLazyPreparation: true,
+            shuffleOrder: DefaultShuffleOrder(),
+            children: audioSources,
+          );
+
+          // 设置音频源
+          await _audioPlayer.setAudioSource(
+            playlistSource,
+            initialIndex: index,
+            preload: true,
+          );
+
+          // 设置随机播放模式
+          await _audioPlayer.setShuffleModeEnabled(isShuffleMode);
+
+          print('State loaded successfully');
         }
       }
     } catch (e) {
