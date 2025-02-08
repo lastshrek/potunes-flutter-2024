@@ -674,21 +674,19 @@ class PlayButton extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        child: GetX<AudioService>(
-          builder: (controller) => InkWell(
-            borderRadius: BorderRadius.circular(24),
-            onTap: () => AudioService.to.playPlaylist(
-              List<Map<String, dynamic>>.from(tracks),
-              0,
-            ),
-            child: const Center(
-              child: FaIcon(
-                FontAwesomeIcons.play,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: () => AudioService.to.playPlaylist(
+            List<Map<String, dynamic>>.from(tracks),
+            0,
           ),
+          child: Obx(() => Center(
+                child: FaIcon(
+                  AudioService.to.isPlaying && AudioService.to.currentPlaylist == tracks ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              )),
         ),
       ),
     );
