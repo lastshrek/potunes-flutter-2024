@@ -7,6 +7,7 @@ import 'pages/home_page.dart';
 import 'pages/top_charts_page.dart';
 import 'pages/library_page.dart';
 import '../widgets/mini_player.dart';
+import 'pages/login_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -106,10 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: GetX<NavigationController>(
           builder: (controller) => SalomonBottomBar(
             currentIndex: controller.currentPage,
-            onTap: (index) {
-              controller.changePage(index);
-              _pageController.jumpToPage(index);
-            },
+            onTap: _onTabTapped,
             selectedItemColor: Theme.of(context).colorScheme.secondary,
             unselectedItemColor: Colors.white54,
             margin: const EdgeInsets.symmetric(
@@ -139,5 +137,53 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  void _onTabTapped(int index) {
+    if (index == 2) {
+      // Library tab
+      // TODO: 检查登录状态
+      final isLoggedIn = false; // 从本地存储或状态管理中获取登录状态
+      if (!isLoggedIn) {
+        Navigator.of(context)
+            .push(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) {
+              return SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 1),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                )),
+                child: FadeTransition(
+                  opacity: animation,
+                  child: const LoginPage(),
+                ),
+              );
+            },
+            opaque: false,
+            barrierDismissible: true,
+            barrierColor: Colors.black.withOpacity(0.5),
+            transitionDuration: const Duration(milliseconds: 300),
+            reverseTransitionDuration: const Duration(milliseconds: 200),
+          ),
+        )
+            .then((value) {
+          if (value == true) {
+            setState(() {
+              navigationController.changePage(index);
+              _pageController.jumpToPage(index);
+            });
+          }
+        });
+        return;
+      }
+    }
+    setState(() {
+      navigationController.changePage(index);
+      _pageController.jumpToPage(index);
+    });
   }
 }
