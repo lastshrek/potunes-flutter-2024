@@ -10,6 +10,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lyric_line.dart';
 import '../services/network_service.dart';
 
+// 修改循环模式枚举
+enum RepeatMode {
+  all, // 列表循环
+  single // 单曲循环
+}
+
 class AudioService extends GetxService {
   static AudioService get to => Get.find<AudioService>();
 
@@ -38,6 +44,10 @@ class AudioService extends GetxService {
 
   // 添加随机播放列表
   final _shuffledPlaylist = Rxn<List<Map<String, dynamic>>>();
+
+  // 修改循环模式状态，默认为列表循环
+  final _repeatMode = Rx<RepeatMode>(RepeatMode.all);
+  RepeatMode get repeatMode => _repeatMode.value;
 
   // 添加 rxPosition getter
   Rx<Duration> get rxPosition => _position;
@@ -78,6 +88,9 @@ class AudioService extends GetxService {
         _currentLineIndex.value = 0;
       }
     });
+
+    // 初始化时设置为列表循环
+    _audioPlayer.setLoopMode(LoopMode.all);
   }
 
   @override
@@ -165,13 +178,18 @@ class AudioService extends GetxService {
     try {
       if (_currentPlaylist.value == null) return;
 
-      if (_currentIndex.value > 0) {
-        _currentIndex.value--;
-        final playlist = currentPlaylist; // 使用 getter 获取当前应该使用的列表
-        if (playlist != null) {
+      final playlist = currentPlaylist;
+      if (playlist != null) {
+        if (_repeatMode.value == RepeatMode.single) {
+          // 单曲循环时重新播放当前歌曲
           await playTrack(playlist[_currentIndex.value]);
-          _saveLastState();
+        } else {
+          // 列表循环：如果是第一首则跳到最后一首
+          final previousIndex = _currentIndex.value > 0 ? _currentIndex.value - 1 : playlist.length - 1;
+          _currentIndex.value = previousIndex;
+          await playTrack(playlist[previousIndex]);
         }
+        _saveLastState();
       }
     } catch (e) {
       debugPrint('Error playing previous track: $e');
@@ -182,10 +200,17 @@ class AudioService extends GetxService {
     try {
       if (_currentPlaylist.value == null) return;
 
-      final playlist = currentPlaylist; // 使用 getter 获取当前应该使用的列表
-      if (playlist != null && _currentIndex.value < playlist.length - 1) {
-        _currentIndex.value++;
-        await playTrack(playlist[_currentIndex.value]);
+      final playlist = currentPlaylist;
+      if (playlist != null) {
+        if (_repeatMode.value == RepeatMode.single) {
+          // 单曲循环时重新播放当前歌曲
+          await playTrack(playlist[_currentIndex.value]);
+        } else {
+          // 列表循环：如果是最后一首则回到第一首
+          final nextIndex = _currentIndex.value < playlist.length - 1 ? _currentIndex.value + 1 : 0;
+          _currentIndex.value = nextIndex;
+          await playTrack(playlist[nextIndex]);
+        }
         _saveLastState();
       }
     } catch (e) {
@@ -371,6 +396,20 @@ class AudioService extends GetxService {
       if (index != -1) {
         _currentIndex.value = index;
       }
+    }
+  }
+
+  // 修改切换循环模式的方法
+  void toggleRepeatMode() {
+    switch (_repeatMode.value) {
+      case RepeatMode.all:
+        _repeatMode.value = RepeatMode.single;
+        _audioPlayer.setLoopMode(LoopMode.one);
+        break;
+      case RepeatMode.single:
+        _repeatMode.value = RepeatMode.all;
+        _audioPlayer.setLoopMode(LoopMode.all);
+        break;
     }
   }
 }

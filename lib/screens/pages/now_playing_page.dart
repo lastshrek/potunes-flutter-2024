@@ -410,77 +410,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                 ),
                 const SizedBox(height: 16),
                 // 播放控制
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    IconButton(
-                      icon: GetX<AudioService>(
-                        builder: (controller) => FaIcon(
-                          FontAwesomeIcons.shuffle,
-                          size: 20,
-                          color: Colors.white.withOpacity(
-                            controller.isShuffleMode ? 1.0 : 0.4,
-                          ),
-                        ),
-                      ),
-                      onPressed: AudioService.to.toggleShuffle,
-                    ),
-                    IconButton(
-                      icon: FaIcon(
-                        FontAwesomeIcons.backward,
-                        size: 24,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                      onPressed: controller.previous,
-                    ),
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: (dominantColor ?? Theme.of(context).colorScheme.secondary).withOpacity(0.2),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                          width: 1,
-                        ),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: GetX<AudioService>(
-                          builder: (controller) => InkWell(
-                            borderRadius: BorderRadius.circular(32),
-                            onTap: controller.togglePlay,
-                            child: Center(
-                              child: FaIcon(
-                                controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
-                                size: 24,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: FaIcon(
-                        FontAwesomeIcons.forward,
-                        size: 24,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                      onPressed: controller.next,
-                    ),
-                    IconButton(
-                      icon: FaIcon(
-                        FontAwesomeIcons.repeat,
-                        size: 20,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                      onPressed: () {
-                        // TODO: 实现循环模式切换
-                      },
-                    ),
-                  ],
-                ),
+                _buildControlButtons(),
                 const SizedBox(height: 16),
                 // 添加 Coming Up Next 容器
                 GestureDetector(
@@ -647,77 +577,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // 播放控制按钮
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            IconButton(
-                              icon: GetX<AudioService>(
-                                builder: (controller) => FaIcon(
-                                  FontAwesomeIcons.shuffle,
-                                  size: 20,
-                                  color: Colors.white.withOpacity(
-                                    controller.isShuffleMode ? 1.0 : 0.4,
-                                  ),
-                                ),
-                              ),
-                              onPressed: AudioService.to.toggleShuffle,
-                            ),
-                            IconButton(
-                              icon: FaIcon(
-                                FontAwesomeIcons.backward,
-                                size: 24,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                              onPressed: AudioService.to.previous,
-                            ),
-                            Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: (dominantColor ?? Theme.of(context).colorScheme.secondary).withOpacity(0.2),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.2),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: GetX<AudioService>(
-                                  builder: (controller) => InkWell(
-                                    borderRadius: BorderRadius.circular(32),
-                                    onTap: controller.togglePlay,
-                                    child: Center(
-                                      child: FaIcon(
-                                        controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
-                                        size: 24,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              icon: FaIcon(
-                                FontAwesomeIcons.forward,
-                                size: 24,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                              onPressed: AudioService.to.next,
-                            ),
-                            IconButton(
-                              icon: FaIcon(
-                                FontAwesomeIcons.repeat,
-                                size: 20,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                              onPressed: () {
-                                // TODO: 实现循环模式切换
-                              },
-                            ),
-                          ],
-                        ),
+                        _buildControlButtons(),
                         SizedBox(height: bottomPadding + 8),
                       ],
                     ),
@@ -998,6 +858,112 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildControlButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        IconButton(
+          icon: GetX<AudioService>(
+            builder: (controller) => FaIcon(
+              FontAwesomeIcons.shuffle,
+              size: 20,
+              color: Colors.white.withOpacity(
+                controller.isShuffleMode ? 1.0 : 0.4,
+              ),
+            ),
+          ),
+          onPressed: AudioService.to.toggleShuffle,
+        ),
+        IconButton(
+          icon: FaIcon(
+            FontAwesomeIcons.backward,
+            size: 24,
+            color: Colors.white.withOpacity(0.8),
+          ),
+          onPressed: AudioService.to.previous,
+        ),
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: (dominantColor ?? Theme.of(context).colorScheme.secondary).withOpacity(0.2),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: GetX<AudioService>(
+              builder: (controller) => InkWell(
+                borderRadius: BorderRadius.circular(32),
+                onTap: controller.togglePlay,
+                child: Center(
+                  child: FaIcon(
+                    controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
+                    size: 24,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        IconButton(
+          icon: FaIcon(
+            FontAwesomeIcons.forward,
+            size: 24,
+            color: Colors.white.withOpacity(0.8),
+          ),
+          onPressed: AudioService.to.next,
+        ),
+        Obx(() {
+          final repeatMode = AudioService.to.repeatMode;
+          IconData icon;
+          Color color;
+          Widget? child;
+
+          switch (repeatMode) {
+            case RepeatMode.all:
+              icon = FontAwesomeIcons.repeat;
+              color = Colors.white;
+              child = null;
+              break;
+            case RepeatMode.single:
+              icon = FontAwesomeIcons.repeat;
+              color = Colors.white;
+              // 为单曲循环模式添加数字 1
+              child = Stack(
+                alignment: Alignment.center,
+                children: [
+                  const FaIcon(FontAwesomeIcons.repeat, size: 20),
+                  Positioned(
+                    top: 4,
+                    child: Text(
+                      '1',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+              break;
+          }
+
+          return IconButton(
+            icon: child ?? FaIcon(icon, size: 20),
+            color: color,
+            onPressed: AudioService.to.toggleRepeatMode,
+          );
+        }),
+      ],
     );
   }
 }
