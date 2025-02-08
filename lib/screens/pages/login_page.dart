@@ -186,212 +186,211 @@ class _LoginPageState extends State<LoginPage> {
     final topPadding = MediaQuery.of(context).padding.top;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    return GestureDetector(
-      onTap: () {
-        print('=== Background tapped ===');
-      },
-      child: Material(
-        type: MaterialType.transparency,
-        child: Stack(
-          children: [
-            // 主内容区域
-            Positioned(
-              left: 0,
-              right: 0,
-              top: topPadding + 60, // 增加 40 像素的偏移
-              bottom: 0,
-              child: GestureDetector(
-                onTap: () {},
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
+    return Material(
+      type: MaterialType.transparency,
+      child: Stack(
+        children: [
+          // 背景点击区域
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                color: Colors.transparent,
+              ),
+            ),
+          ),
+          // 主内容区域
+          Positioned(
+            left: 0,
+            right: 0,
+            top: topPadding + 60,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: () {}, // 阻止点击事件穿透
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(16),
                   ),
-                  child: Column(
-                    children: [
-                      // 顶部栏
-                      SizedBox(
-                        height: 56,
-                        child: Row(
-                          children: [
-                            // 关闭按钮
-                            GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () {
-                                print('=== Close button tapped ===');
-                              },
-                              child: Container(
-                                width: 48,
-                                height: 48,
-                                alignment: Alignment.center,
-                                child: const Icon(Icons.close, color: Colors.white),
-                              ),
+                ),
+                child: Column(
+                  children: [
+                    // 顶部栏
+                    SizedBox(
+                      height: 56,
+                      child: Row(
+                        children: [
+                          // 关闭按钮
+                          IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white,
                             ),
-                          ],
-                        ),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
                       ),
-                      // 内容区域
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              left: 24.0,
-                              right: 24.0,
-                              bottom: 24.0 + bottomInset + bottomPadding,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'PoPo\nCollections\nMusic.',
-                                  style: TextStyle(
-                                    color: Color(0xFF00FFA3),
-                                    fontSize: 40,
-                                    fontWeight: FontWeight.bold,
-                                    height: 1.2,
+                    ),
+                    // 内容区域
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            left: 24.0,
+                            right: 24.0,
+                            bottom: 24.0 + bottomInset + bottomPadding,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'PoPo\nCollections\nMusic.',
+                                style: TextStyle(
+                                  color: Color(0xFF00FFA3),
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 48),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[900],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: TextField(
+                                  controller: _phoneController,
+                                  style: const TextStyle(color: Colors.white),
+                                  keyboardType: TextInputType.phone,
+                                  textAlign: TextAlign.left,
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    hintText: 'Enter Your CellPhone Number',
+                                    hintStyle: TextStyle(color: Colors.grey),
+                                    prefixIcon: Icon(Icons.phone_android, color: Color(0xFF00FFA3)),
+                                    prefixIconConstraints: BoxConstraints(minWidth: 40),
+                                    isDense: false,
+                                    isCollapsed: false,
                                   ),
                                 ),
-                                const SizedBox(height: 48),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[900],
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: TextField(
-                                    controller: _phoneController,
-                                    style: const TextStyle(color: Colors.white),
-                                    keyboardType: TextInputType.phone,
-                                    textAlign: TextAlign.left,
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                      hintText: 'Enter Your CellPhone Number',
-                                      hintStyle: TextStyle(color: Colors.grey),
-                                      prefixIcon: Icon(Icons.phone_android, color: Color(0xFF00FFA3)),
-                                      prefixIconConstraints: BoxConstraints(minWidth: 40),
-                                      isDense: false,
-                                      isCollapsed: false,
-                                    ),
-                                  ),
-                                ),
-                                Obx(() => _showCaptchaInput.value
-                                    ? Column(
-                                        children: [
-                                          const SizedBox(height: 16),
-                                          Container(
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey[900],
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: TextField(
-                                              controller: _captchaController,
-                                              style: const TextStyle(color: Colors.white),
-                                              keyboardType: TextInputType.number,
-                                              textAlign: TextAlign.left,
-                                              decoration: const InputDecoration(
-                                                border: InputBorder.none,
-                                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                                hintText: 'Enter Captcha Received',
-                                                hintStyle: TextStyle(color: Colors.grey),
-                                                prefixIcon: Icon(Icons.message, color: Color(0xFF00FFA3)),
-                                                prefixIconConstraints: BoxConstraints(minWidth: 40),
-                                                isDense: false,
-                                                isCollapsed: false,
-                                              ),
+                              ),
+                              Obx(() => _showCaptchaInput.value
+                                  ? Column(
+                                      children: [
+                                        const SizedBox(height: 16),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[900],
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: TextField(
+                                            controller: _captchaController,
+                                            style: const TextStyle(color: Colors.white),
+                                            keyboardType: TextInputType.number,
+                                            textAlign: TextAlign.left,
+                                            decoration: const InputDecoration(
+                                              border: InputBorder.none,
+                                              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                              hintText: 'Enter Captcha Received',
+                                              hintStyle: TextStyle(color: Colors.grey),
+                                              prefixIcon: Icon(Icons.message, color: Color(0xFF00FFA3)),
+                                              prefixIconConstraints: BoxConstraints(minWidth: 40),
+                                              isDense: false,
+                                              isCollapsed: false,
                                             ),
                                           ),
-                                        ],
-                                      )
-                                    : const SizedBox.shrink()),
-                                const SizedBox(height: 24),
-                                Obx(() {
-                                  if (_error.value != null) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 16),
-                                      child: Text(
-                                        _error.value!,
-                                        style: const TextStyle(color: Colors.red),
-                                      ),
-                                    );
-                                  }
-                                  return const SizedBox.shrink();
-                                }),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 48,
-                                  child: Obx(() {
-                                    final bool isCountingDown = _showCaptchaInput.value && _countdown.value > 0;
-                                    final String buttonText = _showCaptchaInput.value ? (isCountingDown ? 'Login' : 'Resend Captcha') : 'Send Captcha';
-
-                                    return ElevatedButton(
-                                      onPressed: _isLoading.value
-                                          ? null
-                                          : () {
-                                              if (_showCaptchaInput.value) {
-                                                if (_countdown.value > 0) {
-                                                  _login(); // 倒计时中点击执行登录
-                                                } else {
-                                                  _sendCaptcha(); // 倒计时结束后点击重新发送验证码
-                                                }
-                                              } else {
-                                                _sendCaptcha(); // 首次发送验证码
-                                              }
-                                            },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF00FFA3),
-                                        foregroundColor: Colors.black,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
                                         ),
+                                      ],
+                                    )
+                                  : const SizedBox.shrink()),
+                              const SizedBox(height: 24),
+                              Obx(() {
+                                if (_error.value != null) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: Text(
+                                      _error.value!,
+                                      style: const TextStyle(color: Colors.red),
+                                    ),
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              }),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: Obx(() {
+                                  final bool isCountingDown = _showCaptchaInput.value && _countdown.value > 0;
+                                  final String buttonText = _showCaptchaInput.value ? (isCountingDown ? 'Login' : 'Resend Captcha') : 'Send Captcha';
+
+                                  return ElevatedButton(
+                                    onPressed: _isLoading.value
+                                        ? null
+                                        : () {
+                                            if (_showCaptchaInput.value) {
+                                              if (_countdown.value > 0) {
+                                                _login(); // 倒计时中点击执行登录
+                                              } else {
+                                                _sendCaptcha(); // 倒计时结束后点击重新发送验证码
+                                              }
+                                            } else {
+                                              _sendCaptcha(); // 首次发送验证码
+                                            }
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF00FFA3),
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
-                                      child: _isLoading.value
-                                          ? const SizedBox(
-                                              width: 24,
-                                              height: 24,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                                    ),
+                                    child: _isLoading.value
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                                            ),
+                                          )
+                                        : Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                buttonText,
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
-                                            )
-                                          : Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
+                                              if (isCountingDown) ...[
+                                                const SizedBox(width: 8),
                                                 Text(
-                                                  buttonText,
+                                                  '(${_countdown.value}s)',
                                                   style: const TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.normal,
                                                   ),
                                                 ),
-                                                if (isCountingDown) ...[
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    '(${_countdown.value}s)',
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight: FontWeight.normal,
-                                                    ),
-                                                  ),
-                                                ],
                                               ],
-                                            ),
-                                    );
-                                  }),
-                                ),
-                              ],
-                            ),
+                                            ],
+                                          ),
+                                  );
+                                }),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
