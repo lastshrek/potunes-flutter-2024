@@ -87,13 +87,11 @@ class HomeController extends GetxController {
 
       final response = await _networkService.getHomeData();
 
-      if (response != null) {
-        _collections.value = List<Map<String, dynamic>>.from(response['collections'] ?? []);
-        _finals.value = List<Map<String, dynamic>>.from(response['finals'] ?? []);
-        _albums.value = List<Map<String, dynamic>>.from(response['albums'] ?? []);
-        _neteaseToplist.value = List<Map<String, dynamic>>.from(response['netease_toplist'] ?? []);
-        await _saveToCache();
-      }
+      _collections.value = List<Map<String, dynamic>>.from(response['collections'] ?? []);
+      _finals.value = List<Map<String, dynamic>>.from(response['finals'] ?? []);
+      _albums.value = List<Map<String, dynamic>>.from(response['albums'] ?? []);
+      _neteaseToplist.value = List<Map<String, dynamic>>.from(response['netease_toplist'] ?? []);
+      await _saveToCache();
     } catch (e) {
       _error.value = e.toString();
     } finally {

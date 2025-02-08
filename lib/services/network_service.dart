@@ -12,9 +12,7 @@ class NetworkService {
 
   Future<List<dynamic>> getLatestCollections() async {
     try {
-      print('=== Getting latest collections ===');
       final response = await _client.get<dynamic>(ApiConfig.latestCollection);
-      print('=== Collections response: $response ===');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
         return response['data'] as List<dynamic>;
@@ -32,9 +30,7 @@ class NetworkService {
 
   Future<List<dynamic>> getLatestFinal() async {
     try {
-      print('=== Getting latest final ===');
       final response = await _client.get<dynamic>(ApiConfig.latestFinal);
-      print('=== Final response: $response ===');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
         return response['data'] as List<dynamic>;
@@ -72,9 +68,7 @@ class NetworkService {
 
   Future<Map<String, dynamic>> getPlaylistById(int id) async {
     try {
-      print('=== Getting playlist $id ===');
       final response = await _client.get<dynamic>('${ApiConfig.playlist}/$id');
-      print('=== Playlist response: $response ===');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
         return response['data'] as Map<String, dynamic>;
@@ -92,9 +86,7 @@ class NetworkService {
 
   Future<Map<String, dynamic>> getLyrics(String id, String nId) async {
     try {
-      print('=== Getting lyrics for $id, $nId ===');
       final response = await _client.get<dynamic>(ApiConfig.getLyricsPath(id, nId));
-      print('=== Lyrics response: $response ===');
 
       // 检查响应格式
       if (response is Map) {
@@ -108,7 +100,6 @@ class NetworkService {
         }
       }
 
-      print('=== Invalid lyrics format: $response ===');
       throw ApiException(
         statusCode: 500,
         message: '无效的歌词格式',
@@ -205,9 +196,7 @@ class NetworkService {
 
   Future<Map<String, dynamic>> getTopCharts() async {
     try {
-      print('=== Getting top charts ===');
       final response = await _client.get<dynamic>(ApiConfig.topCharts);
-      print('=== Top charts response: $response ===');
 
       if (response is Map && response['statusCode'] == 200) {
         if (response['data'] is List) {
@@ -230,9 +219,7 @@ class NetworkService {
 
   Future<List<dynamic>> getAllCollections() async {
     try {
-      print('=== Getting all collections ===');
       final response = await _client.get<dynamic>(ApiConfig.allCollections);
-      print('=== All collections response: $response ===');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
         return response['data'] as List<dynamic>;
@@ -250,9 +237,7 @@ class NetworkService {
 
   Future<List<dynamic>> getAllFinals() async {
     try {
-      print('=== Getting all finals ===');
       final response = await _client.get<dynamic>(ApiConfig.allFinals);
-      print('=== All finals response: $response ===');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
         return response['data'] as List<dynamic>;
@@ -270,9 +255,7 @@ class NetworkService {
 
   Future<List<dynamic>> getAllAlbums() async {
     try {
-      print('=== Getting all albums ===');
       final response = await _client.get<dynamic>(ApiConfig.allAlbums);
-      print('=== All albums response: $response ===');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
         return response['data'] as List<dynamic>;
