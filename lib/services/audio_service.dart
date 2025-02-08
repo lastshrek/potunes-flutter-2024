@@ -251,8 +251,29 @@ class AudioService extends GetxService {
 
       if (playlistJson != null && index != null) {
         final playlist = List<Map<String, dynamic>>.from(jsonDecode(playlistJson).map((x) => Map<String, dynamic>.from(x)));
+
         if (playlist.isNotEmpty && index < playlist.length) {
-          await playPlaylist(playlist, index);
+          // 只设置播放列表和当前歌曲，但不开始播放
+          _currentPlaylist.value = playlist;
+          _currentIndex.value = index;
+          _currentTrack.value = playlist[index];
+
+          // 加载音频源但不播放
+          final track = playlist[index];
+          final url = track['url'];
+          if (url != null) {
+            await _audioPlayer.setAudioSource(
+              AudioSource.uri(
+                Uri.parse(url),
+                tag: MediaItem(
+                  id: track['id']?.toString() ?? '',
+                  title: track['name'] ?? '',
+                  artist: track['artist'] ?? '',
+                  artUri: Uri.parse(track['cover_url'] ?? ''),
+                ),
+              ),
+            );
+          }
         }
       }
     } catch (e) {
