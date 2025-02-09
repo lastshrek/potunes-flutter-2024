@@ -15,6 +15,7 @@ class ApiConfig {
   static const String allAlbums = '/v1/playlists/albums';
   static const String topListDetail = '/netease/toplist';
   static const String neteaseNewAlbum = '/netease/top_album';
+  static const String neteaseNewAlbumDetail = '/netease/album';
   // 用户相关
   static const String captcha = '/users/captcha';
   static const String verifyCaptcha = '/users/verify';

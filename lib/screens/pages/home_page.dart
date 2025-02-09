@@ -466,7 +466,7 @@ class HomePage extends GetView<HomeController> {
               () => PlaylistPage(
                 playlist: playlist,
                 playlistId: int.parse(playlist['nId'].toString()),
-                isFromTopList: true,
+                isFromNewAlbum: true,
               ),
               transition: Transition.rightToLeft,
             );

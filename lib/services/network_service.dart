@@ -471,12 +471,13 @@ class NetworkService {
   Future<Map<String, dynamic>> getNewAlbumDetail(int id) async {
     try {
       final response = await _client.get(
-        '${ApiConfig.baseUrl}${ApiConfig.neteaseNewAlbum}/$id',
+        '${ApiConfig.baseUrl}${ApiConfig.neteaseNewAlbumDetail}/$id',
       );
 
       if (response is Map<String, dynamic> && response['statusCode'] == 200) {
         final data = response['data'] as Map<String, dynamic>;
 
+        // 处理 tracks 数组
         if (data['tracks'] is List) {
           final List<dynamic> tracks = data['tracks'] as List<dynamic>;
           final List<Map<String, dynamic>> processedTracks = tracks.map((track) {
@@ -489,6 +490,7 @@ class NetworkService {
             return track as Map<String, dynamic>;
           }).toList();
 
+          // 更新 data 中的 tracks
           data['tracks'] = processedTracks;
         }
 

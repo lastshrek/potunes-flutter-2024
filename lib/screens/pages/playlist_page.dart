@@ -16,6 +16,7 @@ class PlaylistPage extends StatefulWidget {
   final int playlistId;
   final bool isFromCollections;
   final bool isFromTopList;
+  final bool isFromNewAlbum;
 
   const PlaylistPage({
     super.key,
@@ -23,6 +24,7 @@ class PlaylistPage extends StatefulWidget {
     required this.playlistId,
     this.isFromCollections = false,
     this.isFromTopList = false,
+    this.isFromNewAlbum = false,
   });
 
   @override
@@ -127,7 +129,11 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   Future<void> _loadPlaylistData() async {
     try {
-      final response = widget.isFromTopList ? await _networkService.getTopListDetail(widget.playlistId) : await _networkService.getPlaylistById(widget.playlistId);
+      final response = widget.isFromTopList
+          ? await _networkService.getTopListDetail(widget.playlistId)
+          : widget.isFromNewAlbum
+              ? await _networkService.getNewAlbumDetail(widget.playlistId)
+              : await _networkService.getPlaylistById(widget.playlistId);
 
       if (!mounted) return;
 
