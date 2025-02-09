@@ -82,7 +82,7 @@
 			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
-		<true/>
+		<false/>
 		<key>NSAppleMusicUsageDescription</key>
 		<string>需要访问媒体库以支持音频播放功能</string>
 	</dict>

@@ -132,6 +132,13 @@ Future<void> main() async {
   // 初始化 AppController
   Get.put(AppController());
 
+  // 设置状态栏样式为亮色（白色）
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarBrightness: Brightness.dark, // iOS: 暗色背景，白色前景
+    statusBarIconBrightness: Brightness.light, // Android: 白色图标
+    statusBarColor: Colors.transparent, // Android: 透明背景
+  ));
+
   runApp(GetMaterialApp(
     title: 'PoTunes',
     debugShowCheckedModeBanner: false,
