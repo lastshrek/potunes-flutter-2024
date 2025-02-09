@@ -224,157 +224,141 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                     children: [
                       Expanded(
                         flex: 5,
-                        child: CustomScrollView(
-                          slivers: [
-                            SliverAppBar(
-                              backgroundColor: Colors.transparent,
-                              pinned: true,
-                              expandedHeight: 0,
-                              leading: IconButton(
-                                icon: const Icon(Icons.arrow_back),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                            ),
-                            SliverToBoxAdapter(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    AspectRatio(
-                                      aspectRatio: 1,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(12),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(0.3),
-                                              blurRadius: 20,
-                                              offset: const Offset(0, 10),
-                                            ),
-                                          ],
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: CachedNetworkImage(
-                                            imageUrl: widget.playlist['cover'] ?? '',
-                                            fit: BoxFit.cover,
-                                            placeholder: (context, url) => Container(
-                                              color: Colors.grey[900],
-                                              child: const Center(child: CircularProgressIndicator()),
-                                            ),
-                                            errorWidget: (context, url, error) => Container(
-                                              color: Colors.grey[900],
-                                              child: const Icon(Icons.error),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 24),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final miniPlayerHeight = 80.0;
+                            final topPadding = MediaQuery.of(context).padding.top;
+                            final bottomPadding = 16.0; // 添加底部额外间距
+                            final availableHeight = constraints.maxHeight - miniPlayerHeight - topPadding - bottomPadding;
+
+                            // 调整分配空间的比例
+                            final coverSize = availableHeight * 0.55; // 减小封面尺寸的比例
+                            final infoSize = availableHeight * 0.35; // 增加信息区域的比例
+                            final spacing = availableHeight * 0.1;
+
+                            return CustomScrollView(
+                              physics: const ClampingScrollPhysics(),
+                              slivers: [
+                                SliverAppBar(
+                                  backgroundColor: Colors.transparent,
+                                  pinned: true,
+                                  expandedHeight: 0,
+                                  leading: IconButton(
+                                    icon: const Icon(Icons.arrow_back),
+                                    onPressed: () => Navigator.pop(context),
+                                  ),
+                                ),
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(24.0),
+                                    child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                widget.playlist['title'] ?? '',
-                                                style: const TextStyle(
-                                                  fontSize: 24,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
+                                        // 专辑封面
+                                        SizedBox(
+                                          height: coverSize,
+                                          child: Center(
+                                            child: AspectRatio(
+                                              aspectRatio: 1,
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black.withOpacity(0.3),
+                                                      blurRadius: 20,
+                                                      offset: const Offset(0, 10),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: ClipRRect(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  child: CachedNetworkImage(
+                                                    imageUrl: widget.playlist['cover'] ?? '',
+                                                    fit: BoxFit.cover,
+                                                    placeholder: (context, url) => Container(
+                                                      color: Colors.grey[800],
+                                                      child: const Icon(
+                                                        Icons.music_note,
+                                                        color: Colors.white54,
+                                                      ),
+                                                    ),
+                                                    errorWidget: (context, url, error) => Container(
+                                                      color: Colors.grey[800],
+                                                      child: const Icon(
+                                                        Icons.music_note,
+                                                        color: Colors.white54,
+                                                      ),
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                '${tracks.length} 首歌曲',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  color: Colors.grey[400],
-                                                ),
-                                              ),
-                                            ],
+                                            ),
                                           ),
                                         ),
-                                        Row(
-                                          children: [
-                                            IconButton(
-                                              icon: const FaIcon(
-                                                FontAwesomeIcons.shuffle,
-                                                color: Colors.white,
-                                                size: 20,
-                                              ),
-                                              onPressed: () {
-                                                if (!AudioService.to.isShuffleMode) {
-                                                  AudioService.to.toggleShuffle();
-                                                }
-                                                AudioService.to.skipToQueueItem(0);
-                                              },
-                                            ),
-                                            const SizedBox(width: 16),
-                                            PlayButton(
-                                              backgroundColor: dominantColor?.withOpacity(0.8),
-                                              tracks: List<Map<String, dynamic>>.from(tracks),
-                                            ),
-                                          ],
+                                        // 间距
+                                        SizedBox(height: spacing * 0.5),
+                                        // 播放列表信息
+                                        SizedBox(
+                                          height: infoSize,
+                                          child: SingleChildScrollView(
+                                            // 添加滚动支持
+                                            child: _buildPlaylistHeader(),
+                                          ),
                                         ),
                                       ],
                                     ),
-                                    if (widget.playlist['description'] != null) ...[
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        widget.playlist['description'],
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[400],
-                                        ),
-                                      ),
-                                    ],
-                                    const SizedBox(height: 24),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ],
+                                // 增加底部空间
+                                SliverToBoxAdapter(
+                                  child: SizedBox(height: miniPlayerHeight + bottomPadding),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                       Expanded(
                         flex: 5,
-                        child: CustomScrollView(
-                          slivers: [
-                            SliverPadding(
-                              padding: EdgeInsets.only(
-                                top: MediaQuery.of(context).padding.top + 16,
-                              ),
-                              sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
-                            ),
-                            SliverPadding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              sliver: SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) {
-                                    final track = tracks[index];
-                                    return TrackListTile(
-                                      track: track,
-                                      onTap: () => _playTrack(track, tracks, index),
-                                      isPlaying: AudioService.to.isPlaying && AudioService.to.currentPlaylist?.contains(track) == true,
-                                      index: index,
-                                    );
-                                  },
-                                  childCount: tracks.length,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final miniPlayerHeight = 80.0;
+                            final availableHeight = constraints.maxHeight - miniPlayerHeight;
+
+                            return CustomScrollView(
+                              physics: const ClampingScrollPhysics(),
+                              slivers: [
+                                SliverPadding(
+                                  padding: EdgeInsets.only(
+                                    top: MediaQuery.of(context).padding.top + 16,
+                                  ),
+                                  sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
                                 ),
-                              ),
-                            ),
-                            SliverPadding(
-                              padding: EdgeInsets.only(
-                                bottom: MediaQuery.of(context).padding.bottom + 80,
-                              ),
-                              sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
-                            ),
-                          ],
+                                SliverPadding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  sliver: SliverList(
+                                    delegate: SliverChildBuilderDelegate(
+                                      (context, index) {
+                                        final track = tracks[index];
+                                        return TrackListTile(
+                                          track: track,
+                                          onTap: () => _playTrack(track, tracks, index),
+                                          isPlaying: AudioService.to.isPlaying && AudioService.to.currentPlaylist?.contains(track) == true,
+                                          index: index,
+                                        );
+                                      },
+                                      childCount: tracks.length,
+                                    ),
+                                  ),
+                                ),
+                                // 添加底部空间以避免被 MiniPlayer 遮挡
+                                SliverToBoxAdapter(
+                                  child: SizedBox(height: miniPlayerHeight + 16), // 添加额外的间距
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                     ],

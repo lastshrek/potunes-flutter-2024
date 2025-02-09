@@ -584,7 +584,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                     color: Colors.white.withOpacity(0.7),
                     fontSize: 16,
                   ),
-                  width: MediaQuery.of(context).size.width - 64, // 考虑左右padding
+                  width: MediaQuery.of(context).size.width * 0.4, // 根据可用宽度调整文本宽度
                 ),
                 const SizedBox(height: 20),
                 // 进度条
