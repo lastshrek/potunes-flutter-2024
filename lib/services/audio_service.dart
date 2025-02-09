@@ -149,24 +149,18 @@ class AudioService extends GetxService {
       _audioPlayer.sequenceStateStream.listen((sequenceState) {
         if (sequenceState != null && sequenceState.currentIndex != null) {
           final newIndex = sequenceState.currentIndex!;
-          print('=== Sequence State Changed ===');
-          print('New index: $newIndex');
-          print('Current index: ${_currentIndex.value}');
-          print('Current track: ${_currentTrack.value?['name']} (${_currentTrack.value?['url']})');
 
           // 获取控制中心当前歌曲信息
           final currentSource = sequenceState.currentSource;
           if (currentSource != null) {
             final mediaItem = currentSource.tag as MediaItem;
-            print('Control Center Track: ${mediaItem.title} (${mediaItem.id})');
 
-            // 根据 MediaItem 的 ID 找到对应的歌曲
+            // 根据 MediaItem 的 ID 和 nId 找到对应的歌曲
             if (_currentPlaylist.value != null) {
-              final trackIndex = _currentPlaylist.value!.indexWhere((t) => t['id'].toString() == mediaItem.id);
+              final trackIndex = _currentPlaylist.value!.indexWhere((t) => t['id'].toString() == mediaItem.id.split('_')[0] && t['nId'].toString() == mediaItem.id.split('_')[1]);
 
               if (trackIndex != -1) {
                 final newTrack = _currentPlaylist.value![trackIndex];
-                print('Found track in playlist: ${newTrack['name']} (${newTrack['url']})');
 
                 // 更新当前索引和曲目
                 _currentIndex.value = trackIndex;
@@ -181,10 +175,6 @@ class AudioService extends GetxService {
 
                 // 保存状态
                 _saveLastState();
-
-                print('=== After Track Change ===');
-                print('New current index: ${_currentIndex.value}');
-                print('New current track: ${_currentTrack.value!['name']} (${_currentTrack.value!['url']})');
               }
             }
           }
@@ -220,7 +210,7 @@ class AudioService extends GetxService {
         return AudioSource.uri(
           Uri.parse(track['url']),
           tag: MediaItem(
-            id: track['id'].toString(),
+            id: '${track['id']}_${track['nId']}', // 使用组合 ID
             title: track['name']?.toString() ?? '',
             artist: track['artist']?.toString() ?? '',
             album: track['album']?.toString() ?? '',
@@ -434,7 +424,7 @@ class AudioService extends GetxService {
             return AudioSource.uri(
               Uri.parse(track['url']),
               tag: MediaItem(
-                id: track['id'].toString(),
+                id: '${track['id']}_${track['nId']}', // 使用组合 ID
                 title: track['name']?.toString() ?? '',
                 artist: track['artist']?.toString() ?? '',
                 album: track['album']?.toString() ?? '',
@@ -707,7 +697,7 @@ class AudioService extends GetxService {
         return AudioSource.uri(
           Uri.parse(track['url']),
           tag: MediaItem(
-            id: track['id'].toString(),
+            id: '${track['id']}_${track['nId']}', // 使用组合 ID
             title: track['name']?.toString() ?? '',
             artist: track['artist']?.toString() ?? '',
             album: track['album']?.toString() ?? '',
