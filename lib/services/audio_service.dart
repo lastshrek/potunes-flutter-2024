@@ -75,11 +75,14 @@ class AudioService extends GetxService {
   final _isLike = 0.obs;
   bool get isLike => _isLike.value == 1;
 
-  // 暂时保留随机播放状态，但不实现功能
+  // 保留随机播放状态
   final _isShuffleMode = RxBool(false);
   bool get isShuffleMode => _isShuffleMode.value;
 
-  // 修改 displayPlaylist getter，暂时只返回原始列表
+  // 添加原始播放列表存储
+  final _originalPlaylist = Rxn<List<Map<String, dynamic>>>();
+
+  // 修改 displayPlaylist getter，根据模式返回对应列表
   List<Map<String, dynamic>>? get displayPlaylist => _currentPlaylist.value;
 
   @override
@@ -142,24 +145,44 @@ class AudioService extends GetxService {
       _audioPlayer.sequenceStateStream.listen((sequenceState) {
         if (sequenceState != null && sequenceState.currentIndex != null) {
           final newIndex = sequenceState.currentIndex!;
+          print('=== Sequence State Changed ===');
+          print('New index: $newIndex');
+          print('Current index: ${_currentIndex.value}');
+          print('Current track: ${_currentTrack.value?['name']} (${_currentTrack.value?['url']})');
 
-          // 检查播放列表和索引是否有效
-          if (_currentPlaylist.value != null && newIndex >= 0 && newIndex < _currentPlaylist.value!.length && newIndex != _currentIndex.value) {
-            final newTrack = _currentPlaylist.value![newIndex];
+          // 获取控制中心当前歌曲信息
+          final currentSource = sequenceState.currentSource;
+          if (currentSource != null) {
+            final mediaItem = currentSource.tag as MediaItem;
+            print('Control Center Track: ${mediaItem.title} (${mediaItem.id})');
 
-            // 更新当前索引和曲目
-            _currentIndex.value = newIndex;
-            _currentTrack.value = newTrack;
+            // 根据 MediaItem 的 ID 找到对应的歌曲
+            if (_currentPlaylist.value != null) {
+              final trackIndex = _currentPlaylist.value!.indexWhere((t) => t['id'].toString() == mediaItem.id);
 
-            // 加载新歌曲的歌词
-            _loadLyrics(newTrack);
+              if (trackIndex != -1) {
+                final newTrack = _currentPlaylist.value![trackIndex];
+                print('Found track in playlist: ${newTrack['name']} (${newTrack['url']})');
 
-            // 重置播放位置和歌词索引
-            _position.value = Duration.zero;
-            _currentLineIndex.value = 0;
+                // 更新当前索引和曲目
+                _currentIndex.value = trackIndex;
+                _currentTrack.value = newTrack;
 
-            // 保存状态
-            _saveLastState();
+                // 加载新歌曲的歌词
+                _loadLyrics(newTrack);
+
+                // 重置播放位置和歌词索引
+                _position.value = Duration.zero;
+                _currentLineIndex.value = 0;
+
+                // 保存状态
+                _saveLastState();
+
+                print('=== After Track Change ===');
+                print('New current index: ${_currentIndex.value}');
+                print('New current track: ${_currentTrack.value!['name']} (${_currentTrack.value!['url']})');
+              }
+            }
           }
         }
       });
@@ -310,8 +333,12 @@ class AudioService extends GetxService {
           await _audioPlayer.seek(Duration.zero);
           await _audioPlayer.play();
         } else {
-          // 直接调用 seekToPrevious，索引变化会通过监听器处理
-          await _audioPlayer.seekToPrevious();
+          // 计算上一首歌的索引
+          final currentIndex = _currentIndex.value;
+          final previousIndex = currentIndex > 0 ? currentIndex - 1 : _currentPlaylist.value!.length - 1;
+
+          // 直接调用 skipToQueueItem，而不是 seekToPrevious
+          await skipToQueueItem(previousIndex);
         }
       }
     } catch (e) {
@@ -328,8 +355,12 @@ class AudioService extends GetxService {
         await _audioPlayer.seek(Duration.zero);
         await _audioPlayer.play();
       } else {
-        // 直接调用 seekToNext，索引变化会通过监听器处理
-        await _audioPlayer.seekToNext();
+        // 计算下一首歌的索引
+        final currentIndex = _currentIndex.value;
+        final nextIndex = currentIndex < _currentPlaylist.value!.length - 1 ? currentIndex + 1 : 0;
+
+        // 直接调用 skipToQueueItem，而不是 seekToNext
+        await skipToQueueItem(nextIndex);
       }
     } catch (e) {
       print('Error playing next track: $e');
@@ -341,7 +372,11 @@ class AudioService extends GetxService {
       final prefs = await SharedPreferences.getInstance();
       if (_currentPlaylist.value != null) {
         await prefs.setString(_playlistKey, jsonEncode(_currentPlaylist.value));
+        if (_originalPlaylist.value != null) {
+          await prefs.setString('original_playlist', jsonEncode(_originalPlaylist.value));
+        }
         await prefs.setInt(_indexKey, _currentIndex.value);
+        await prefs.setBool('shuffle_mode', _isShuffleMode.value);
       }
     } catch (e) {
       print('Error saving last state: $e');
@@ -352,13 +387,24 @@ class AudioService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final playlistJson = prefs.getString(_playlistKey);
+      final originalPlaylistJson = prefs.getString('original_playlist');
       final index = prefs.getInt(_indexKey);
+      final isShuffleMode = prefs.getBool('shuffle_mode') ?? false;
 
       if (playlistJson != null && index != null) {
         final playlist = List<Map<String, dynamic>>.from(jsonDecode(playlistJson).map((x) => Map<String, dynamic>.from(x)));
 
         if (playlist.isNotEmpty && index < playlist.length) {
+          // 设置随机播放状态
+          _isShuffleMode.value = isShuffleMode;
+
+          // 加载播放列表
           _currentPlaylist.value = playlist;
+          if (isShuffleMode && originalPlaylistJson != null) {
+            _originalPlaylist.value = List<Map<String, dynamic>>.from(jsonDecode(originalPlaylistJson).map((x) => Map<String, dynamic>.from(x)));
+          }
+
+          // 设置当前索引和曲目
           _currentIndex.value = index;
           _currentTrack.value = playlist[index];
 
@@ -698,10 +744,66 @@ class AudioService extends GetxService {
     }
   }
 
-  // 添加空的 toggleShuffle 方法
+  // 修改 toggleShuffle 方法
   Future<void> toggleShuffle() async {
-    // 暂时不实现任何功能
-    _isShuffleMode.value = !_isShuffleMode.value;
-    await _audioPlayer.setShuffleModeEnabled(_isShuffleMode.value);
+    try {
+      _isShuffleMode.value = !_isShuffleMode.value;
+      print('=== Toggle Shuffle ===');
+      print('Shuffle mode: ${_isShuffleMode.value}');
+
+      if (_isShuffleMode.value) {
+        // 启用随机播放时
+        if (_currentPlaylist.value != null) {
+          // 保存原始播放列表
+          _originalPlaylist.value = List.from(_currentPlaylist.value!);
+
+          // 保存当前播放的歌曲
+          final currentTrack = _currentTrack.value;
+          print('Current track before shuffle: ${currentTrack!['name']} (${currentTrack['url']})');
+
+          // 创建随机播放列表
+          final List<Map<String, dynamic>> shuffled = List.from(_currentPlaylist.value!);
+          shuffled.remove(currentTrack);
+          shuffled.shuffle();
+          shuffled.insert(0, currentTrack);
+
+          // 更新当前播放列表和索引
+          _currentPlaylist.value = shuffled;
+          _currentIndex.value = 0;
+
+          print('=== After Shuffle ===');
+          print('Current index: ${_currentIndex.value}');
+          print('Current track: ${_currentTrack.value!['name']} (${_currentTrack.value!['url']})');
+          print('First track in shuffled list: ${shuffled[0]['name']} (${shuffled[0]['url']})');
+        }
+      } else {
+        // 关闭随机播放时，恢复原始列表
+        if (_originalPlaylist.value != null) {
+          // 找到当前歌曲在原始列表中的位置
+          final currentTrack = _currentTrack.value;
+          print('Current track before restore: ${currentTrack!['name']} (${currentTrack['url']})');
+
+          final originalIndex = _originalPlaylist.value!.indexWhere((t) => t['id'] == currentTrack!['id'] && t['nId'] == currentTrack['nId']);
+
+          print('Found original index: $originalIndex');
+
+          if (originalIndex != -1) {
+            // 恢复原始播放列表和正确的索引
+            _currentPlaylist.value = _originalPlaylist.value;
+            _currentIndex.value = originalIndex;
+
+            print('=== After Restore ===');
+            print('Current index: ${_currentIndex.value}');
+            print('Current track: ${_currentTrack.value!['name']} (${_currentTrack.value!['url']})');
+            print('Track at restored index: ${_currentPlaylist.value![originalIndex]['name']} (${_currentPlaylist.value![originalIndex]['url']})');
+          }
+        }
+      }
+
+      // 保存状态
+      await _saveLastState();
+    } catch (e) {
+      print('Error toggling shuffle: $e');
+    }
   }
 }
