@@ -629,42 +629,57 @@ class NetworkService {
   // 修改网络权限检查方法
   Future<bool> checkNetworkPermission() async {
     try {
-      // 先从本地存储读取权限状态
-      final prefs = await SharedPreferences.getInstance();
-      final hasStoredPermission = prefs.getBool(_networkPermissionKey) ?? false;
-
-      if (hasStoredPermission) {
+      // 如果是 Android，直接返回 true
+      if (Platform.isAndroid) {
         _hasNetworkPermission = true;
-        return true;
-      }
-
-      // 如果本地没有权限记录，检查网络连接
-      final connectivityResult = await Connectivity().checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
-        throw ApiException(
-          statusCode: -1,
-          message: '请检查网络连接',
-        );
-      }
-
-      // 尝试发起测试请求
-      try {
-        await _client.get(ApiConfig.home);
-        // 如果请求成功，保存权限状态并通知所有监听者
-        _hasNetworkPermission = true;
-        await prefs.setBool(_networkPermissionKey, true);
-        // 发送网络状态变更通知
         Get.find<AppController>().updateNetworkStatus(true);
         return true;
-      } catch (e) {
-        if (e is DioException && (e.type == DioExceptionType.connectionError || e.error.toString().contains('network'))) {
+      }
+
+      // iOS 平台的权限检查逻辑
+      if (Platform.isIOS) {
+        // 先从本地存储读取权限状态
+        final prefs = await SharedPreferences.getInstance();
+        final hasStoredPermission = prefs.getBool(_networkPermissionKey) ?? false;
+
+        if (hasStoredPermission) {
+          _hasNetworkPermission = true;
+          return true;
+        }
+
+        // 如果本地没有权限记录，检查网络连接
+        final connectivityResult = await Connectivity().checkConnectivity();
+        if (connectivityResult == ConnectivityResult.none) {
           throw ApiException(
-            statusCode: -2,
-            message: '需要网络权限才能使用应用',
+            statusCode: -1,
+            message: '请检查网络连接',
           );
         }
-        rethrow;
+
+        // 尝试发起测试请求
+        try {
+          await _client.get(ApiConfig.home);
+          // 如果请求成功，保存权限状态并通知所有监听者
+          _hasNetworkPermission = true;
+          await prefs.setBool(_networkPermissionKey, true);
+          // 发送网络状态变更通知
+          Get.find<AppController>().updateNetworkStatus(true);
+          return true;
+        } catch (e) {
+          if (e is DioException && (e.type == DioExceptionType.connectionError || e.error.toString().contains('network'))) {
+            throw ApiException(
+              statusCode: -2,
+              message: '需要网络权限才能使用应用',
+            );
+          }
+          rethrow;
+        }
       }
+
+      // 其他平台直接返回 true
+      _hasNetworkPermission = true;
+      Get.find<AppController>().updateNetworkStatus(true);
+      return true;
     } catch (e) {
       rethrow;
     }
