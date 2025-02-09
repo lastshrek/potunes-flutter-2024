@@ -5,14 +5,28 @@ import '../utils/http/api_exception.dart';
 import '../services/user_service.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/services.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:get/get.dart';
+import '../controllers/app_controller.dart';
 
 class NetworkService {
   static const platform = MethodChannel('com.potunes.app/network');
   // 改名为 NetworkService
   final _client = HttpClient.instance;
-  bool _hasCheckedPermission = false;
+  static const String _networkPermissionKey = 'network_permission_granted';
+  static bool _hasNetworkPermission = false;
+  static bool get hasNetworkPermission => _hasNetworkPermission;
+
+  static final NetworkService _instance = NetworkService._internal();
+  static NetworkService get instance => _instance;
+
+  NetworkService._internal();
 
   Future<List<dynamic>> getLatestCollections() async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.get<dynamic>(ApiConfig.latestCollection);
 
@@ -31,6 +45,9 @@ class NetworkService {
   }
 
   Future<List<dynamic>> getLatestFinal() async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.get<dynamic>(ApiConfig.latestFinal);
 
@@ -49,11 +66,17 @@ class NetworkService {
   }
 
   Future<Map<String, dynamic>> getHomeData() async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
+      print('Making GET request to: ${ApiConfig.baseUrl}${ApiConfig.home}');
       final response = await _client.get<dynamic>(ApiConfig.home);
+      print('Home data raw response: $response');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
         final data = response['data'] as Map<String, dynamic>;
+        print('Home data processed response: $data');
 
         // 处理所有可能包含歌曲的列表
         if (data['tracks'] is List) {
@@ -74,13 +97,17 @@ class NetworkService {
         statusCode: 500,
         message: '无效的响应格式',
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('=== Error getting home data: $e ===');
+      print('Stack trace: $stackTrace');
       rethrow;
     }
   }
 
   Future<Map<String, dynamic>> getPlaylistById(int id) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.get<dynamic>('${ApiConfig.playlist}/$id');
 
@@ -113,6 +140,9 @@ class NetworkService {
   }
 
   Future<Map<String, dynamic>> getLyrics(String id, String nId) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.get(
         '${ApiConfig.lyrics}/$id/$nId',
@@ -141,12 +171,68 @@ class NetworkService {
   }
 
   Future<dynamic> get(String path) async {
-    try {
+    if (!_hasNetworkPermission) {
       await checkNetworkPermission();
-      print('Making GET request to: ${ApiConfig.baseUrl}$path'); // 添加请求日志
+    }
+
+    try {
+      final String fullUrl = '${ApiConfig.baseUrl}$path';
+      print('GET request to: $fullUrl');
 
       final response = await _client.get(
         path,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+        ),
+      );
+
+      print('Response type: ${response.runtimeType}');
+      print('Response data: $response');
+
+      // 如果响应是 Map 类型
+      if (response is Map<String, dynamic>) {
+        // 检查状态码
+        if (response['statusCode'] == 200) {
+          // 如果有 data 字段，返回整个响应
+          return response;
+        }
+        // 如果状态码不是 200，抛出异常
+        throw ApiException(
+          statusCode: response['statusCode'] ?? 500,
+          message: response['message'] ?? '请求失败',
+        );
+      }
+
+      // 如果响应不是预期的格式，抛出异常
+      throw ApiException(
+        statusCode: 500,
+        message: '无效的响应格式',
+      );
+    } catch (e, stackTrace) {
+      print('Network error in GET request to $path: $e');
+      print('Stack trace: $stackTrace');
+      if (e is ApiException) {
+        rethrow;
+      }
+      throw ApiException(
+        statusCode: 500,
+        message: e.toString(),
+      );
+    }
+  }
+
+  Future<dynamic> post(String path, {dynamic data}) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      print('Making POST request to: ${ApiConfig.baseUrl}$path'); // 添加请求日志
+
+      final response = await _client.post(
+        path,
+        data: data,
         options: Options(
           headers: {
             'Authorization': 'Bearer ${UserService.to.token}',
@@ -167,7 +253,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('Error in GET request: $e'); // 添加错误日志
+      print('Error in POST request: $e'); // 添加错误日志
       rethrow;
     }
   }
@@ -186,6 +272,9 @@ class NetworkService {
   }
 
   Future<Map<String, dynamic>> getTopCharts() async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.get<dynamic>(ApiConfig.topCharts);
 
@@ -217,6 +306,9 @@ class NetworkService {
   }
 
   Future<List<dynamic>> getAllCollections() async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.get<dynamic>(ApiConfig.allCollections);
 
@@ -235,6 +327,9 @@ class NetworkService {
   }
 
   Future<List<dynamic>> getAllFinals() async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.get<dynamic>(ApiConfig.allFinals);
 
@@ -253,6 +348,9 @@ class NetworkService {
   }
 
   Future<List<dynamic>> getAllAlbums() async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.get<dynamic>(ApiConfig.allAlbums);
 
@@ -271,6 +369,9 @@ class NetworkService {
   }
 
   Future<void> sendCaptcha(String phone) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.post<dynamic>(
         ApiConfig.captcha,
@@ -297,6 +398,9 @@ class NetworkService {
   }
 
   Future<Map<String, dynamic>> verifyCaptcha(String phone, String captcha) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.post<dynamic>(
         ApiConfig.verifyCaptcha,
@@ -323,6 +427,9 @@ class NetworkService {
   }
 
   Future<List<dynamic>> getFavourites() async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.get<dynamic>(ApiConfig.fav);
 
@@ -372,6 +479,9 @@ class NetworkService {
   }
 
   Future<bool> likeTrack(Map<String, dynamic> track) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       // 根据 id 确定 type
       final trackType = track['id'] == 0 ? 'netease' : 'potunes';
@@ -434,6 +544,9 @@ class NetworkService {
 
   // 添加获取 toplist 详情的方法
   Future<Map<String, dynamic>> getTopListDetail(int id) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.get(
         '${ApiConfig.baseUrl}${ApiConfig.topListDetail}/$id',
@@ -473,6 +586,9 @@ class NetworkService {
   }
 
   Future<Map<String, dynamic>> getNewAlbumDetail(int id) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
     try {
       final response = await _client.get(
         '${ApiConfig.baseUrl}${ApiConfig.neteaseNewAlbumDetail}/$id',
@@ -510,29 +626,54 @@ class NetworkService {
     }
   }
 
-  // 修改网络状态检查方法
+  // 修改网络权限检查方法
   Future<bool> checkNetworkPermission() async {
-    if (_hasCheckedPermission) return true;
-
     try {
-      if (Platform.isIOS) {
-        // 尝试发起一个测试请求
-        try {
-          await _client.get(ApiConfig.home);
-          _hasCheckedPermission = true;
-          return true;
-        } catch (e) {
-          // 如果请求失败，可能是因为需要网络权限
-          throw const ApiException(
-            statusCode: -1,
+      // 先从本地存储读取权限状态
+      final prefs = await SharedPreferences.getInstance();
+      final hasStoredPermission = prefs.getBool(_networkPermissionKey) ?? false;
+
+      if (hasStoredPermission) {
+        _hasNetworkPermission = true;
+        return true;
+      }
+
+      // 如果本地没有权限记录，检查网络连接
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        throw ApiException(
+          statusCode: -1,
+          message: '请检查网络连接',
+        );
+      }
+
+      // 尝试发起测试请求
+      try {
+        await _client.get(ApiConfig.home);
+        // 如果请求成功，保存权限状态并通知所有监听者
+        _hasNetworkPermission = true;
+        await prefs.setBool(_networkPermissionKey, true);
+        // 发送网络状态变更通知
+        Get.find<AppController>().updateNetworkStatus(true);
+        return true;
+      } catch (e) {
+        if (e is DioException && (e.type == DioExceptionType.connectionError || e.error.toString().contains('network'))) {
+          throw ApiException(
+            statusCode: -2,
             message: '需要网络权限才能使用应用',
           );
         }
+        rethrow;
       }
-      _hasCheckedPermission = true;
-      return true;
     } catch (e) {
       rethrow;
     }
+  }
+
+  // 添加重置权限状态的方法
+  Future<void> resetNetworkPermission() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_networkPermissionKey);
+    _hasNetworkPermission = false;
   }
 }

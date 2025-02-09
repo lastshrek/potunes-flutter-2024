@@ -39,7 +39,7 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
   Future<void> _loadData() async {
     try {
       _isLoading.value = true;
-      final networkService = NetworkService();
+      final networkService = NetworkService.instance;
       List<dynamic> data;
 
       switch (widget.apiPath) {

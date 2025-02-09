@@ -1,16 +1,11 @@
 import 'package:just_audio/just_audio.dart';
 import 'package:get/get.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:rxdart/rxdart.dart' as rx;
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lyric_line.dart';
 import '../services/network_service.dart';
-import 'package:dio/dio.dart';
-import '../services/user_service.dart';
 import 'package:flutter/material.dart';
 import 'package:audio_session/audio_session.dart';
 
@@ -27,14 +22,16 @@ class AudioService extends GetxService {
   static const String _indexKey = 'last_index';
 
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final NetworkService _networkService = NetworkService();
+  final NetworkService _networkService = NetworkService.instance;
 
   final _currentTrack = Rxn<Map<String, dynamic>>();
+  final _nextTrack = Rxn<Map<String, dynamic>>();
   final _currentPlaylist = Rxn<List<Map<String, dynamic>>>();
   final _currentIndex = RxInt(0);
-  final _isPlaying = RxBool(false);
-  final _position = Rx<Duration>(Duration.zero);
-  final _duration = Rx<Duration>(Duration.zero);
+  final _isPlaying = false.obs;
+  final _isBuffering = false.obs;
+  final _position = Duration.zero.obs;
+  final _duration = Duration.zero.obs;
   final _currentPageIndex = 0.obs;
   final _parsedLyrics = Rx<List<LyricLine>?>(null);
   final _currentLineIndex = RxInt(0);
@@ -50,8 +47,8 @@ class AudioService extends GetxService {
   Rx<Duration> get rxPosition => _position;
 
   // 添加 currentPlaylist 的 getter 和 setter
-  List<Map<String, dynamic>>? get currentPlaylist => _currentPlaylist.value;
-  set currentPlaylist(List<Map<String, dynamic>>? value) {
+  List<Map<String, dynamic>> get currentPlaylist => _currentPlaylist.value ?? [];
+  set currentPlaylist(List<Map<String, dynamic>> value) {
     _currentPlaylist.value = value;
     _saveLastState();
   }
@@ -60,7 +57,9 @@ class AudioService extends GetxService {
   int get currentIndex => _currentIndex.value;
 
   bool get isPlaying => _isPlaying.value;
+  bool get isBuffering => _isBuffering.value;
   Map<String, dynamic>? get currentTrack => _currentTrack.value;
+  Map<String, dynamic>? get nextTrack => _nextTrack.value;
   Duration get position => _position.value;
   Duration get duration => _duration.value;
   AudioPlayer get player => _audioPlayer;
@@ -112,76 +111,63 @@ class AudioService extends GetxService {
     super.onClose();
   }
 
-  Future<void> _setupPlayerListeners() async {
-    try {
-      // 监听播放状态
-      _audioPlayer.playerStateStream.listen((state) {
-        _isPlaying.value = state.playing;
+  void _setupPlayerListeners() {
+    _audioPlayer.currentIndexStream.listen((index) {
+      if (index != null && _currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
+        // 确保索引在有效范围内
+        final safeIndex = index.clamp(0, _currentPlaylist.value!.length - 1);
+        final currentTrack = _currentPlaylist.value![safeIndex];
 
-        // 处理播放完成事件
-        if (state.processingState == ProcessingState.completed && !_isHandlingCompletion) {
-          _isHandlingCompletion = true;
+        // 更新当前播放的歌曲
+        _currentTrack.value = currentTrack;
 
-          if (_repeatMode.value == RepeatMode.single) {
-            _audioPlayer.seek(Duration.zero).then((_) {
-              _audioPlayer.play();
-              _isHandlingCompletion = false;
-            });
+        // 查找下一首歌
+        final nextIndex = (safeIndex + 1).clamp(0, _currentPlaylist.value!.length - 1);
+        if (nextIndex < _currentPlaylist.value!.length) {
+          _nextTrack.value = _currentPlaylist.value![nextIndex];
+        }
+      }
+    });
+
+    _audioPlayer.playingStream.listen((isPlaying) {
+      _isPlaying.value = isPlaying;
+    });
+
+    _audioPlayer.processingStateStream.listen((state) {
+      switch (state) {
+        case ProcessingState.loading:
+        case ProcessingState.buffering:
+          _isBuffering.value = true;
+          break;
+        case ProcessingState.ready:
+          _isBuffering.value = false;
+          break;
+        default:
+          break;
+      }
+    });
+
+    // 监听播放进度
+    _audioPlayer.positionStream.listen((position) {
+      _position.value = position;
+    });
+
+    // 监听播放错误
+    _audioPlayer.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        // 播放完成时的处理
+        if (_currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
+          final currentIndex = _currentPlaylist.value!.indexWhere((track) => track['id'] == _currentTrack.value?['id']);
+          if (currentIndex >= 0 && currentIndex < _currentPlaylist.value!.length - 1) {
+            // 还有下一首歌
+            playTrack(_currentPlaylist.value![currentIndex + 1]);
           } else {
-            _audioPlayer.seekToNext().then((_) {
-              _isHandlingCompletion = false;
-            });
+            // 已经是最后一首
+            _stop();
           }
         }
-      });
-
-      // 监听播放位置
-      _audioPlayer.positionStream.listen((position) {
-        _position.value = position;
-      });
-
-      // 监听音频时长
-      _audioPlayer.durationStream.listen((duration) {
-        _duration.value = duration ?? Duration.zero;
-      });
-
-      // 监听序列状态变化
-      _audioPlayer.sequenceStateStream.listen((sequenceState) {
-        if (sequenceState != null) {
-          // 获取控制中心当前歌曲信息
-          final currentSource = sequenceState.currentSource;
-          if (currentSource != null) {
-            final mediaItem = currentSource.tag as MediaItem;
-
-            // 根据 MediaItem 的 ID 和 nId 找到对应的歌曲
-            if (_currentPlaylist.value != null) {
-              final trackIndex = _currentPlaylist.value!.indexWhere((t) => t['id'].toString() == mediaItem.id.split('_')[0] && t['nId'].toString() == mediaItem.id.split('_')[1]);
-
-              if (trackIndex != -1) {
-                final newTrack = _currentPlaylist.value![trackIndex];
-
-                // 更新当前索引和曲目
-                _currentIndex.value = trackIndex;
-                _currentTrack.value = newTrack;
-
-                // 加载新歌曲的歌词
-                _loadLyrics(newTrack);
-
-                // 重置播放位置和歌词索引
-                _position.value = Duration.zero;
-                _currentLineIndex.value = 0;
-
-                // 保存状态
-                _saveLastState();
-              }
-            }
-          }
-        }
-      });
-    } catch (e) {
-      print('Error setting up player listeners: $e');
-      _isHandlingCompletion = false;
-    }
+      }
+    });
   }
 
   Future<void> playPlaylist(List<Map<String, dynamic>> tracks, {int initialIndex = 0}) async {
@@ -270,45 +256,31 @@ class AudioService extends GetxService {
 
   Future<void> playTrack(Map<String, dynamic> track) async {
     try {
-      // 确保有 type 字段
-      final processedTrack = track['type'] == null ? {...track, 'type': 'potunes'} : track;
-      _currentTrack.value = processedTrack;
-      _updateCurrentIndex(processedTrack);
+      if (track['url'] == null) {
+        throw '无效的音乐地址';
+      }
 
-      final url = processedTrack['url'];
-      if (url == null) return;
+      // 更新当前播放的歌曲
+      _currentTrack.value = track;
 
-      await _audioPlayer.setAudioSource(
-        AudioSource.uri(
-          Uri.parse(url),
-          tag: MediaItem(
-            id: processedTrack['id']?.toString() ?? '',
-            title: processedTrack['name'] ?? '',
-            artist: processedTrack['artist'] ?? '',
-            album: processedTrack['album'] ?? '',
-            duration: Duration(milliseconds: int.parse(track['duration'].toString())),
-            artUri: Uri.parse(processedTrack['cover_url'] ?? ''),
-            playable: true,
-            displayTitle: processedTrack['name'] ?? '',
-            displaySubtitle: processedTrack['artist'] ?? '',
-            genre: processedTrack['genre']?.toString(),
-            artHeaders: const {},
-            extras: {
-              'type': processedTrack['type'],
-              'url': processedTrack['url'],
-              'isLive': false,
-              'hasLyrics': true,
-            },
-          ),
-        ),
-      );
+      // 查找当前歌曲在播放列表中的位置
+      if (_currentPlaylist.value != null) {
+        final currentIndex = _currentPlaylist.value!.indexWhere((item) => item['id'] == track['id']);
 
-      // 设置播放模式
-      await _audioPlayer.setLoopMode(LoopMode.all);
-      await _audioPlayer.setShuffleModeEnabled(false);
+        // 设置下一首歌
+        if (currentIndex >= 0 && currentIndex < _currentPlaylist.value!.length - 1) {
+          _nextTrack.value = _currentPlaylist.value![currentIndex + 1];
+        } else {
+          _nextTrack.value = null;
+        }
+      }
+
+      // 播放音乐
+      await _audioPlayer.setUrl(track['url']);
       await _audioPlayer.play();
     } catch (e) {
       print('Error playing track: $e');
+      rethrow;
     }
   }
 
@@ -586,7 +558,7 @@ class AudioService extends GetxService {
   // 修改 _updateCurrentIndex 方法
   void _updateCurrentIndex(Map<String, dynamic> track) {
     final playlist = currentPlaylist;
-    if (playlist != null) {
+    if (playlist.isNotEmpty) {
       final index = playlist.indexWhere((t) => isSameSong(t, track));
       if (index != -1) {
         _currentIndex.value = index;
@@ -827,5 +799,11 @@ class AudioService extends GetxService {
     } catch (e) {
       print('Error setting up audio session: $e');
     }
+  }
+
+  // 停止播放
+  Future<void> _stop() async {
+    await _audioPlayer.stop();
+    _isPlaying.value = false;
   }
 }

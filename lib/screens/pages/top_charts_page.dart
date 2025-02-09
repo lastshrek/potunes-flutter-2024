@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../controllers/top_charts_controller.dart';
 
@@ -31,24 +30,26 @@ class TopChartsPage extends GetView<TopChartsController> {
         ),
       ),
       body: Obx(() {
+        print('Building TopChartsPage with ${controller.charts.length} items');
+        print('isNetworkReady: ${controller.isNetworkReady}');
+        print('isInitialLoading: ${controller.isInitialLoading}');
+
         if (controller.isInitialLoading) {
           return _buildSkeletonList();
         }
 
-        if (controller.error?.value != null) {
-          return Center(
-            child: Text(
-              'Error: ${controller.error?.value}',
-              style: const TextStyle(color: Colors.white),
-            ),
-          );
-        }
-
-        final charts = controller.charts;
-        if (charts.isEmpty) {
+        if (controller.charts.isEmpty) {
+          if (!controller.isNetworkReady) {
+            return const Center(
+              child: Text(
+                '等待网络连接...',
+                style: TextStyle(color: Colors.white),
+              ),
+            );
+          }
           return const Center(
             child: Text(
-              'No charts available',
+              '暂无数据',
               style: TextStyle(color: Colors.white),
             ),
           );
@@ -65,9 +66,9 @@ class TopChartsPage extends GetView<TopChartsController> {
               top: 16,
               bottom: 16,
             ),
-            itemCount: charts.length,
+            itemCount: controller.charts.length,
             itemBuilder: (context, index) {
-              final chart = charts[index];
+              final chart = controller.charts[index];
               return controller.isRefreshing ? _buildSkeletonItem() : _buildTrackItem(chart, index);
             },
           ),
@@ -112,6 +113,8 @@ class TopChartsPage extends GetView<TopChartsController> {
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
       subtitle: Text(
         chart['artist'] ?? '',
@@ -119,6 +122,8 @@ class TopChartsPage extends GetView<TopChartsController> {
           color: Colors.grey[400],
           fontSize: 14,
         ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -131,46 +136,7 @@ class TopChartsPage extends GetView<TopChartsController> {
         padding: const EdgeInsets.all(16),
         itemCount: 10,
         itemBuilder: (context, index) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Row(
-              children: [
-                Container(
-                  width: 30,
-                  height: 20,
-                  color: Colors.white,
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        height: 16,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 100,
-                        height: 14,
-                        color: Colors.white,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
+          return _buildSkeletonItem();
         },
       ),
     );

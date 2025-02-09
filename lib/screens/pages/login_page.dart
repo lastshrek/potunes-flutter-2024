@@ -63,7 +63,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       _isLoading.value = true;
-      final networkService = NetworkService();
+      final networkService = NetworkService.instance;
       await networkService.sendCaptcha(phone);
 
       _showCaptchaInput.value = true;
@@ -105,7 +105,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       _isLoading.value = true;
-      final networkService = NetworkService();
+      final networkService = NetworkService.instance;
       final response = await networkService.verifyCaptcha(
         _phoneController.text.trim(),
         _captchaController.text.trim(),

@@ -40,4 +40,8 @@ class ApiConfig {
   static String getLyricsPath(String id, String nId) {
     return '$lyrics/$id/$nId';
   }
+
+  // 添加网易云排行榜的API端点
+  static const String neteaseToplist = '/netease/toplist';
+  static const String neteasePlaylist = '/netease/playlist';
 }

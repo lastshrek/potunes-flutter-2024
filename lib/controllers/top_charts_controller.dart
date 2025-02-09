@@ -3,14 +3,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../services/network_service.dart';
 import '../services/audio_service.dart';
+import '../controllers/base_controller.dart';
 
-class TopChartsController extends GetxController {
-  final NetworkService _networkService = NetworkService();
+class TopChartsController extends BaseController {
+  static TopChartsController get to => Get.find();
+
+  final NetworkService _networkService = NetworkService.instance;
   final AudioService _audioService = Get.find<AudioService>();
   final _charts = <Map<String, dynamic>>[].obs;
   final _isInitialLoading = true.obs;
   final _isRefreshing = false.obs;
-  final _error = Rxn<String>();
 
   static const String _chartsKey = 'top_charts_data';
   static const String _lastUpdateKey = 'top_charts_last_update';
@@ -19,37 +21,52 @@ class TopChartsController extends GetxController {
   bool get isInitialLoading => _isInitialLoading.value;
   bool get isRefreshing => _isRefreshing.value;
   bool get isLoading => _isInitialLoading.value || _isRefreshing.value;
-  Rxn<String> get error => _error;
 
   @override
   void onInit() {
     super.onInit();
+    print('TopChartsController onInit called');
+    // 直接加载数据，不等待网络状态
     _loadCachedData();
   }
 
-  // 加载缓存的数据
+  @override
+  void onReady() {
+    super.onReady();
+    print('TopChartsController onReady called');
+    // 监听网络状态变化
+    ever(super.isNetworkReady.obs, (bool ready) {
+      print('Network ready changed: $ready');
+      if (ready && _charts.isEmpty) {
+        refreshData();
+      }
+    });
+  }
+
+  @override
+  void onNetworkReady() {
+    print('TopCharts network ready, refreshing data...');
+    refreshData();
+  }
+
   Future<void> _loadCachedData() async {
+    print('Loading cached data...');
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedData = prefs.getString(_chartsKey);
-      final lastUpdate = prefs.getInt(_lastUpdateKey);
 
       if (cachedData != null) {
         final List<dynamic> decoded = jsonDecode(cachedData);
-        _charts.value = decoded.map((item) => Map<String, dynamic>.from(item)).toList();
-        _isInitialLoading.value = false;
-
-        // 如果数据超过1小时，自动刷新
-        final now = DateTime.now().millisecondsSinceEpoch;
-        if (lastUpdate == null || now - lastUpdate > const Duration(hours: 1).inMilliseconds) {
-          await refreshData();
-        }
-      } else {
-        await refreshData();
+        _charts.assignAll(decoded.map((item) => Map<String, dynamic>.from(item)).toList());
+        print('Loaded ${_charts.length} items from cache');
       }
     } catch (e) {
       print('Error loading cached data: $e');
-      await refreshData();
+    } finally {
+      _isInitialLoading.value = false;
+      if (_charts.isEmpty) {
+        refreshData();
+      }
     }
   }
 
@@ -64,23 +81,28 @@ class TopChartsController extends GetxController {
     }
   }
 
-  // 刷新数据
   Future<void> refreshData() async {
+    if (!isNetworkReady) {
+      print('Network not ready, skipping refresh');
+      return;
+    }
+
+    print('Refreshing data...');
     try {
       _isRefreshing.value = true;
-      _error.value = null;
       final response = await _networkService.getTopCharts();
 
       if (response['charts'] is List) {
         final chartsList = response['charts'] as List;
         final newCharts = chartsList.map((item) => item as Map<String, dynamic>).toList();
-        _charts.value = newCharts;
+        _charts.assignAll(newCharts);
+        print('Loaded ${_charts.length} items from network');
         await _saveToCache(newCharts);
       } else {
-        _error.value = 'Invalid data format';
+        print('Invalid data format');
       }
     } catch (e) {
-      _error.value = e.toString();
+      print('Error refreshing data: $e');
     } finally {
       _isRefreshing.value = false;
       _isInitialLoading.value = false;

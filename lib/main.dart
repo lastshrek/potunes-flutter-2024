@@ -132,7 +132,87 @@ Future<void> main() async {
   // 初始化 AppController
   Get.put(AppController());
 
-  runApp(const MyApp());
+  runApp(GetMaterialApp(
+    title: 'PoTunes',
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(
+      colorScheme: ColorScheme.dark(
+        primary: Colors.deepPurple,
+        secondary: const Color(0xFFDA5597),
+        background: Colors.black,
+        surface: Colors.black87,
+      ),
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: Colors.black,
+      primaryColor: Colors.black,
+      cardColor: Colors.black87,
+      iconTheme: const IconThemeData(
+        color: Color(0xFFDA5597), // Custom Pink
+      ),
+      fontFamily: 'bahnschrift',
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(fontFamily: 'bahnschrift'),
+        bodyMedium: TextStyle(fontFamily: 'bahnschrift'),
+        titleLarge: TextStyle(fontFamily: 'bahnschrift'),
+        titleMedium: TextStyle(fontFamily: 'bahnschrift'),
+        titleSmall: TextStyle(fontFamily: 'bahnschrift'),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: Color(0xFFDA5597), // Custom Pink
+        circularTrackColor: Color(0x40DA5597), // Custom Pink with opacity
+      ),
+      appBarTheme: const AppBarTheme(
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.light,
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+    ),
+    builder: (context, child) {
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.light,
+        ),
+        child: Scaffold(
+          body: child ?? const SizedBox.shrink(),
+        ),
+      );
+    },
+    home: FutureBuilder(
+      future: Future.wait([
+        Future.delayed(const Duration(milliseconds: 500)),
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]),
+      ]),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done) {
+          return const HomeScreen();
+        }
+        return const Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      },
+    ),
+    defaultTransition: Transition.fadeIn,
+    transitionDuration: const Duration(milliseconds: 300),
+    initialBinding: InitialBinding(),
+    getPages: AppPages.pages,
+  ));
   if (Platform.isAndroid) {
     //覆盖状态栏，写在渲染之前MaterialApp组件会覆盖掉这个值。
     SystemUiOverlayStyle systemUiOverlayStyle = const SystemUiOverlayStyle(statusBarColor: Colors.transparent);
@@ -177,93 +257,4 @@ Future<void> setOptimalDisplayMode() async {
   final DisplayMode mostOptimalMode = sameResolution.isNotEmpty ? sameResolution.first : active;
 
   await FlutterDisplayMode.setPreferredMode(mostOptimalMode);
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return GetMaterialApp(
-      title: 'PoTunes',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.dark(
-          primary: Colors.deepPurple,
-          secondary: const Color(0xFFDA5597),
-          background: Colors.black,
-          surface: Colors.black87,
-        ),
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
-        primaryColor: Colors.black,
-        cardColor: Colors.black87,
-        iconTheme: const IconThemeData(
-          color: Color(0xFFDA5597), // Custom Pink
-        ),
-        fontFamily: 'bahnschrift',
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(fontFamily: 'bahnschrift'),
-          bodyMedium: TextStyle(fontFamily: 'bahnschrift'),
-          titleLarge: TextStyle(fontFamily: 'bahnschrift'),
-          titleMedium: TextStyle(fontFamily: 'bahnschrift'),
-          titleSmall: TextStyle(fontFamily: 'bahnschrift'),
-        ),
-        progressIndicatorTheme: const ProgressIndicatorThemeData(
-          color: Color(0xFFDA5597), // Custom Pink
-          circularTrackColor: Color(0x40DA5597), // Custom Pink with opacity
-        ),
-        appBarTheme: const AppBarTheme(
-          systemOverlayStyle: SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.light,
-            systemNavigationBarColor: Colors.transparent,
-            systemNavigationBarIconBrightness: Brightness.light,
-          ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-      ),
-      builder: (context, child) {
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: const SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.light,
-            systemNavigationBarColor: Colors.transparent,
-            systemNavigationBarIconBrightness: Brightness.light,
-          ),
-          child: Scaffold(
-            body: child ?? const SizedBox.shrink(),
-          ),
-        );
-      },
-      home: FutureBuilder(
-        future: Future.wait([
-          Future.delayed(const Duration(milliseconds: 500)),
-          SystemChrome.setPreferredOrientations([
-            DeviceOrientation.portraitUp,
-            DeviceOrientation.portraitDown,
-            DeviceOrientation.landscapeLeft,
-            DeviceOrientation.landscapeRight,
-          ]),
-        ]),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            return const HomeScreen();
-          }
-          return const Scaffold(
-            backgroundColor: Colors.black,
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
-        },
-      ),
-      defaultTransition: Transition.fadeIn,
-      transitionDuration: const Duration(milliseconds: 300),
-      initialBinding: InitialBinding(),
-      getPages: AppPages.pages,
-    );
-  }
 }

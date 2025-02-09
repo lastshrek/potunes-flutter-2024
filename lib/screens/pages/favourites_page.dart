@@ -427,7 +427,7 @@ class FavouritesPage extends StatelessWidget {
 
   Future<List<dynamic>> _loadFavourites() async {
     try {
-      final networkService = NetworkService();
+      final networkService = NetworkService.instance;
       return await networkService.getFavourites();
     } catch (e) {
       print('Error loading favourites: $e');

@@ -13,4 +13,12 @@ class AppController extends GetxController {
   set currentIndex(int value) {
     _currentIndex.value = value;
   }
+
+  final _isNetworkReady = false.obs;
+  RxBool get isNetworkReady => _isNetworkReady;
+
+  void updateNetworkStatus(bool status) {
+    print('Updating network status: $status');
+    _isNetworkReady.value = status;
+  }
 }

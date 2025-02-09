@@ -32,7 +32,7 @@ class PlaylistPage extends StatefulWidget {
 }
 
 class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
-  final NetworkService _networkService = NetworkService();
+  final NetworkService _networkService = NetworkService.instance;
   bool _isLoading = true;
   Color? dominantColor;
   Color? secondaryColor;
