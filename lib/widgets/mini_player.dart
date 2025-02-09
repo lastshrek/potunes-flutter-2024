@@ -223,7 +223,16 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                         // 播放器主体
                         Container(
                           height: 64,
-                          color: backgroundColor.withOpacity(0.95),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            border: Border(
+                              top: BorderSide(
+                                color: Colors.grey[900]!,
+                                width: 0.5,
+                              ),
+                            ),
+                          ),
                           child: Row(
                             children: [
                               // 封面
@@ -283,34 +292,29 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                                 ),
                               ),
                               // 控制按钮
-                              Row(
-                                children: [
-                                  // 播放/暂停按钮
-                                  GetX<AudioService>(
-                                    builder: (controller) => IconButton(
-                                      icon: FaIcon(
-                                        controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
-                                        color: Colors.white,
-                                        size: 18,
-                                      ),
+                              Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // 喜欢按钮
+                                    IconButton(
+                                      icon: Obx(() => Icon(
+                                            controller.isLike ? Icons.favorite : Icons.favorite_border,
+                                            color: controller.isLike ? Colors.pink : Colors.white,
+                                          )),
+                                      onPressed: controller.toggleLike,
+                                    ),
+                                    // 播放/暂停按钮
+                                    IconButton(
+                                      icon: Obx(() => Icon(
+                                            controller.isPlaying ? Icons.pause : Icons.play_arrow,
+                                            color: Colors.white,
+                                          )),
                                       onPressed: controller.togglePlay,
                                     ),
-                                  ),
-                                  // 喜欢按钮 - 只在登录时显示
-                                  Obx(() {
-                                    if (UserService.to.isLoggedIn) {
-                                      return IconButton(
-                                        icon: FaIcon(
-                                          controller.isLike ? FontAwesomeIcons.solidHeart : FontAwesomeIcons.heart,
-                                          color: controller.isLike ? const Color(0xFFFF69B4) : Colors.white,
-                                          size: 18,
-                                        ),
-                                        onPressed: controller.toggleLike,
-                                      );
-                                    }
-                                    return const SizedBox.shrink();
-                                  }),
-                                ],
+                                  ],
+                                ),
                               ),
                             ],
                           ),

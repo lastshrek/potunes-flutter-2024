@@ -121,11 +121,8 @@ class AudioService extends GetxService {
         final currentTrack = _currentPlaylist.value![safeIndex];
         _currentTrack.value = currentTrack;
 
-        // 更新歌词
+        // 更新歌词（同时会更新喜欢状态）
         _loadLyrics(currentTrack);
-
-        // 更新喜欢状态
-        await _updateLikeStatus(currentTrack);
 
         // 查找下一首歌
         final nextIndex = (safeIndex + 1) % _currentPlaylist.value!.length;
@@ -264,9 +261,6 @@ class AudioService extends GetxService {
 
       // 更新当前播放的歌曲
       _currentTrack.value = track;
-
-      // 更新喜欢状态
-      await _updateLikeStatus(track);
 
       // 查找当前歌曲在播放列表中的位置
       if (_currentPlaylist.value != null) {
@@ -443,28 +437,35 @@ class AudioService extends GetxService {
   }
 
   Future<void> _loadLyrics(Map<String, dynamic> track) async {
+    if (track == null) return;
+
     try {
-      final id = track['id']?.toString();
-      final nId = track['nId']?.toString();
-
-      if (id == null || nId == null) return;
-
-      // 如果是同一首歌，不重复加载歌词
-      if (id == _currentLyricsId && nId == _currentLyricsNId) return;
-
       _isLoadingLyrics.value = true;
-      _currentLyricsId = id;
-      _currentLyricsNId = nId;
 
-      final response = await _networkService.getLyrics(id, nId);
+      // 避免重复加载相同的歌词
+      if (_currentLyricsId == track['id']?.toString() && _currentLyricsNId == track['nId']?.toString()) {
+        return;
+      }
 
+      _currentLyricsId = track['id']?.toString();
+      _currentLyricsNId = track['nId']?.toString();
+
+      final response = await _networkService.getLyrics(
+        _currentLyricsId ?? '',
+        _currentLyricsNId ?? '',
+      );
+
+      // 更新喜欢状态
+      if (response['isLike'] != null) {
+        _isLike.value = response['isLike'] as int;
+        print('Updated like status from lyrics response: ${_isLike.value}');
+      }
+
+      // 格式化歌词
       _parsedLyrics.value = _formatLyrics(response);
-      _currentLineIndex.value = 0;
     } catch (e) {
       print('Error loading lyrics: $e');
-      print('Error details: ${e.toString()}');
       _parsedLyrics.value = null;
-      _currentLineIndex.value = 0;
     } finally {
       _isLoadingLyrics.value = false;
     }
@@ -619,41 +620,33 @@ class AudioService extends GetxService {
       print('Current track: ${_currentTrack.value}');
       print('Track type: ${_currentTrack.value!['type']}');
 
-      final success = await _networkService.likeTrack(_currentTrack.value!);
+      // 确保所有必要字段都存在
+      final track = {
+        'id': _currentTrack.value!['id'],
+        'nId': _currentTrack.value!['nId'],
+        'name': _currentTrack.value!['name'],
+        'artist': _currentTrack.value!['artist'],
+        'album': _currentTrack.value!['album'],
+        'duration': _currentTrack.value!['duration'],
+        'cover_url': _currentTrack.value!['cover_url'],
+        'url': _currentTrack.value!['url'],
+        'type': _currentTrack.value!['type'] ?? 'potunes',
+        'playlist_id': _currentTrack.value!['playlist_id'] ?? 0,
+        'ar': _currentTrack.value!['ar'] ?? [],
+        'original_album': _currentTrack.value!['original_album'] ?? '',
+        'original_album_id': _currentTrack.value!['original_album_id'] ?? 0,
+        'mv': _currentTrack.value!['mv'] ?? 0,
+      };
+
+      final success = await _networkService.likeTrack(track);
 
       if (success) {
         // 更新本地状态
         _isLike.value = _isLike.value == 1 ? 0 : 1;
-
-        // 显示提示
-        Get.snackbar(
-          'Success',
-          _isLike.value == 1 ? '已添加到我喜欢的音乐' : '已取消喜欢',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16),
-        );
-      } else {
-        Get.snackbar(
-          'Error',
-          '操作失败，请重试',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16),
-        );
+        print('Like status updated: ${_isLike.value}');
       }
     } catch (e) {
       print('Error toggling like: $e');
-      Get.snackbar(
-        'Error',
-        '操作失败，请重试',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-      );
     }
   }
 
@@ -666,9 +659,6 @@ class AudioService extends GetxService {
 
       // 获取目标歌曲
       final targetTrack = _currentPlaylist.value![index];
-
-      // 更新喜欢状态
-      await _updateLikeStatus(targetTrack);
 
       // 重新创建播放列表
       final audioSources = _currentPlaylist.value!.map((track) {
@@ -815,14 +805,17 @@ class AudioService extends GetxService {
     _isPlaying.value = false;
   }
 
-  // 添加更新喜欢状态的方法
-  Future<void> _updateLikeStatus(Map<String, dynamic> track) async {
+  // 添加跳转到下一首的方法
+  Future<void> skipToNext() async {
     try {
-      final isLiked = await _networkService.checkLikeStatus(track);
-      _isLike.value = isLiked ? 1 : 0;
-      print('Updated like status for track: ${track['name']}, isLiked: $isLiked');
+      if (_currentPlaylist.value == null || _currentPlaylist.value!.isEmpty) {
+        return;
+      }
+
+      final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
+      await skipToQueueItem(nextIndex);
     } catch (e) {
-      print('Error updating like status: $e');
+      print('Error skipping to next: $e');
     }
   }
 }

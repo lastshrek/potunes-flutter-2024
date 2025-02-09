@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 import 'package:get/get.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../controllers/navigation_controller.dart';
 import 'pages/home_page.dart';
 import 'pages/top_charts_page.dart';
@@ -10,9 +9,6 @@ import '../widgets/mini_player.dart';
 import 'pages/login_page.dart';
 import '../services/user_service.dart';
 import '../controllers/app_controller.dart';
-import 'pages/search_page.dart';
-import 'pages/favourites_page.dart';
-import 'pages/profile_page.dart';
 
 class HomeScreen extends StatefulWidget {
   static final pageController = PageController();

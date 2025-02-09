@@ -90,11 +90,22 @@ class TopChartsController extends BaseController {
 
   void openChart(Map<String, dynamic> chart) async {
     try {
-      _audioService.currentPlaylist = _charts.toList();
+      final audioService = Get.find<AudioService>();
 
+      // 检查是否是同一个播放列表
+      final isSamePlaylist = audioService.isCurrentPlaylist(_charts);
+
+      // 找到点击歌曲的索引
       final index = _charts.indexWhere((item) => item['id'] == chart['id']);
+
       if (index != -1) {
-        await _audioService.playTrack(chart);
+        if (isSamePlaylist) {
+          // 如果是同一个播放列表，直接跳转到指定歌曲
+          await audioService.skipToQueueItem(index);
+        } else {
+          // 如果是新的播放列表，从指定歌曲开始播放整个列表
+          await audioService.playPlaylist(_charts, initialIndex: index);
+        }
       }
     } catch (e) {
       print('Error playing track: $e');
