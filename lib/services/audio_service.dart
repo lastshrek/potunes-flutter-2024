@@ -41,14 +41,6 @@ class AudioService extends GetxService {
   String? _currentLyricsNId;
   final _isLoadingLyrics = RxBool(false);
 
-  // 添加随机播放状态
-  final _isShuffleMode = RxBool(false);
-  final _shuffledIndices = <int>[].obs;
-  int _currentShuffleIndex = 0;
-
-  // 添加随机播放列表
-  final _shuffledPlaylist = Rxn<List<Map<String, dynamic>>>();
-
   // 修改循环模式状态，默认为列表循环
   final _repeatMode = Rx<RepeatMode>(RepeatMode.all);
   RepeatMode get repeatMode => _repeatMode.value;
@@ -76,7 +68,6 @@ class AudioService extends GetxService {
   List<LyricLine>? get lyrics => _parsedLyrics.value;
   int get currentLineIndex => _currentLineIndex.value;
   bool get isLoadingLyrics => _isLoadingLyrics.value;
-  bool get isShuffleMode => _isShuffleMode.value;
 
   // 添加一个标志来防止重复触发
   bool _isHandlingCompletion = false;
@@ -84,13 +75,12 @@ class AudioService extends GetxService {
   final _isLike = 0.obs;
   bool get isLike => _isLike.value == 1;
 
-  // 添加一个 getter 来获取当前显示的播放列表
-  List<Map<String, dynamic>>? get displayPlaylist {
-    if (_isShuffleMode.value) {
-      return _shuffledPlaylist.value;
-    }
-    return _currentPlaylist.value;
-  }
+  // 暂时保留随机播放状态，但不实现功能
+  final _isShuffleMode = RxBool(false);
+  bool get isShuffleMode => _isShuffleMode.value;
+
+  // 修改 displayPlaylist getter，暂时只返回原始列表
+  List<Map<String, dynamic>>? get displayPlaylist => _currentPlaylist.value;
 
   @override
   void onInit() {
@@ -152,25 +142,17 @@ class AudioService extends GetxService {
       _audioPlayer.sequenceStateStream.listen((sequenceState) {
         if (sequenceState != null && sequenceState.currentIndex != null) {
           final newIndex = sequenceState.currentIndex!;
-          print('=== Sequence State Changed ===');
-          print('New index: $newIndex');
-          print('Current index: ${_currentIndex.value}');
-          print('Playlist length: ${_currentPlaylist.value?.length}');
 
           // 检查播放列表和索引是否有效
           if (_currentPlaylist.value != null && newIndex >= 0 && newIndex < _currentPlaylist.value!.length && newIndex != _currentIndex.value) {
-            // 添加这个条件
-
             final newTrack = _currentPlaylist.value![newIndex];
-            print('Updating to track: ${newTrack['name']}');
-            print('Current UI track: ${_currentTrack.value?['name']}');
 
             // 更新当前索引和曲目
             _currentIndex.value = newIndex;
-            _currentTrack.value = newTrack; // 直接使用 newTrack
+            _currentTrack.value = newTrack;
 
             // 加载新歌曲的歌词
-            _loadLyrics(_currentTrack.value!);
+            _loadLyrics(newTrack);
 
             // 重置播放位置和歌词索引
             _position.value = Duration.zero;
@@ -178,13 +160,6 @@ class AudioService extends GetxService {
 
             // 保存状态
             _saveLastState();
-
-            print('=== After Update ===');
-            print('Updated index: ${_currentIndex.value}');
-            print('Updated UI track: ${_currentTrack.value?['name']}');
-          } else {
-            print('=== Skip Update ===');
-            print('Skip reason: Same index or invalid state');
           }
         }
       });
@@ -365,25 +340,8 @@ class AudioService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (_currentPlaylist.value != null) {
-        // 保存当前播放列表
-        final playlistToSave = _isShuffleMode.value ? _shuffledPlaylist.value : _currentPlaylist.value;
-        await prefs.setString(_playlistKey, jsonEncode(playlistToSave));
-
-        // 保存当前索引
+        await prefs.setString(_playlistKey, jsonEncode(_currentPlaylist.value));
         await prefs.setInt(_indexKey, _currentIndex.value);
-
-        // 保存随机播放状态
-        await prefs.setBool('shuffle_mode', _isShuffleMode.value);
-
-        // 如果是随机播放模式，同时保存原始播放列表
-        if (_isShuffleMode.value) {
-          await prefs.setString('original_playlist', jsonEncode(_currentPlaylist.value));
-        }
-
-        print('=== Saved State ===');
-        print('Playlist length: ${playlistToSave?.length}');
-        print('Current index: ${_currentIndex.value}');
-        print('Shuffle mode: ${_isShuffleMode.value}');
       }
     } catch (e) {
       print('Error saving last state: $e');
@@ -395,33 +353,12 @@ class AudioService extends GetxService {
       final prefs = await SharedPreferences.getInstance();
       final playlistJson = prefs.getString(_playlistKey);
       final index = prefs.getInt(_indexKey);
-      final isShuffleMode = prefs.getBool('shuffle_mode') ?? false;
 
       if (playlistJson != null && index != null) {
-        // 解析播放列表
         final playlist = List<Map<String, dynamic>>.from(jsonDecode(playlistJson).map((x) => Map<String, dynamic>.from(x)));
 
         if (playlist.isNotEmpty && index < playlist.length) {
-          print('=== Loading State ===');
-          print('Playlist length: ${playlist.length}');
-          print('Saved index: $index');
-          print('Shuffle mode: $isShuffleMode');
-
-          // 设置随机播放状态
-          _isShuffleMode.value = isShuffleMode;
-
-          if (isShuffleMode) {
-            // 如果是随机播放模式，加载原始播放列表
-            final originalPlaylistJson = prefs.getString('original_playlist');
-            if (originalPlaylistJson != null) {
-              _currentPlaylist.value = List<Map<String, dynamic>>.from(jsonDecode(originalPlaylistJson).map((x) => Map<String, dynamic>.from(x)));
-              _shuffledPlaylist.value = playlist;
-            }
-          } else {
-            _currentPlaylist.value = playlist;
-          }
-
-          // 设置当前索引和曲目
+          _currentPlaylist.value = playlist;
           _currentIndex.value = index;
           _currentTrack.value = playlist[index];
 
@@ -461,16 +398,13 @@ class AudioService extends GetxService {
             initialIndex: index,
             preload: true,
           );
-
-          // 设置随机播放模式
-          await _audioPlayer.setShuffleModeEnabled(isShuffleMode);
-
-          print('State loaded successfully');
-          print('Current track: ${playlist[index]['name']}');
         }
       }
     } catch (e) {
       print('Error loading last state: $e');
+      _currentPlaylist.value = null;
+      _currentTrack.value = null;
+      _currentIndex.value = 0;
     }
   }
 
@@ -606,118 +540,6 @@ class AudioService extends GetxService {
     }
   }
 
-  // 修改 toggleShuffle 方法
-  Future<void> toggleShuffle() async {
-    try {
-      _isShuffleMode.value = !_isShuffleMode.value;
-      print('=== Shuffle Mode Changed ===');
-      print('Shuffle enabled: ${_isShuffleMode.value}');
-
-      if (_isShuffleMode.value) {
-        // 启用随机播放时
-        if (_currentPlaylist.value != null) {
-          // 保存当前播放的歌曲
-          final currentTrack = _currentTrack.value;
-
-          // 创建随机播放列表
-          final List<Map<String, dynamic>> shuffled = List.from(_currentPlaylist.value!);
-          shuffled.remove(currentTrack); // 移除当前播放的歌曲
-          shuffled.shuffle(); // 打乱顺序
-          shuffled.insert(0, currentTrack!); // 将当前歌曲放在第一位
-
-          // 保存随机播放列表
-          _shuffledPlaylist.value = shuffled;
-
-          // 重新创建音频源
-          final audioSources = shuffled.map((track) {
-            return AudioSource.uri(
-              Uri.parse(track['url']),
-              tag: MediaItem(
-                id: track['id'].toString(),
-                title: track['name']?.toString() ?? '',
-                artist: track['artist']?.toString() ?? '',
-                album: track['album']?.toString() ?? '',
-                duration: Duration(milliseconds: int.parse(track['duration'].toString())),
-                artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
-                playable: true,
-                displayTitle: track['name']?.toString() ?? '',
-                displaySubtitle: track['artist']?.toString() ?? '',
-                extras: {
-                  'type': track['type'],
-                },
-              ),
-            );
-          }).toList();
-
-          final playlistSource = ConcatenatingAudioSource(
-            useLazyPreparation: true,
-            shuffleOrder: DefaultShuffleOrder(),
-            children: audioSources,
-          );
-
-          // 设置新的音频源
-          await _audioPlayer.setAudioSource(
-            playlistSource,
-            initialIndex: 0, // 当前歌曲在第一位
-          );
-
-          _currentIndex.value = 0;
-          print('Created shuffled playlist with ${shuffled.length} tracks');
-        }
-      } else {
-        // 关闭随机播放时，恢复原始顺序
-        if (_currentTrack.value != null && _currentPlaylist.value != null) {
-          // 找到当前歌曲在原始列表中的位置
-          final index = _currentPlaylist.value!.indexWhere((t) => t['id'] == _currentTrack.value!['id'] && t['nId'] == _currentTrack.value!['nId']);
-
-          if (index != -1) {
-            // 重新创建原始音频源
-            final audioSources = _currentPlaylist.value!.map((track) {
-              return AudioSource.uri(
-                Uri.parse(track['url']),
-                tag: MediaItem(
-                  id: track['id'].toString(),
-                  title: track['name']?.toString() ?? '',
-                  artist: track['artist']?.toString() ?? '',
-                  album: track['album']?.toString() ?? '',
-                  duration: Duration(milliseconds: int.parse(track['duration'].toString())),
-                  artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
-                  playable: true,
-                  displayTitle: track['name']?.toString() ?? '',
-                  displaySubtitle: track['artist']?.toString() ?? '',
-                  extras: {
-                    'type': track['type'],
-                  },
-                ),
-              );
-            }).toList();
-
-            final playlistSource = ConcatenatingAudioSource(
-              useLazyPreparation: true,
-              shuffleOrder: DefaultShuffleOrder(),
-              children: audioSources,
-            );
-
-            // 设置原始音频源
-            await _audioPlayer.setAudioSource(
-              playlistSource,
-              initialIndex: index,
-            );
-
-            _currentIndex.value = index;
-            print('Restored original playlist, current index: $index');
-          }
-        }
-        _shuffledPlaylist.value = null;
-      }
-
-      // 设置播放器的随机模式
-      await _audioPlayer.setShuffleModeEnabled(_isShuffleMode.value);
-    } catch (e) {
-      print('Error toggling shuffle: $e');
-    }
-  }
-
   // 修改 _updateCurrentIndex 方法
   void _updateCurrentIndex(Map<String, dynamic> track) {
     final playlist = currentPlaylist;
@@ -818,26 +640,15 @@ class AudioService extends GetxService {
   // 修改 skipToQueueItem 方法
   Future<void> skipToQueueItem(int index) async {
     try {
-      print('=== skipToQueueItem Called ===');
-      print('Requested index: $index');
-      print('Current playlist length: ${_currentPlaylist.value?.length}');
-      print('Current index: ${_currentIndex.value}');
-      print('Shuffle mode: ${_isShuffleMode.value}');
-
       if (_currentPlaylist.value == null || index < 0 || index >= _currentPlaylist.value!.length) {
-        print('Invalid index or no playlist');
         return;
       }
 
       // 获取目标歌曲
-      final targetTrack = _isShuffleMode.value ? _shuffledPlaylist.value![index] : _currentPlaylist.value![index];
-
-      print('Target track: ${targetTrack['name']}');
-      print('Current track: ${_currentTrack.value?['name']}');
+      final targetTrack = _currentPlaylist.value![index];
 
       // 重新创建播放列表
-      final playlist = _isShuffleMode.value ? _shuffledPlaylist.value! : _currentPlaylist.value!;
-      final audioSources = playlist.map((track) {
+      final audioSources = _currentPlaylist.value!.map((track) {
         return AudioSource.uri(
           Uri.parse(track['url']),
           tag: MediaItem(
@@ -882,12 +693,15 @@ class AudioService extends GetxService {
 
       // 保存状态
       await _saveLastState();
-
-      print('=== Skip Complete ===');
-      print('New index: ${_currentIndex.value}');
-      print('New track: ${_currentTrack.value?['name']}');
     } catch (e) {
       print('Error in skipToQueueItem: $e');
     }
+  }
+
+  // 添加空的 toggleShuffle 方法
+  Future<void> toggleShuffle() async {
+    // 暂时不实现任何功能
+    _isShuffleMode.value = !_isShuffleMode.value;
+    await _audioPlayer.setShuffleModeEnabled(_isShuffleMode.value);
   }
 }
