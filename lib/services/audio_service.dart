@@ -194,6 +194,12 @@ class AudioService extends GetxService {
 
   Future<void> playPlaylist(List<Map<String, dynamic>> tracks, {int initialIndex = 0}) async {
     try {
+      // 如果是随机播放模式，先关闭随机播放
+      if (_isShuffleMode.value) {
+        _isShuffleMode.value = false;
+        _originalPlaylist.value = null;
+      }
+
       // 确保每个歌曲都有 type 字段
       final processedTracks = tracks.map((track) {
         if (track['type'] == null) {
@@ -755,7 +761,9 @@ class AudioService extends GetxService {
         // 启用随机播放时
         if (_currentPlaylist.value != null) {
           // 保存原始播放列表
-          _originalPlaylist.value = List.from(_currentPlaylist.value!);
+          if (_originalPlaylist.value == null) {
+            _originalPlaylist.value = List.from(_currentPlaylist.value!);
+          }
 
           // 保存当前播放的歌曲
           final currentTrack = _currentTrack.value;
