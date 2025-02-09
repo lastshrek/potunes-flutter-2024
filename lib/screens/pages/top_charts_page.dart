@@ -32,12 +32,37 @@ class TopChartsPage extends GetView<TopChartsController> {
       body: Obx(() {
         print('Building TopChartsPage with ${controller.charts.length} items');
         print('isNetworkReady: ${controller.isNetworkReady}');
-        print('isInitialLoading: ${controller.isInitialLoading}');
 
-        if (controller.isInitialLoading) {
+        // 显示加载动画
+        if (controller.isRefreshing) {
           return _buildSkeletonList();
         }
 
+        // 显示错误信息
+        if (controller.error.value != null) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  controller.error.value!,
+                  style: const TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: controller.retryConnection,
+                  child: const Text(
+                    '重试',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // 显示空状态
         if (controller.charts.isEmpty) {
           if (!controller.isNetworkReady) {
             return const Center(
@@ -55,12 +80,13 @@ class TopChartsPage extends GetView<TopChartsController> {
           );
         }
 
+        // 显示数据列表
         return RefreshIndicator(
           onRefresh: controller.refreshData,
           backgroundColor: Colors.black,
           color: Colors.white,
           child: ListView.builder(
-            padding: EdgeInsets.only(
+            padding: const EdgeInsets.only(
               left: 16,
               right: 16,
               top: 16,

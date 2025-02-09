@@ -103,15 +103,34 @@ class HomePage extends GetView<HomeController> {
       return Scaffold(
         backgroundColor: Colors.black,
         body: Obx(() {
-          if (controller.isInitialLoading) {
+          print('Building HomePage with collections: ${controller.collections.length}');
+          print('Building HomePage with finals: ${controller.finals.length}');
+          print('Building HomePage with albums: ${controller.albums.length}');
+          print('Building HomePage with netease: ${controller.neteaseToplist.length}');
+
+          if (controller.isRefreshing) {
             return _buildSkeletonList();
           }
 
           if (controller.error.value != null) {
             return Center(
-              child: Text(
-                'Error: ${controller.error.value}',
-                style: const TextStyle(color: Colors.white),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    controller.error.value!,
+                    style: const TextStyle(color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: controller.retryConnection,
+                    child: const Text(
+                      '重试',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
             );
           }

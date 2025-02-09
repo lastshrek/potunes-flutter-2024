@@ -11,45 +11,29 @@ class TopChartsController extends BaseController {
   final NetworkService _networkService = NetworkService.instance;
   final AudioService _audioService = Get.find<AudioService>();
   final _charts = <Map<String, dynamic>>[].obs;
-  final _isInitialLoading = true.obs;
   final _isRefreshing = false.obs;
 
   static const String _chartsKey = 'top_charts_data';
   static const String _lastUpdateKey = 'top_charts_last_update';
 
   List<Map<String, dynamic>> get charts => _charts;
-  bool get isInitialLoading => _isInitialLoading.value;
   bool get isRefreshing => _isRefreshing.value;
-  bool get isLoading => _isInitialLoading.value || _isRefreshing.value;
 
   @override
   void onInit() {
     super.onInit();
     print('TopChartsController onInit called');
-    // 直接加载数据，不等待网络状态
-    _loadCachedData();
-  }
-
-  @override
-  void onReady() {
-    super.onReady();
-    print('TopChartsController onReady called');
-    // 监听网络状态变化
-    ever(super.isNetworkReady.obs, (bool ready) {
-      print('Network ready changed: $ready');
-      if (ready && _charts.isEmpty) {
-        refreshData();
-      }
-    });
+    loadCachedData();
   }
 
   @override
   void onNetworkReady() {
-    print('TopCharts network ready, refreshing data...');
+    print('TopChartsController network ready, refreshing data...');
     refreshData();
   }
 
-  Future<void> _loadCachedData() async {
+  @override
+  Future<void> loadCachedData() async {
     print('Loading cached data...');
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -62,11 +46,6 @@ class TopChartsController extends BaseController {
       }
     } catch (e) {
       print('Error loading cached data: $e');
-    } finally {
-      _isInitialLoading.value = false;
-      if (_charts.isEmpty) {
-        refreshData();
-      }
     }
   }
 
@@ -81,6 +60,7 @@ class TopChartsController extends BaseController {
     }
   }
 
+  @override
   Future<void> refreshData() async {
     if (!isNetworkReady) {
       print('Network not ready, skipping refresh');
@@ -105,7 +85,6 @@ class TopChartsController extends BaseController {
       print('Error refreshing data: $e');
     } finally {
       _isRefreshing.value = false;
-      _isInitialLoading.value = false;
     }
   }
 

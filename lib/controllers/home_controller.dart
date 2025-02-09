@@ -13,7 +13,6 @@ class HomeController extends BaseController {
   final _finals = <Map<String, dynamic>>[].obs;
   final _albums = <Map<String, dynamic>>[].obs;
   final _neteaseToplist = <Map<String, dynamic>>[].obs;
-  final _isInitialLoading = true.obs;
   final _isRefreshing = false.obs;
   final RxList<Map<String, dynamic>> _neteaseNewAlbums = <Map<String, dynamic>>[].obs;
 
@@ -28,15 +27,13 @@ class HomeController extends BaseController {
   List<Map<String, dynamic>> get albums => _albums;
   List<Map<String, dynamic>> get neteaseToplist => _neteaseToplist;
   List<Map<String, dynamic>> get neteaseNewAlbums => _neteaseNewAlbums;
-  bool get isInitialLoading => _isInitialLoading.value;
   bool get isRefreshing => _isRefreshing.value;
-  bool get isLoading => _isInitialLoading.value || _isRefreshing.value;
 
   @override
   void onInit() {
     super.onInit();
     print('HomeController onInit called');
-    _loadCachedData();
+    loadCachedData();
   }
 
   @override
@@ -49,11 +46,64 @@ class HomeController extends BaseController {
 
   @override
   void onNetworkReady() {
-    print('Home network ready, refreshing data...');
+    print('HomeController network ready, refreshing data...');
     refreshData();
   }
 
-  Future<void> _loadCachedData() async {
+  @override
+  Future<void> refreshData() async {
+    if (!isNetworkReady) {
+      print('Network not ready, skipping refresh');
+      return;
+    }
+
+    print('Starting data refresh...');
+    try {
+      _isRefreshing.value = true;
+
+      // 获取主页数据
+      final response = await _networkService.getHomeData();
+      print('Home data response: $response');
+
+      if (response != null) {
+        if (response['collections'] != null) {
+          _collections.assignAll(List<Map<String, dynamic>>.from(response['collections']));
+          print('Updated collections: ${_collections.length}');
+        }
+
+        if (response['finals'] != null) {
+          _finals.assignAll(List<Map<String, dynamic>>.from(response['finals']));
+          print('Updated finals: ${_finals.length}');
+        }
+
+        if (response['albums'] != null) {
+          _albums.assignAll(List<Map<String, dynamic>>.from(response['albums']));
+          print('Updated albums: ${_albums.length}');
+        }
+
+        if (response['netease_toplist'] != null) {
+          _neteaseToplist.assignAll(List<Map<String, dynamic>>.from(response['netease_toplist']));
+          print('Updated netease toplist: ${_neteaseToplist.length}');
+        }
+      } else {
+        print('Home data response is null');
+      }
+
+      // 获取网易云新专辑数据
+      await _fetchNeteaseNewAlbums();
+
+      await _saveToCache();
+      print('Data refresh complete');
+    } catch (e, stackTrace) {
+      print('Error refreshing data: $e');
+      print('Stack trace: $stackTrace');
+    } finally {
+      _isRefreshing.value = false;
+    }
+  }
+
+  @override
+  Future<void> loadCachedData() async {
     print('Loading cached data...');
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -93,89 +143,39 @@ class HomeController extends BaseController {
       print('Cache load complete');
     } catch (e) {
       print('Error loading cached data: $e');
-    } finally {
-      _isInitialLoading.value = false;
     }
   }
 
-  Future<void> refreshData() async {
-    if (!isNetworkReady) {
-      print('Network not ready, skipping refresh');
-      return;
-    }
-
-    print('Starting data refresh...');
+  Future<void> _fetchNeteaseNewAlbums() async {
     try {
-      _isRefreshing.value = true;
+      print('Fetching netease new albums...');
+      final neteaseNewAlbumsResponse = await _networkService.get(ApiConfig.neteaseNewAlbum);
+      print('New albums raw response: $neteaseNewAlbumsResponse');
 
-      // 获取主页数据
-      print('Fetching home data from: ${ApiConfig.home}');
-      final response = await _networkService.getHomeData();
-      print('Home data response: $response');
+      if (neteaseNewAlbumsResponse != null && neteaseNewAlbumsResponse is Map<String, dynamic> && neteaseNewAlbumsResponse['data'] != null) {
+        final rawAlbums = neteaseNewAlbumsResponse['data'] is List ? neteaseNewAlbumsResponse['data'] as List : neteaseNewAlbumsResponse['data']['albums'] as List;
 
-      if (response != null) {
-        _collections.assignAll(List<Map<String, dynamic>>.from(response['collections'] ?? []));
-        _finals.assignAll(List<Map<String, dynamic>>.from(response['finals'] ?? []));
-        _albums.assignAll(List<Map<String, dynamic>>.from(response['albums'] ?? []));
+        print('Raw albums data: $rawAlbums');
 
-        if (response['netease_toplist'] != null) {
-          _neteaseToplist.assignAll(List<Map<String, dynamic>>.from(response['netease_toplist']));
-        }
+        final mappedAlbums = rawAlbums.map((album) {
+          if (album is Map<String, dynamic>) {
+            return {
+              'id': album['id'] ?? 0,
+              'nId': album['id'] ?? 0,
+              'cover': album['picUrl'] ?? '',
+              'title': album['name'] ?? '',
+              'artist': (album['artist'] != null) ? album['artist']['name'] ?? '' : (album['artists'] as List?)?.map((artist) => artist['name'] as String)?.join(' / ') ?? '',
+            };
+          }
+          return <String, dynamic>{};
+        }).toList();
 
-        print('Updated collections: ${_collections.length}');
-        print('Updated finals: ${_finals.length}');
-        print('Updated albums: ${_albums.length}');
-        print('Updated netease toplist: ${_neteaseToplist.length}');
-      } else {
-        print('Home data response is null');
+        _neteaseNewAlbums.assignAll(mappedAlbums);
+        print('Updated new albums: ${_neteaseNewAlbums.length}');
       }
-
-      // 获取网易云新专辑数据
-      try {
-        print('Fetching netease new albums...');
-        final neteaseNewAlbumsResponse = await _networkService.get(ApiConfig.neteaseNewAlbum);
-        print('New albums raw response: $neteaseNewAlbumsResponse');
-
-        if (neteaseNewAlbumsResponse != null && neteaseNewAlbumsResponse is Map<String, dynamic> && neteaseNewAlbumsResponse['data'] != null) {
-          final rawAlbums = neteaseNewAlbumsResponse['data'] is List ? neteaseNewAlbumsResponse['data'] as List : neteaseNewAlbumsResponse['data']['albums'] as List;
-
-          print('Raw albums data: $rawAlbums');
-
-          final mappedAlbums = rawAlbums.map((album) {
-            if (album is Map<String, dynamic>) {
-              print('Processing album: ${album['name']}');
-              return {
-                'id': album['id'] ?? 0,
-                'nId': album['id'] ?? 0,
-                'cover': album['picUrl'] ?? '',
-                'title': album['name'] ?? '',
-                'artist': (album['artist'] != null) ? album['artist']['name'] ?? '' : (album['artists'] as List?)?.map((artist) => artist['name'] as String)?.join(' / ') ?? '',
-              };
-            }
-            return <String, dynamic>{};
-          }).toList();
-
-          print('Mapped ${mappedAlbums.length} albums');
-          _neteaseNewAlbums.assignAll(mappedAlbums);
-          print('Updated new albums: ${_neteaseNewAlbums.length}');
-        } else {
-          print('Invalid new albums response format');
-          print('Response type: ${neteaseNewAlbumsResponse.runtimeType}');
-          print('Full response: $neteaseNewAlbumsResponse');
-        }
-      } catch (e, stackTrace) {
-        print('Error loading new albums: $e');
-        print('Stack trace: $stackTrace');
-      }
-
-      await _saveToCache();
-      print('Data refresh complete');
     } catch (e, stackTrace) {
-      print('Error refreshing data: $e');
+      print('Error loading new albums: $e');
       print('Stack trace: $stackTrace');
-    } finally {
-      _isRefreshing.value = false;
-      _isInitialLoading.value = false;
     }
   }
 
