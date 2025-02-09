@@ -12,6 +12,7 @@ import '../services/network_service.dart';
 import 'package:dio/dio.dart';
 import '../services/user_service.dart';
 import 'package:flutter/material.dart';
+import 'package:audio_session/audio_session.dart';
 
 // 修改循环模式枚举
 enum RepeatMode {
@@ -88,6 +89,14 @@ class AudioService extends GetxService {
   @override
   void onInit() {
     super.onInit();
+
+    // 添加这些配置
+    _audioPlayer.setLoopMode(LoopMode.all);
+    _audioPlayer.setShuffleModeEnabled(false);
+
+    // 修改音频会话配置
+    _setupAudioSession();
+
     _setupPlayerListeners();
     _loadLastState();
 
@@ -95,10 +104,6 @@ class AudioService extends GetxService {
     ever(_position, (position) {
       _updateCurrentLine(position);
     });
-
-    // 初始化时设置播放模式
-    _audioPlayer.setLoopMode(LoopMode.all);
-    _audioPlayer.setShuffleModeEnabled(false);
   }
 
   @override
@@ -225,8 +230,13 @@ class AudioService extends GetxService {
             playable: true,
             displayTitle: track['name']?.toString() ?? '',
             displaySubtitle: track['artist']?.toString() ?? '',
+            genre: track['genre']?.toString(),
+            artHeaders: const {},
             extras: {
               'type': track['type'],
+              'url': track['url'],
+              'isLive': false,
+              'hasLyrics': true,
             },
           ),
         );
@@ -266,10 +276,6 @@ class AudioService extends GetxService {
 
       // 保存状态
       await _saveLastState();
-
-      print('=== Playlist Started ===');
-      print('Initial track: ${processedTracks[initialIndex]['name']}');
-      print('Playlist length: ${processedTracks.length}');
     } catch (e) {
       print('Error playing playlist: $e');
     }
@@ -292,12 +298,19 @@ class AudioService extends GetxService {
             id: processedTrack['id']?.toString() ?? '',
             title: processedTrack['name'] ?? '',
             artist: processedTrack['artist'] ?? '',
+            album: processedTrack['album'] ?? '',
+            duration: Duration(milliseconds: int.parse(track['duration'].toString())),
             artUri: Uri.parse(processedTrack['cover_url'] ?? ''),
             playable: true,
             displayTitle: processedTrack['name'] ?? '',
             displaySubtitle: processedTrack['artist'] ?? '',
+            genre: processedTrack['genre']?.toString(),
+            artHeaders: const {},
             extras: {
               'type': processedTrack['type'],
+              'url': processedTrack['url'],
+              'isLive': false,
+              'hasLyrics': true,
             },
           ),
         ),
@@ -431,8 +444,13 @@ class AudioService extends GetxService {
                 playable: true,
                 displayTitle: track['name']?.toString() ?? '',
                 displaySubtitle: track['artist']?.toString() ?? '',
+                genre: track['genre']?.toString(),
+                artHeaders: const {},
                 extras: {
                   'type': track['type'],
+                  'url': track['url'],
+                  'isLive': false,
+                  'hasLyrics': true,
                 },
               ),
             );
@@ -475,18 +493,9 @@ class AudioService extends GetxService {
       _currentLyricsNId = nId;
 
       final response = await _networkService.getLyrics(id, nId);
-      print('=== Loading Lyrics ===');
-      print('Track: ${track['name']}');
-      print('Response: $response');
 
       _parsedLyrics.value = _formatLyrics(response);
       _currentLineIndex.value = 0;
-
-      if (_parsedLyrics.value != null) {
-        print('Lyrics loaded: ${_parsedLyrics.value?.length} lines');
-      } else {
-        print('No lyrics found');
-      }
     } catch (e) {
       print('Error loading lyrics: $e');
       print('Error details: ${e.toString()}');
@@ -579,11 +588,6 @@ class AudioService extends GetxService {
       // 按时间排序并过滤掉完全空白的行
       lyrics.sort((a, b) => a.time.compareTo(b.time));
       final filteredLyrics = lyrics.where((line) => line.original.isNotEmpty || (line.translation?.isNotEmpty ?? false)).toList();
-
-      print('=== Lyrics Parsed ===');
-      print('Total lines: ${filteredLyrics.length}');
-      print('First line: ${filteredLyrics.firstOrNull?.original} / ${filteredLyrics.firstOrNull?.translation}');
-      print('Last line: ${filteredLyrics.lastOrNull?.original} / ${filteredLyrics.lastOrNull?.translation}');
 
       return filteredLyrics.isNotEmpty ? filteredLyrics : null;
     } catch (e) {
@@ -713,8 +717,13 @@ class AudioService extends GetxService {
             playable: true,
             displayTitle: track['name']?.toString() ?? '',
             displaySubtitle: track['artist']?.toString() ?? '',
+            genre: track['genre']?.toString(),
+            artHeaders: const {},
             extras: {
               'type': track['type'],
+              'url': track['url'],
+              'isLive': false,
+              'hasLyrics': true,
             },
           ),
         );
@@ -812,6 +821,24 @@ class AudioService extends GetxService {
       await _saveLastState();
     } catch (e) {
       print('Error toggling shuffle: $e');
+    }
+  }
+
+  // 修改音频会话设置方法
+  Future<void> _setupAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration(
+        avAudioSessionCategory: AVAudioSessionCategory.playback,
+        avAudioSessionMode: AVAudioSessionMode.defaultMode,
+        androidAudioAttributes: AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.music,
+          usage: AndroidAudioUsage.media,
+        ),
+        androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+      ));
+    } catch (e) {
+      print('Error setting up audio session: $e');
     }
   }
 }

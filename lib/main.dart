@@ -27,10 +27,17 @@ import 'controllers/app_controller.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 初始化 just_audio_background
   await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.potunes.channel.audio',
+    androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
     androidNotificationChannelName: 'Audio playback',
     androidNotificationOngoing: true,
+    androidShowNotificationBadge: true,
+    // iOS 配置
+    androidStopForegroundOnPause: true,
+    fastForwardInterval: const Duration(seconds: 10),
+    rewindInterval: const Duration(seconds: 10),
+    preloadArtwork: true,
   );
 
   // 初始化 GetX 服务
