@@ -13,6 +13,7 @@ class ApiConfig {
   static const String allCollections = '/v1/playlists/collection/all';
   static const String allFinals = '/v1/playlists/finals';
   static const String allAlbums = '/v1/playlists/albums';
+  static const String topListDetail = '/netease/toplist';
   // 用户相关
   static const String captcha = '/users/captcha';
   static const String verifyCaptcha = '/users/verify';

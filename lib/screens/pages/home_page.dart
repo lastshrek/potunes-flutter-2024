@@ -188,17 +188,7 @@ class HomePage extends GetView<HomeController> {
                         }
                         final item = collections[index];
                         return GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => PlaylistPage(
-                                  playlist: item,
-                                  playlistId: item['id'] ?? 0,
-                                ),
-                              ),
-                            );
-                          },
+                          onTap: () => _onCollectionPlaylistTap(item),
                           child: Stack(
                             children: [
                               Container(
@@ -304,17 +294,7 @@ class HomePage extends GetView<HomeController> {
                               itemBuilder: (context, index) {
                                 final item = collections[index];
                                 return GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => PlaylistPage(
-                                          playlist: item,
-                                          playlistId: item['id'] ?? 0,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                  onTap: () => _onCollectionPlaylistTap(item),
                                   child: Stack(
                                     fit: StackFit.expand,
                                     children: [
@@ -431,15 +411,7 @@ class HomePage extends GetView<HomeController> {
             );
           },
           onPlaylistTap: (playlist) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PlaylistPage(
-                  playlist: playlist,
-                  playlistId: playlist['id'] ?? 0,
-                ),
-              ),
-            );
+            _onPlaylistTap(playlist);
           },
         ),
         const SizedBox(height: 24),
@@ -461,15 +433,7 @@ class HomePage extends GetView<HomeController> {
             );
           },
           onPlaylistTap: (playlist) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PlaylistPage(
-                  playlist: playlist,
-                  playlistId: playlist['id'] ?? 0,
-                ),
-              ),
-            );
+            _onPlaylistTap(playlist);
           },
         ),
         const SizedBox(height: 24),
@@ -480,15 +444,7 @@ class HomePage extends GetView<HomeController> {
           isLoading: controller.isRefreshing,
           onTitleTap: null,
           onPlaylistTap: (playlist) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PlaylistPage(
-                  playlist: playlist,
-                  playlistId: playlist['id'] ?? 0,
-                ),
-              ),
-            );
+            _onPlaylistTap(playlist);
           },
         ),
         // 添加底部 padding，考虑 mini player 和底部导航栏的高度
@@ -496,6 +452,27 @@ class HomePage extends GetView<HomeController> {
           height: 16, // mini player 的高度
         ),
       ]),
+    );
+  }
+
+  void _onCollectionPlaylistTap(Map<String, dynamic> playlist) {
+    Get.to(
+      () => PlaylistPage(
+        playlist: playlist,
+        playlistId: int.parse(playlist['id'].toString()),
+        isFromCollections: true,
+      ),
+      transition: Transition.rightToLeft,
+    );
+  }
+
+  void _onPlaylistTap(Map<String, dynamic> playlist) {
+    Get.to(
+      () => PlaylistPage(
+        playlist: playlist,
+        playlistId: int.parse(playlist['id'].toString()),
+      ),
+      transition: Transition.rightToLeft,
     );
   }
 }

@@ -14,11 +14,13 @@ import '../../widgets/track_list_tile.dart';
 class PlaylistPage extends StatefulWidget {
   final Map<String, dynamic> playlist;
   final int playlistId;
+  final bool isFromCollections;
 
   const PlaylistPage({
     super.key,
     required this.playlist,
     required this.playlistId,
+    this.isFromCollections = false,
   });
 
   @override
@@ -228,12 +230,14 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                           builder: (context, constraints) {
                             final miniPlayerHeight = 80.0;
                             final topPadding = MediaQuery.of(context).padding.top;
-                            final bottomPadding = 16.0; // 添加底部额外间距
+                            final bottomPadding = 16.0;
                             final availableHeight = constraints.maxHeight - miniPlayerHeight - topPadding - bottomPadding;
 
-                            // 调整分配空间的比例
-                            final coverSize = availableHeight * 0.55; // 减小封面尺寸的比例
-                            final infoSize = availableHeight * 0.35; // 增加信息区域的比例
+                            // 减小 coverSize 的比例，为底部留出更多空间
+                            final coverSize = widget.isFromCollections
+                                ? availableHeight * 0.4 // collections 的封面高度比例降低
+                                : availableHeight * 0.5; // 普通封面也降低比例
+                            final infoSize = availableHeight * 0.3; // 减小信息区域
                             final spacing = availableHeight * 0.1;
 
                             return CustomScrollView(
@@ -259,7 +263,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                           height: coverSize,
                                           child: Center(
                                             child: AspectRatio(
-                                              aspectRatio: 1,
+                                              aspectRatio: widget.isFromCollections ? 32 / 15 : 1,
                                               child: Container(
                                                 decoration: BoxDecoration(
                                                   borderRadius: BorderRadius.circular(12),
@@ -312,7 +316,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                 ),
                                 // 增加底部空间
                                 SliverToBoxAdapter(
-                                  child: SizedBox(height: miniPlayerHeight + bottomPadding),
+                                  child: SizedBox(height: miniPlayerHeight + bottomPadding + 32), // 增加更多底部间距
                                 ),
                               ],
                             );
@@ -714,7 +718,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                   child: Center(
                     child: SizedBox(
                       width: currentSize,
-                      height: currentSize,
+                      height: widget.isFromCollections ? (currentSize * 15 / 32) : currentSize,
                       child: Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8.0),
