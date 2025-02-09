@@ -113,7 +113,7 @@ class AudioService extends GetxService {
 
   void _setupPlayerListeners() {
     // 监听当前索引变化
-    _audioPlayer.currentIndexStream.listen((index) {
+    _audioPlayer.currentIndexStream.listen((index) async {
       if (index != null && _currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
         // 确保索引在有效范围内
         final safeIndex = index.clamp(0, _currentPlaylist.value!.length - 1);
@@ -123,6 +123,9 @@ class AudioService extends GetxService {
 
         // 更新歌词
         _loadLyrics(currentTrack);
+
+        // 更新喜欢状态
+        await _updateLikeStatus(currentTrack);
 
         // 查找下一首歌
         final nextIndex = (safeIndex + 1) % _currentPlaylist.value!.length;
@@ -261,6 +264,9 @@ class AudioService extends GetxService {
 
       // 更新当前播放的歌曲
       _currentTrack.value = track;
+
+      // 更新喜欢状态
+      await _updateLikeStatus(track);
 
       // 查找当前歌曲在播放列表中的位置
       if (_currentPlaylist.value != null) {
@@ -661,6 +667,9 @@ class AudioService extends GetxService {
       // 获取目标歌曲
       final targetTrack = _currentPlaylist.value![index];
 
+      // 更新喜欢状态
+      await _updateLikeStatus(targetTrack);
+
       // 重新创建播放列表
       final audioSources = _currentPlaylist.value!.map((track) {
         return AudioSource.uri(
@@ -804,5 +813,16 @@ class AudioService extends GetxService {
   Future<void> _stop() async {
     await _audioPlayer.stop();
     _isPlaying.value = false;
+  }
+
+  // 添加更新喜欢状态的方法
+  Future<void> _updateLikeStatus(Map<String, dynamic> track) async {
+    try {
+      final isLiked = await _networkService.checkLikeStatus(track);
+      _isLike.value = isLiked ? 1 : 0;
+      print('Updated like status for track: ${track['name']}, isLiked: $isLiked');
+    } catch (e) {
+      print('Error updating like status: $e');
+    }
   }
 }

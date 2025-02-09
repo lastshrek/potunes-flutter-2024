@@ -676,4 +676,14 @@ class NetworkService {
     await prefs.remove(_networkPermissionKey);
     _hasNetworkPermission = false;
   }
+
+  Future<bool> checkLikeStatus(Map<String, dynamic> track) async {
+    try {
+      final response = await get('/like/check/${track['id']}');
+      return response['isLiked'] == true;
+    } catch (e) {
+      print('Error checking like status: $e');
+      return false;
+    }
+  }
 }
