@@ -12,6 +12,7 @@ import '../../screens/pages/all_playlists_page.dart';
 import 'dart:io' show Platform, exit;
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../services/audio_service.dart';
 
 class HomePage extends GetView<HomeController> {
   const HomePage({super.key});
@@ -554,9 +555,9 @@ class HomePage extends GetView<HomeController> {
             );
           },
         ),
-        // 添加底部 padding，考虑 mini player 和底部导航栏的高度
+        // 添加固定的底部间距
         SizedBox(
-          height: 16, // mini player 的高度
+          height: AudioService.to.currentTrack != null ? 0 : 56,
         ),
       ]),
     );
