@@ -24,7 +24,7 @@ class MiniPlayer extends StatefulWidget {
 class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateMixin {
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
-  final _backgroundColor = ValueNotifier<Color>(Colors.black87);
+  final ValueNotifier<Color> _backgroundColor = ValueNotifier<Color>(Colors.black);
   int _lastPrintedSecond = -1;
   String? _lastCoverUrl;
 
@@ -32,21 +32,22 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     _slideController = AnimationController(
-      duration: const Duration(milliseconds: 300),
       vsync: this,
+      duration: const Duration(milliseconds: 200),
     );
     _slideAnimation = Tween<Offset>(
       begin: Offset.zero,
       end: const Offset(1.0, 0.0),
     ).animate(CurvedAnimation(
       parent: _slideController,
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeInOut,
     ));
   }
 
   @override
   void dispose() {
     _slideController.dispose();
+    _backgroundColor.dispose();
     super.dispose();
   }
 
@@ -55,17 +56,17 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
 
     final controller = Get.find<AudioService>();
     if (details.primaryVelocity! > 0) {
-      // 向右滑动，播放上一首
+      // 向右滑动，暂停播放
       _slideAnimation = Tween<Offset>(
         begin: Offset.zero,
         end: const Offset(1.0, 0.0),
       ).animate(CurvedAnimation(
         parent: _slideController,
-        curve: Curves.easeOutCubic,
+        curve: Curves.easeInOut,
       ));
       await _slideController.forward();
-      controller.previous();
-      _slideController.reset();
+      controller.togglePlay(); // 使用 togglePlay 替代 stop
+      _slideController.reverse();
     } else if (details.primaryVelocity! < 0) {
       // 向左滑动，播放下一首
       _slideAnimation = Tween<Offset>(
@@ -73,11 +74,11 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
         end: const Offset(-1.0, 0.0),
       ).animate(CurvedAnimation(
         parent: _slideController,
-        curve: Curves.easeOutCubic,
+        curve: Curves.easeInOut,
       ));
       await _slideController.forward();
-      controller.next();
-      _slideController.reset();
+      controller.skipToNext();
+      _slideController.reverse();
     }
   }
 
@@ -104,7 +105,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
       ].where((color) => color != null).map((color) => color!.color).toList();
 
       if (colors.isEmpty) {
-        _backgroundColor.value = Colors.black87;
+        _backgroundColor.value = Colors.black;
         return;
       }
 
@@ -132,7 +133,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
       _backgroundColor.value = selectedColor;
     } catch (e) {
       print('Error generating palette: $e');
-      _backgroundColor.value = Colors.black87;
+      _backgroundColor.value = Colors.black;
     }
   }
 

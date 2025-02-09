@@ -800,9 +800,13 @@ class AudioService extends GetxService {
   }
 
   // 停止播放
-  Future<void> _stop() async {
-    await _audioPlayer.stop();
-    _isPlaying.value = false;
+  Future<void> stop() async {
+    try {
+      await _audioPlayer.stop();
+      _isPlaying.value = false;
+    } catch (e) {
+      print('Error stopping playback: $e');
+    }
   }
 
   // 添加跳转到下一首的方法

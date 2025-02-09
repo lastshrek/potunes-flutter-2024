@@ -14,8 +14,22 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/audio_service.dart';
 
-class HomePage extends GetView<HomeController> {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late final HomeController controller;
+  List<Map<String, dynamic>> get collections => controller.collections;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<HomeController>();
+  }
 
   Future<void> _openSettings() async {
     if (Platform.isIOS) {
@@ -251,16 +265,7 @@ class HomePage extends GetView<HomeController> {
                             constraints: const BoxConstraints(),
                             visualDensity: VisualDensity.compact,
                             onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => AllPlaylistsPage(
-                                    title: 'Collections',
-                                    playlists: collections,
-                                    apiPath: ApiConfig.allCollections,
-                                  ),
-                                ),
-                              );
+                              _onViewAllCollectionsTap();
                             },
                           ),
                   ),
@@ -518,26 +523,7 @@ class HomePage extends GetView<HomeController> {
         ),
         const SizedBox(height: 24),
         // Albums 部分
-        HorizontalPlaylistList(
-          title: 'Albums',
-          playlists: albums,
-          isLoading: controller.isRefreshing,
-          onTitleTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AllPlaylistsPage(
-                  title: 'Albums',
-                  playlists: albums,
-                  apiPath: ApiConfig.allAlbums,
-                ),
-              ),
-            );
-          },
-          onPlaylistTap: (playlist) {
-            _onPlaylistTap(playlist);
-          },
-        ),
+        _buildAlbumsSection(),
         const SizedBox(height: 24),
         // Netease Toplist 部分
         HorizontalPlaylistList(
@@ -545,16 +531,7 @@ class HomePage extends GetView<HomeController> {
           playlists: neteaseToplist,
           isLoading: controller.isRefreshing,
           onTitleTap: null,
-          onPlaylistTap: (playlist) {
-            Get.to(
-              () => PlaylistPage(
-                playlist: playlist,
-                playlistId: int.parse(playlist['nId'].toString()),
-                isFromTopList: true,
-              ),
-              transition: Transition.rightToLeft,
-            );
-          },
+          onPlaylistTap: _onNeteaseToplistTap,
         ),
         const SizedBox(height: 24),
         // Netease New Albums 部分
@@ -563,16 +540,7 @@ class HomePage extends GetView<HomeController> {
           playlists: controller.neteaseNewAlbums,
           isLoading: controller.isRefreshing,
           onTitleTap: null,
-          onPlaylistTap: (playlist) {
-            Get.to(
-              () => PlaylistPage(
-                playlist: playlist,
-                playlistId: int.parse(playlist['nId'].toString()),
-                isFromNewAlbum: true,
-              ),
-              transition: Transition.rightToLeft,
-            );
-          },
+          onPlaylistTap: _onNeteaseNewAlbumTap,
         ),
         // 添加固定的底部间距
         SizedBox(
@@ -583,23 +551,152 @@ class HomePage extends GetView<HomeController> {
   }
 
   void _onCollectionPlaylistTap(Map<String, dynamic> playlist) {
-    Get.to(
-      () => PlaylistPage(
-        playlist: playlist,
-        playlistId: int.parse(playlist['id'].toString()),
-        isFromCollections: true,
-      ),
-      transition: Transition.rightToLeft,
-    );
+    if (Platform.isAndroid) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PlaylistPage(
+            playlist: playlist,
+            playlistId: int.parse(playlist['id'].toString()),
+            isFromCollections: true,
+          ),
+        ),
+      );
+    } else {
+      Get.to(
+        () => PlaylistPage(
+          playlist: playlist,
+          playlistId: int.parse(playlist['id'].toString()),
+          isFromCollections: true,
+        ),
+        transition: Transition.rightToLeft,
+      );
+    }
+  }
+
+  void _onViewAllCollectionsTap() {
+    if (Platform.isAndroid) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AllPlaylistsPage(
+            title: 'Collections',
+            playlists: collections,
+            apiPath: ApiConfig.allCollections,
+          ),
+        ),
+      );
+    } else {
+      Get.to(
+        () => AllPlaylistsPage(
+          title: 'Collections',
+          playlists: collections,
+          apiPath: ApiConfig.allCollections,
+        ),
+        transition: Transition.rightToLeft,
+      );
+    }
   }
 
   void _onPlaylistTap(Map<String, dynamic> playlist) {
-    Get.to(
-      () => PlaylistPage(
-        playlist: playlist,
-        playlistId: int.parse(playlist['id'].toString()),
-      ),
-      transition: Transition.rightToLeft,
+    if (Platform.isAndroid) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PlaylistPage(
+            playlist: playlist,
+            playlistId: int.parse(playlist['id'].toString()),
+          ),
+        ),
+      );
+    } else {
+      Get.to(
+        () => PlaylistPage(
+          playlist: playlist,
+          playlistId: int.parse(playlist['id'].toString()),
+        ),
+        transition: Transition.rightToLeft,
+      );
+    }
+  }
+
+  Widget _buildAlbumsSection() {
+    return HorizontalPlaylistList(
+      title: 'Albums',
+      playlists: controller.albums,
+      isLoading: controller.isRefreshing,
+      onTitleTap: () {
+        if (Platform.isAndroid) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AllPlaylistsPage(
+                title: 'Albums',
+                playlists: controller.albums,
+                apiPath: ApiConfig.allAlbums,
+              ),
+            ),
+          );
+        } else {
+          Get.to(
+            () => AllPlaylistsPage(
+              title: 'Albums',
+              playlists: controller.albums,
+              apiPath: ApiConfig.allAlbums,
+            ),
+            transition: Transition.rightToLeft,
+          );
+        }
+      },
+      onPlaylistTap: _onPlaylistTap,
     );
+  }
+
+  void _onNeteaseToplistTap(Map<String, dynamic> playlist) {
+    if (Platform.isAndroid) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PlaylistPage(
+            playlist: playlist,
+            playlistId: int.parse(playlist['nId'].toString()),
+            isFromTopList: true,
+          ),
+        ),
+      );
+    } else {
+      Get.to(
+        () => PlaylistPage(
+          playlist: playlist,
+          playlistId: int.parse(playlist['nId'].toString()),
+          isFromTopList: true,
+        ),
+        transition: Transition.rightToLeft,
+      );
+    }
+  }
+
+  void _onNeteaseNewAlbumTap(Map<String, dynamic> playlist) {
+    if (Platform.isAndroid) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PlaylistPage(
+            playlist: playlist,
+            playlistId: int.parse(playlist['nId'].toString()),
+            isFromNewAlbum: true,
+          ),
+        ),
+      );
+    } else {
+      Get.to(
+        () => PlaylistPage(
+          playlist: playlist,
+          playlistId: int.parse(playlist['nId'].toString()),
+          isFromNewAlbum: true,
+        ),
+        transition: Transition.rightToLeft,
+      );
+    }
   }
 }
