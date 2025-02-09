@@ -121,7 +121,6 @@ class AudioService extends GetxService {
         // 处理播放完成事件
         if (state.processingState == ProcessingState.completed && !_isHandlingCompletion) {
           _isHandlingCompletion = true;
-          print('Track completed, current mode: ${_repeatMode.value}');
 
           if (_repeatMode.value == RepeatMode.single) {
             _audioPlayer.seek(Duration.zero).then((_) {

@@ -444,7 +444,14 @@ class HomePage extends GetView<HomeController> {
           isLoading: controller.isRefreshing,
           onTitleTap: null,
           onPlaylistTap: (playlist) {
-            _onPlaylistTap(playlist);
+            Get.to(
+              () => PlaylistPage(
+                playlist: playlist,
+                playlistId: int.parse(playlist['nId'].toString()),
+                isFromTopList: true,
+              ),
+              transition: Transition.rightToLeft,
+            );
           },
         ),
         // 添加底部 padding，考虑 mini player 和底部导航栏的高度

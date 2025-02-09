@@ -15,12 +15,14 @@ class PlaylistPage extends StatefulWidget {
   final Map<String, dynamic> playlist;
   final int playlistId;
   final bool isFromCollections;
+  final bool isFromTopList;
 
   const PlaylistPage({
     super.key,
     required this.playlist,
     required this.playlistId,
     this.isFromCollections = false,
+    this.isFromTopList = false,
   });
 
   @override
@@ -125,7 +127,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   Future<void> _loadPlaylistData() async {
     try {
-      final response = await _networkService.getPlaylistById(widget.playlistId);
+      final response = widget.isFromTopList ? await _networkService.getTopListDetail(widget.playlistId) : await _networkService.getPlaylistById(widget.playlistId);
+
       if (!mounted) return;
 
       setState(() {
@@ -328,7 +331,6 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                         child: LayoutBuilder(
                           builder: (context, constraints) {
                             final miniPlayerHeight = 80.0;
-                            final availableHeight = constraints.maxHeight - miniPlayerHeight;
 
                             return CustomScrollView(
                               physics: const ClampingScrollPhysics(),

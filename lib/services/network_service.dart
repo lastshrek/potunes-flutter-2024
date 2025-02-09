@@ -3,9 +3,6 @@ import '../config/api_config.dart';
 import 'package:dio/dio.dart';
 import '../utils/http/api_exception.dart';
 import 'package:flutter/foundation.dart';
-import '../utils/http/response_handler.dart';
-import 'dart:developer' as developer;
-import 'dart:convert';
 import '../services/user_service.dart';
 
 class NetworkService {
@@ -50,9 +47,7 @@ class NetworkService {
 
   Future<Map<String, dynamic>> getHomeData() async {
     try {
-      print('=== Getting home data ===');
       final response = await _client.get<dynamic>(ApiConfig.home);
-      print('=== Home data response: $response ===');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
         final data = response['data'] as Map<String, dynamic>;
@@ -99,13 +94,6 @@ class NetworkService {
           }).toList();
 
           data['tracks'] = tracks;
-
-          // 打印第一首歌的 type
-          if (tracks.isNotEmpty && tracks[0] is Map<String, dynamic>) {
-            print('=== First Track Type ===');
-            print('Track: ${tracks[0]}');
-            print('Type: ${tracks[0]['type']}');
-          }
         }
 
         return data;
@@ -156,19 +144,11 @@ class NetworkService {
     CancelToken? cancelToken,
   }) async {
     try {
-      debugPrint('Making GET request to: ${ApiConfig.baseUrl}$path');
-      debugPrint('Query parameters: $queryParameters');
-      debugPrint('Expected return type: $T');
-
       final Response response = await _client.get(
         path,
         queryParameters: queryParameters,
         options: options,
       );
-
-      debugPrint('Response status code: ${response.statusCode}');
-      debugPrint('Response data: ${response.data}');
-      debugPrint('Response data type: ${response.data.runtimeType}');
 
       // 处理不同的响应类型
       if (T == Map<String, dynamic>) {
@@ -370,9 +350,6 @@ class NetworkService {
     try {
       final response = await _client.get<dynamic>(ApiConfig.fav);
 
-      print('=== Favourites Response ===');
-      print('Full Response: $response');
-
       if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
         final List<dynamic> rawFavourites = response['data'];
 
@@ -420,12 +397,8 @@ class NetworkService {
 
   Future<bool> likeTrack(Map<String, dynamic> track) async {
     try {
-      print('=== Like Track Request ===');
-      print('Track data: $track');
-
       // 根据 id 确定 type
       final trackType = track['id'] == 0 ? 'netease' : 'potunes';
-      print('Track type determined: $trackType');
 
       // 构建请求体
       final requestBody = {
@@ -481,5 +454,45 @@ class NetworkService {
       'original_album_id': track['original_album_id'] ?? 0,
       'mv': track['mv'] ?? 0,
     };
+  }
+
+  // 添加获取 toplist 详情的方法
+  Future<Map<String, dynamic>> getTopListDetail(int id) async {
+    try {
+      final response = await _client.get(
+        '${ApiConfig.baseUrl}${ApiConfig.topListDetail}/$id',
+      );
+      print('netease top list detail: ${ApiConfig.baseUrl}${ApiConfig.topListDetail}/$id');
+      if (response is Map<String, dynamic> && response['statusCode'] == 200) {
+        final data = response['data'] as Map<String, dynamic>;
+
+        // 如果存在 tracks 数组，为每个 track 添加 type 字段
+        if (data['tracks'] is List) {
+          final List<dynamic> tracks = data['tracks'] as List<dynamic>;
+          final List<Map<String, dynamic>> processedTracks = tracks.map((track) {
+            if (track is Map<String, dynamic>) {
+              return {
+                ...track,
+                'type': 'netease', // 添加 type 字段
+              };
+            }
+            return track as Map<String, dynamic>;
+          }).toList();
+
+          // 更新 data 中的 tracks
+          data['tracks'] = processedTracks;
+        }
+
+        return data;
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: '无效的响应格式',
+      );
+    } catch (e) {
+      print('Error getting toplist detail: $e');
+      rethrow;
+    }
   }
 }
