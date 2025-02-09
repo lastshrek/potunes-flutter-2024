@@ -240,6 +240,9 @@ class AudioService extends GetxService {
       _currentIndex.value = initialIndex;
       _currentTrack.value = processedTracks[initialIndex];
 
+      // 先加载第一首歌的歌词
+      await _loadLyrics(processedTracks[initialIndex]);
+
       // 设置音频源
       await _audioPlayer.setAudioSource(
         playlistSource,
@@ -258,7 +261,11 @@ class AudioService extends GetxService {
       await _audioPlayer.play();
 
       // 保存状态
-      _saveLastState();
+      await _saveLastState();
+
+      print('=== Playlist Started ===');
+      print('Initial track: ${processedTracks[initialIndex]['name']}');
+      print('Playlist length: ${processedTracks.length}');
     } catch (e) {
       print('Error playing playlist: $e');
     }
@@ -418,6 +425,9 @@ class AudioService extends GetxService {
           _currentIndex.value = index;
           _currentTrack.value = playlist[index];
 
+          // 加载歌词
+          await _loadLyrics(playlist[index]);
+
           // 创建音频源
           final audioSources = playlist.map((track) {
             return AudioSource.uri(
@@ -456,6 +466,7 @@ class AudioService extends GetxService {
           await _audioPlayer.setShuffleModeEnabled(isShuffleMode);
 
           print('State loaded successfully');
+          print('Current track: ${playlist[index]['name']}');
         }
       }
     } catch (e) {
