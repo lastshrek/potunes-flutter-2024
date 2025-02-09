@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:card_swiper/card_swiper.dart';
-import '../../services/network_service.dart';
-import 'package:flutter/foundation.dart';
-import '../../utils/http/api_exception.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../../widgets/horizontal_playlist_list.dart';
 import '../../screens/pages/playlist_page.dart';
@@ -12,79 +9,164 @@ import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../controllers/home_controller.dart';
 import '../../screens/pages/all_playlists_page.dart';
+import 'dart:io' show Platform, exit;
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomePage extends GetView<HomeController> {
   const HomePage({super.key});
 
+  Future<void> _openSettings() async {
+    if (Platform.isIOS) {
+      try {
+        // 使用 URL Scheme 打开设置
+        final settingsUrl = Uri.parse('App-Prefs:root=General');
+        if (await canLaunchUrl(settingsUrl)) {
+          await launchUrl(settingsUrl, mode: LaunchMode.externalApplication);
+        } else {
+          // 如果无法打开设置，尝试使用系统设置 URL
+          final fallbackUrl = Uri.parse('app-settings:');
+          if (await canLaunchUrl(fallbackUrl)) {
+            await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication);
+          }
+        }
+      } catch (e) {
+        // 如果出现错误，显示提示
+        Get.snackbar(
+          '提示',
+          '无法打开设置，请手动前往系统设置允许网络访问',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Obx(() {
-        if (controller.isInitialLoading) {
-          return _buildSkeletonList();
-        }
-
-        if (controller.error?.value != null) {
-          return Center(
-            child: Text(
-              'Error: ${controller.error?.value}',
-              style: const TextStyle(color: Colors.white),
-            ),
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: controller.refreshData,
-          backgroundColor: Colors.black,
-          color: Colors.white,
-          child: CustomScrollView(
-            slivers: [
-              SliverAppBar(
-                pinned: true,
-                floating: false,
-                leadingWidth: 48,
-                leading: IconButton(
-                  icon: const Icon(Icons.menu),
-                  onPressed: () {
-                    Scaffold.of(context).openDrawer();
-                  },
-                ),
-                title: SizedBox(
-                  height: 40,
-                  child: TextField(
-                    style: const TextStyle(color: Colors.white),
-                    textAlignVertical: TextAlignVertical.center,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.grey[900],
-                      hintText: '搜索音乐...',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    onChanged: (value) {
-                      // TODO: 实现搜索功能
-                    },
+    return Obx(() {
+      if (!controller.isNetworkReady) {
+        return Scaffold(
+          backgroundColor: const Color(0xff161616),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  '需要网络权限',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                actions: const [
-                  SizedBox(width: 8),
-                ],
-                backgroundColor: Colors.black,
-                elevation: 0,
-                toolbarHeight: 64,
-              ),
-              _buildCollectionsSection(context),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  controller.error.value ?? '请在设置中允许网络访问',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _openSettings,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('去设置'),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      onPressed: controller.retryConnection,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[800],
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('重试'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
-      }),
-    );
+      }
+
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Obx(() {
+          if (controller.isInitialLoading) {
+            return _buildSkeletonList();
+          }
+
+          if (controller.error.value != null) {
+            return Center(
+              child: Text(
+                'Error: ${controller.error.value}',
+                style: const TextStyle(color: Colors.white),
+              ),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: controller.refreshData,
+            backgroundColor: Colors.black,
+            color: Colors.white,
+            child: CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  pinned: true,
+                  floating: false,
+                  leadingWidth: 48,
+                  leading: IconButton(
+                    icon: const Icon(Icons.menu),
+                    onPressed: () {
+                      Scaffold.of(context).openDrawer();
+                    },
+                  ),
+                  title: SizedBox(
+                    height: 40,
+                    child: TextField(
+                      style: const TextStyle(color: Colors.white),
+                      textAlignVertical: TextAlignVertical.center,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.grey[900],
+                        hintText: '搜索音乐...',
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      onChanged: (value) {
+                        // TODO: 实现搜索功能
+                      },
+                    ),
+                  ),
+                  actions: const [
+                    SizedBox(width: 8),
+                  ],
+                  backgroundColor: Colors.black,
+                  elevation: 0,
+                  toolbarHeight: 64,
+                ),
+                _buildCollectionsSection(context),
+              ],
+            ),
+          );
+        }),
+      );
+    });
   }
 
   Widget _buildSkeletonList() {

@@ -1,10 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../config/api_config.dart';
-import 'package:flutter/foundation.dart';
 import 'api_exception.dart';
-import 'response_handler.dart';
 import 'package:get/get.dart';
-import 'package:flutter/material.dart';
 import '../../services/user_service.dart';
 
 class HttpClient {

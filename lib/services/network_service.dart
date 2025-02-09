@@ -2,12 +2,15 @@ import '../utils/http/http_client.dart';
 import '../config/api_config.dart';
 import 'package:dio/dio.dart';
 import '../utils/http/api_exception.dart';
-import 'package:flutter/foundation.dart';
 import '../services/user_service.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/services.dart';
 
 class NetworkService {
+  static const platform = MethodChannel('com.potunes.app/network');
   // 改名为 NetworkService
   final _client = HttpClient.instance;
+  bool _hasCheckedPermission = false;
 
   Future<List<dynamic>> getLatestCollections() async {
     try {
@@ -139,6 +142,7 @@ class NetworkService {
 
   Future<dynamic> get(String path) async {
     try {
+      await checkNetworkPermission();
       print('Making GET request to: ${ApiConfig.baseUrl}$path'); // 添加请求日志
 
       final response = await _client.get(
@@ -501,6 +505,32 @@ class NetworkService {
         statusCode: 500,
         message: '无效的响应格式',
       );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 修改网络状态检查方法
+  Future<bool> checkNetworkPermission() async {
+    if (_hasCheckedPermission) return true;
+
+    try {
+      if (Platform.isIOS) {
+        // 尝试发起一个测试请求
+        try {
+          await _client.get(ApiConfig.home);
+          _hasCheckedPermission = true;
+          return true;
+        } catch (e) {
+          // 如果请求失败，可能是因为需要网络权限
+          throw const ApiException(
+            statusCode: -1,
+            message: '需要网络权限才能使用应用',
+          );
+        }
+      }
+      _hasCheckedPermission = true;
+      return true;
     } catch (e) {
       rethrow;
     }

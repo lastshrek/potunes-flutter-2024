@@ -6,7 +6,7 @@ class ApiException implements Exception {
   final String message;
   final dynamic data;
 
-  ApiException({
+  const ApiException({
     required this.statusCode,
     required this.message,
     this.data,

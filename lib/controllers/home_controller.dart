@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../services/network_service.dart';
 import '../config/api_config.dart';
+import 'package:flutter/material.dart';
+import '../utils/http/api_exception.dart';
 
 class HomeController extends GetxController {
   final NetworkService _networkService = NetworkService();
@@ -14,6 +16,7 @@ class HomeController extends GetxController {
   final _isRefreshing = false.obs;
   final _error = Rxn<String>();
   final RxList<Map<String, dynamic>> _neteaseNewAlbums = <Map<String, dynamic>>[].obs;
+  final _isNetworkReady = false.obs;
 
   static const String _collectionsKey = 'home_collections_data';
   static const String _finalsKey = 'home_finals_data';
@@ -30,11 +33,35 @@ class HomeController extends GetxController {
   bool get isRefreshing => _isRefreshing.value;
   bool get isLoading => _isInitialLoading.value || _isRefreshing.value;
   Rxn<String> get error => _error;
+  bool get isNetworkReady => _isNetworkReady.value;
 
   @override
   void onInit() {
     super.onInit();
-    _initData();
+    _checkNetworkAndInit();
+  }
+
+  Future<void> _checkNetworkAndInit() async {
+    try {
+      await _networkService.checkNetworkPermission();
+      _isNetworkReady.value = true;
+      await _initData();
+    } catch (e) {
+      _error.value = e is ApiException ? e.message : e.toString();
+      Get.snackbar(
+        '网络错误',
+        _error.value ?? '未知错误',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
+
+      // 添加重试按钮
+      Future.delayed(const Duration(seconds: 2), () {
+        _checkNetworkAndInit();
+      });
+    }
   }
 
   Future<void> _initData() async {
@@ -122,5 +149,11 @@ class HomeController extends GetxController {
       _isRefreshing.value = false;
       _isInitialLoading.value = false;
     }
+  }
+
+  // 添加重试方法
+  Future<void> retryConnection() async {
+    _isNetworkReady.value = false;
+    await _checkNetworkAndInit();
   }
 }
