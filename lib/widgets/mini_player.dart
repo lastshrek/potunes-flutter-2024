@@ -297,14 +297,6 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // 喜欢按钮
-                                    IconButton(
-                                      icon: Obx(() => Icon(
-                                            controller.isLike ? Icons.favorite : Icons.favorite_border,
-                                            color: controller.isLike ? Colors.pink : Colors.white,
-                                          )),
-                                      onPressed: controller.toggleLike,
-                                    ),
                                     // 播放/暂停按钮
                                     IconButton(
                                       icon: Obx(() => Icon(
@@ -312,6 +304,14 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                                             color: Colors.white,
                                           )),
                                       onPressed: controller.togglePlay,
+                                    ),
+                                    // 喜欢按钮
+                                    IconButton(
+                                      icon: Obx(() => Icon(
+                                            controller.isLike ? Icons.favorite : Icons.favorite_border,
+                                            color: controller.isLike ? Colors.pink : Colors.white,
+                                          )),
+                                      onPressed: controller.toggleLike,
                                     ),
                                   ],
                                 ),
