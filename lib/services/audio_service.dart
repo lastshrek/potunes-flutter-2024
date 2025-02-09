@@ -112,39 +112,32 @@ class AudioService extends GetxService {
   }
 
   void _setupPlayerListeners() {
+    // 监听当前索引变化
     _audioPlayer.currentIndexStream.listen((index) {
       if (index != null && _currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
         // 确保索引在有效范围内
         final safeIndex = index.clamp(0, _currentPlaylist.value!.length - 1);
+        _currentIndex.value = safeIndex;
         final currentTrack = _currentPlaylist.value![safeIndex];
-
-        // 更新当前播放的歌曲
         _currentTrack.value = currentTrack;
 
+        // 更新歌词
+        _loadLyrics(currentTrack);
+
         // 查找下一首歌
-        final nextIndex = (safeIndex + 1).clamp(0, _currentPlaylist.value!.length - 1);
-        if (nextIndex < _currentPlaylist.value!.length) {
-          _nextTrack.value = _currentPlaylist.value![nextIndex];
-        }
+        final nextIndex = (safeIndex + 1) % _currentPlaylist.value!.length;
+        _nextTrack.value = _currentPlaylist.value![nextIndex];
       }
     });
 
+    // 监听播放状态
     _audioPlayer.playingStream.listen((isPlaying) {
       _isPlaying.value = isPlaying;
     });
 
+    // 监听缓冲状态
     _audioPlayer.processingStateStream.listen((state) {
-      switch (state) {
-        case ProcessingState.loading:
-        case ProcessingState.buffering:
-          _isBuffering.value = true;
-          break;
-        case ProcessingState.ready:
-          _isBuffering.value = false;
-          break;
-        default:
-          break;
-      }
+      _isBuffering.value = state == ProcessingState.loading || state == ProcessingState.buffering;
     });
 
     // 监听播放进度
@@ -152,20 +145,26 @@ class AudioService extends GetxService {
       _position.value = position;
     });
 
-    // 监听播放错误
+    // 监听音频时长
+    _audioPlayer.durationStream.listen((duration) {
+      if (duration != null) {
+        _duration.value = duration;
+      }
+    });
+
+    // 监听播放完成
     _audioPlayer.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed) {
-        // 播放完成时的处理
-        if (_currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
-          final currentIndex = _currentPlaylist.value!.indexWhere((track) => track['id'] == _currentTrack.value?['id']);
-          if (currentIndex >= 0 && currentIndex < _currentPlaylist.value!.length - 1) {
-            // 还有下一首歌
-            playTrack(_currentPlaylist.value![currentIndex + 1]);
-          } else {
-            // 已经是最后一首
-            _stop();
-          }
+      if (state.processingState == ProcessingState.completed && !_isHandlingCompletion) {
+        _isHandlingCompletion = true;
+        if (_repeatMode.value == RepeatMode.single) {
+          // 单曲循环
+          _audioPlayer.seek(Duration.zero).then((_) => _audioPlayer.play());
+        } else if (_currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
+          // 列表循环
+          final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
+          skipToQueueItem(nextIndex);
         }
+        _isHandlingCompletion = false;
       }
     });
   }
