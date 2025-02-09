@@ -4,18 +4,18 @@ import 'skeleton_loading.dart';
 
 class HorizontalPlaylistList extends StatelessWidget {
   final String title;
-  final List<dynamic> playlists;
-  final VoidCallback? onTitleTap;
-  final Function(Map<String, dynamic>)? onPlaylistTap;
+  final List<Map<String, dynamic>> playlists;
   final bool isLoading;
+  final VoidCallback? onTitleTap;
+  final Function(Map<String, dynamic>) onPlaylistTap;
 
   const HorizontalPlaylistList({
     super.key,
     required this.title,
     required this.playlists,
+    required this.isLoading,
     this.onTitleTap,
-    this.onPlaylistTap,
-    this.isLoading = false,
+    required this.onPlaylistTap,
   });
 
   @override
@@ -75,178 +75,99 @@ class HorizontalPlaylistList extends StatelessWidget {
             itemCount: isLoading ? 3 : playlists.length,
             itemBuilder: (context, index) {
               if (isLoading) {
-                return const _PlaylistCard.loading();
+                return Container(
+                  width: 120,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: const SkeletonLoading(),
+                );
               }
+
               final item = playlists[index];
-              return _PlaylistCard(
-                imageUrl: item['cover'] ?? '',
-                title: item['title'] ?? '',
-                onTap: () {
-                  onPlaylistTap?.call(item);
-                },
+              return GestureDetector(
+                onTap: () => onPlaylistTap(item),
+                child: Container(
+                  width: 120,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AspectRatio(
+                        aspectRatio: 1,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: CachedNetworkImage(
+                              imageUrl: item['cover'] ?? '',
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[800],
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.music_note,
+                                    color: Colors.white54,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey[800],
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.error_outline,
+                                    color: Colors.white54,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item['title']?.toString() ?? '',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            if (item['artist'] != null)
+                              Text(
+                                item['artist'].toString(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[400],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               );
             },
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildPlaylistItem(Map<String, dynamic> playlist) {
-    return GestureDetector(
-      onTap: () => onPlaylistTap?.call(playlist),
-      child: Container(
-        width: 120,
-        margin: const EdgeInsets.only(right: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: 120,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: playlist['cover'] ?? '',
-                  fit: BoxFit.cover,
-                  memCacheWidth: 240, // 限制缓存图片大小
-                  placeholder: (context, url) => Container(
-                    color: Colors.grey[800],
-                    child: const Center(
-                      child: Icon(
-                        Icons.music_note,
-                        color: Colors.white54,
-                      ),
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    color: Colors.grey[800],
-                    child: const Center(
-                      child: Icon(
-                        Icons.error_outline,
-                        color: Colors.white54,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              playlist['title'] ?? '',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (playlist['count'] != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                '${playlist['count']} 首歌曲',
-                style: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaylistCard extends StatelessWidget {
-  final String imageUrl;
-  final String title;
-  final VoidCallback? onTap;
-  final bool isLoading;
-
-  const _PlaylistCard({
-    required this.imageUrl,
-    required this.title,
-    this.onTap,
-  }) : isLoading = false;
-
-  const _PlaylistCard.loading()
-      : imageUrl = '',
-        title = '',
-        onTap = null,
-        isLoading = true;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return Container(
-        width: 140,
-        margin: const EdgeInsets.only(right: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const AspectRatio(
-              aspectRatio: 1,
-              child: SkeletonLoading(),
-            ),
-            const SizedBox(height: 6),
-            const SkeletonLoading(
-              width: 100,
-              height: 24,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      width: 140,
-      margin: const EdgeInsets.only(right: 12),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(
-                    image: NetworkImage(imageUrl),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            SizedBox(
-              height: 32,
-              child: Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  height: 1.2,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -137,61 +137,33 @@ class NetworkService {
     }
   }
 
-  Future<T> get<T>(
-    String path, {
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-    CancelToken? cancelToken,
-  }) async {
+  Future<dynamic> get(String path) async {
     try {
-      final Response response = await _client.get(
+      print('Making GET request to: ${ApiConfig.baseUrl}$path'); // 添加请求日志
+
+      final response = await _client.get(
         path,
-        queryParameters: queryParameters,
-        options: options,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+        ),
       );
 
-      // 处理不同的响应类型
-      if (T == Map<String, dynamic>) {
-        debugPrint('Expecting Map<String, dynamic>');
-        if (response.data is Map<String, dynamic>) {
-          debugPrint('Response data is Map<String, dynamic>');
-          return response.data as T;
-        }
-        debugPrint('Response data is not Map<String, dynamic>');
-        // 尝试转换
-        if (response.data is Map) {
-          debugPrint('Attempting to convert Map to Map<String, dynamic>');
-          final Map<String, dynamic> convertedData = Map<String, dynamic>.from(response.data);
-          return convertedData as T;
-        }
-        throw ApiException(
-          statusCode: response.statusCode ?? 500,
-          message: 'Response type mismatch: expected Map<String, dynamic>, got ${response.data.runtimeType}',
-        );
+      print('Response received: $response'); // 添加响应日志
+
+      if (response is Map<String, dynamic>) {
+        return response;
+      } else if (response.data is Map<String, dynamic>) {
+        return response.data;
       }
 
-      if (T == List<dynamic>) {
-        debugPrint('Expecting List<dynamic>');
-        if (response.data is List<dynamic>) {
-          debugPrint('Response data is List<dynamic>');
-          return response.data as T;
-        }
-        debugPrint('Response data is not List<dynamic>');
-        throw ApiException(
-          statusCode: response.statusCode ?? 500,
-          message: 'Response type mismatch: expected List<dynamic>, got ${response.data.runtimeType}',
-        );
-      }
-
-      debugPrint('Attempting direct type cast to $T');
-      return response.data as T;
+      throw ApiException(
+        statusCode: 500,
+        message: '无效的响应格式',
+      );
     } catch (e) {
-      debugPrint('Error in GET request: $e');
-      debugPrint('Error type: ${e.runtimeType}');
-      if (e is TypeError) {
-        debugPrint('Type error details: ${e.toString()}');
-      }
-      _handleError(e);
+      print('Error in GET request: $e'); // 添加错误日志
       rethrow;
     }
   }
@@ -492,6 +464,42 @@ class NetworkService {
       );
     } catch (e) {
       print('Error getting toplist detail: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getNewAlbumDetail(int id) async {
+    try {
+      final response = await _client.get(
+        '${ApiConfig.baseUrl}${ApiConfig.neteaseNewAlbum}/$id',
+      );
+
+      if (response is Map<String, dynamic> && response['statusCode'] == 200) {
+        final data = response['data'] as Map<String, dynamic>;
+
+        if (data['tracks'] is List) {
+          final List<dynamic> tracks = data['tracks'] as List<dynamic>;
+          final List<Map<String, dynamic>> processedTracks = tracks.map((track) {
+            if (track is Map<String, dynamic>) {
+              return {
+                ...track,
+                'type': 'netease',
+              };
+            }
+            return track as Map<String, dynamic>;
+          }).toList();
+
+          data['tracks'] = processedTracks;
+        }
+
+        return data;
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: '无效的响应格式',
+      );
+    } catch (e) {
       rethrow;
     }
   }

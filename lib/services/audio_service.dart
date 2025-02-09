@@ -147,9 +147,7 @@ class AudioService extends GetxService {
 
       // 监听序列状态变化
       _audioPlayer.sequenceStateStream.listen((sequenceState) {
-        if (sequenceState != null && sequenceState.currentIndex != null) {
-          final newIndex = sequenceState.currentIndex!;
-
+        if (sequenceState != null) {
           // 获取控制中心当前歌曲信息
           final currentSource = sequenceState.currentSource;
           if (currentSource != null) {

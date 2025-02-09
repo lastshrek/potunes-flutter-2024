@@ -454,6 +454,24 @@ class HomePage extends GetView<HomeController> {
             );
           },
         ),
+        const SizedBox(height: 24),
+        // Netease New Albums 部分
+        HorizontalPlaylistList(
+          title: 'Netease New Albums',
+          playlists: controller.neteaseNewAlbums,
+          isLoading: controller.isRefreshing,
+          onTitleTap: null,
+          onPlaylistTap: (playlist) {
+            Get.to(
+              () => PlaylistPage(
+                playlist: playlist,
+                playlistId: int.parse(playlist['nId'].toString()),
+                isFromTopList: true,
+              ),
+              transition: Transition.rightToLeft,
+            );
+          },
+        ),
         // 添加底部 padding，考虑 mini player 和底部导航栏的高度
         SizedBox(
           height: 16, // mini player 的高度
