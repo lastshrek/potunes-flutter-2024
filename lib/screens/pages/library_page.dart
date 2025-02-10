@@ -4,7 +4,6 @@ import '../../services/user_service.dart';
 import 'dart:convert';
 import '../../controllers/navigation_controller.dart';
 import '../../screens/pages/favourites_page.dart';
-import '../../screens/pages/login_page.dart';
 
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});

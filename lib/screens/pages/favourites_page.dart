@@ -309,7 +309,6 @@ class FavouritesPage extends StatelessWidget {
                                     itemBuilder: (context, index) {
                                       final albumName = albums.keys.elementAt(index);
                                       final albumSongs = albums[albumName]!;
-                                      final firstSong = albumSongs.first;
 
                                       return ListTile(
                                         contentPadding: const EdgeInsets.symmetric(

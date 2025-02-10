@@ -9,8 +9,7 @@ import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../controllers/home_controller.dart';
 import '../../screens/pages/all_playlists_page.dart';
-import 'dart:io' show Platform, exit;
-import 'package:flutter/services.dart';
+import 'dart:io' show Platform;
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/audio_service.dart';
 
@@ -117,11 +116,6 @@ class _HomePageState extends State<HomePage> {
       return Scaffold(
         backgroundColor: Colors.black,
         body: Obx(() {
-          print('Building HomePage with collections: ${controller.collections.length}');
-          print('Building HomePage with finals: ${controller.finals.length}');
-          print('Building HomePage with albums: ${controller.albums.length}');
-          print('Building HomePage with netease: ${controller.neteaseToplist.length}');
-
           if (controller.isRefreshing) {
             return _buildSkeletonList();
           }
@@ -219,7 +213,6 @@ class _HomePageState extends State<HomePage> {
   Widget _buildCollectionsSection(BuildContext context) {
     final collections = controller.collections;
     final finalPlaylists = controller.finals;
-    final albums = controller.albums;
     final neteaseToplist = controller.neteaseToplist;
 
     return SliverList(
