@@ -97,17 +97,38 @@ class _LibraryPageState extends State<LibraryPage> {
     try {
       final File imageFile = File(image.path);
 
-      // 压缩图片
+      // 进一步降低压缩参数
       final List<int> compressedBytes = await FlutterImageCompress.compressWithFile(
             imageFile.absolute.path,
-            minWidth: 512, // 限制最大宽度
-            minHeight: 512, // 限制最大高度
-            quality: 70, // 压缩质量
+            minWidth: 256, // 降低最大宽度
+            minHeight: 256, // 降低最大高度
+            quality: 50, // 降低压缩质量
           ) ??
           [];
 
       if (compressedBytes.isEmpty) {
         throw '图片压缩失败';
+      }
+
+      // 检查压缩后的大小
+      final int sizeInKB = compressedBytes.length ~/ 1024;
+      print('Compressed image size: $sizeInKB KB');
+
+      // 如果还是太大，进一步压缩
+      if (sizeInKB > 100) {
+        final List<int> furtherCompressedBytes = await FlutterImageCompress.compressWithFile(
+              imageFile.absolute.path,
+              minWidth: 128,
+              minHeight: 128,
+              quality: 30,
+            ) ??
+            [];
+
+        if (furtherCompressedBytes.isNotEmpty) {
+          print('Further compressed image size: ${furtherCompressedBytes.length ~/ 1024} KB');
+          compressedBytes.clear();
+          compressedBytes.addAll(furtherCompressedBytes);
+        }
       }
 
       // 转换为 base64
