@@ -12,6 +12,8 @@ import '../../screens/pages/all_playlists_page.dart';
 import 'dart:io' show Platform;
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/audio_service.dart';
+import '../../widgets/common/app_header.dart';
+import '../../widgets/common/app_drawer.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -115,6 +117,7 @@ class _HomePageState extends State<HomePage> {
 
       return Scaffold(
         backgroundColor: Colors.black,
+        drawer: const AppDrawer(),
         body: Obx(() {
           if (controller.collections.isEmpty) {
             return _buildSkeletonList();
@@ -149,44 +152,13 @@ class _HomePageState extends State<HomePage> {
             color: Colors.white,
             child: CustomScrollView(
               slivers: [
-                SliverAppBar(
-                  pinned: true,
-                  floating: false,
-                  leadingWidth: 48,
-                  leading: IconButton(
-                    icon: const Icon(Icons.menu),
-                    onPressed: () {
-                      Scaffold.of(context).openDrawer();
-                    },
-                  ),
-                  title: SizedBox(
-                    height: 40,
-                    child: TextField(
-                      style: const TextStyle(color: Colors.white),
-                      textAlignVertical: TextAlignVertical.center,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.grey[900],
-                        hintText: '搜索音乐...',
-                        hintStyle: TextStyle(color: Colors.grey[400]),
-                        prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      onChanged: (value) {
-                        // TODO: 实现搜索功能
-                      },
-                    ),
-                  ),
-                  actions: const [
-                    SizedBox(width: 8),
-                  ],
-                  backgroundColor: Colors.black,
-                  elevation: 0,
-                  toolbarHeight: 64,
+                AppHeader(
+                  title: '', // 空标题
+                  showSearch: true, // 显示搜索栏
+                  onSearchChanged: (value) {
+                    // TODO: 实现搜索功能
+                    print('Search query: $value');
+                  },
                 ),
                 _buildCollectionsSection(context),
               ],

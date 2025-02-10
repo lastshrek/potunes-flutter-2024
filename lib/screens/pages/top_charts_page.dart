@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../controllers/top_charts_controller.dart';
+import '../../widgets/common/app_header.dart';
+import '../../widgets/common/app_drawer.dart';
 
 class TopChartsPage extends GetView<TopChartsController> {
   const TopChartsPage({super.key});
@@ -10,96 +12,81 @@ class TopChartsPage extends GetView<TopChartsController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {
-            Scaffold.of(context).openDrawer();
-          },
-        ),
-        title: const Text(
-          'Top Charts',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      body: Obx(() {
-        print('Building TopChartsPage with ${controller.charts.length} items');
-        print('isNetworkReady: ${controller.isNetworkReady}');
+      drawer: const AppDrawer(),
+      body: CustomScrollView(
+        slivers: [
+          const AppHeader(title: 'Top Charts'),
+          Obx(() {
+            print('Building TopChartsPage with ${controller.charts.length} items');
+            print('isNetworkReady: ${controller.isNetworkReady}');
 
-        // 显示加载动画
-        if (controller.isRefreshing) {
-          return _buildSkeletonList();
-        }
+            // 显示加载动画
+            if (controller.isRefreshing) {
+              return _buildSkeletonList();
+            }
 
-        // 显示错误信息
-        if (controller.error.value != null) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  controller.error.value!,
-                  style: const TextStyle(color: Colors.white),
-                  textAlign: TextAlign.center,
+            // 显示错误信息
+            if (controller.error.value != null) {
+              return SliverFillRemaining(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      controller.error.value!,
+                      style: const TextStyle(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: controller.retryConnection,
+                      child: const Text(
+                        '重试',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: controller.retryConnection,
-                  child: const Text(
-                    '重试',
+              );
+            }
+
+            // 显示空状态
+            if (controller.charts.isEmpty) {
+              if (!controller.isNetworkReady) {
+                return const SliverFillRemaining(
+                  child: Center(
+                    child: Text(
+                      '等待网络连接...',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                );
+              }
+              return const SliverFillRemaining(
+                child: Center(
+                  child: Text(
+                    '暂无数据',
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
-              ],
-            ),
-          );
-        }
+              );
+            }
 
-        // 显示空状态
-        if (controller.charts.isEmpty) {
-          if (!controller.isNetworkReady) {
-            return const Center(
-              child: Text(
-                '等待网络连接...',
-                style: TextStyle(color: Colors.white),
+            // 显示数据列表
+            return SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final chart = controller.charts[index];
+                    return _buildTrackItem(chart, index);
+                  },
+                  childCount: controller.charts.length,
+                ),
               ),
             );
-          }
-          return const Center(
-            child: Text(
-              '暂无数据',
-              style: TextStyle(color: Colors.white),
-            ),
-          );
-        }
-
-        // 显示数据列表
-        return RefreshIndicator(
-          onRefresh: controller.refreshData,
-          backgroundColor: Colors.black,
-          color: Colors.white,
-          child: ListView.builder(
-            padding: const EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 16,
-              bottom: 16,
-            ),
-            itemCount: controller.charts.length,
-            itemBuilder: (context, index) {
-              final chart = controller.charts[index];
-              return controller.isRefreshing ? _buildSkeletonItem() : _buildTrackItem(chart, index);
-            },
-          ),
-        );
-      }),
+          }),
+        ],
+      ),
     );
   }
 
@@ -155,15 +142,17 @@ class TopChartsPage extends GetView<TopChartsController> {
   }
 
   Widget _buildSkeletonList() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[900]!,
-      highlightColor: Colors.grey[800]!,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: 10,
-        itemBuilder: (context, index) {
-          return _buildSkeletonItem();
-        },
+    return SliverPadding(
+      padding: const EdgeInsets.all(16),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => Shimmer.fromColors(
+            baseColor: Colors.grey[900]!,
+            highlightColor: Colors.grey[800]!,
+            child: _buildSkeletonItem(),
+          ),
+          childCount: 10,
+        ),
       ),
     );
   }
