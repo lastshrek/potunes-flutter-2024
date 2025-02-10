@@ -33,6 +33,7 @@ class ApiConfig {
 
   // 用户相关
   static const String updateAvatar = '/v1/users/avatar';
+  static const String updateProfile = '/v1/users/profile';
 
   // 超时时间
   static const int connectTimeout = 15000; // 15s

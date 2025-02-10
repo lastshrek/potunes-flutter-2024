@@ -7,6 +7,7 @@ import 'dart:io';
 import '../../controllers/navigation_controller.dart';
 import '../../screens/pages/favourites_page.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import '../../screens/pages/profile_page.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -285,7 +286,7 @@ class _LibraryPageState extends State<LibraryPage> {
                     ),
                   ),
                   onTap: () {
-                    // TODO: 导航到编辑资料页面
+                    Get.to(() => const ProfilePage());
                   },
                 ),
               ],

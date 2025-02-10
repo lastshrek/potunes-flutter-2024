@@ -768,4 +768,38 @@ class NetworkService {
       return false;
     }
   }
+
+  Future<bool> updateProfile({
+    String? nickname,
+    String? intro,
+    String? gender,
+  }) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.patch(
+        ApiConfig.updateProfile,
+        data: {
+          if (nickname != null) 'nickname': nickname,
+          if (intro != null) 'intro': intro,
+          if (gender != null) 'gender': gender,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+          contentType: 'application/json',
+        ),
+      );
+
+      if (response is Map && response['statusCode'] == 200) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Error updating profile: $e');
+      return false;
+    }
+  }
 }

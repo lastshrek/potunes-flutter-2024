@@ -3,154 +3,315 @@ import 'package:get/get.dart';
 import '../../services/user_service.dart';
 import 'login_page.dart';
 import '../../controllers/navigation_controller.dart';
+import 'dart:convert';
+import '../../services/network_service.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
   @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  final _nicknameController = TextEditingController();
+  final _introController = TextEditingController();
+  String? _selectedGender;
+  String? _avatarBase64;
+  String? _phone;
+
+  static const List<String> _genderOptions = ['male', 'female', 'other'];
+
+  @override
+  void initState() {
+    super.initState();
+    // 检查登录状态
+    if (!UserService.to.isLoggedIn) {
+      // 如果未登录，显示提示并返回
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Get.snackbar(
+          'Error',
+          'Please login first',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+        );
+        Get.back();
+      });
+      return;
+    }
+
+    // 如果已登录，加载用户数据
+    final userData = UserService.to.userData;
+    if (userData != null) {
+      _nicknameController.text = userData['nickname']?.toString() ?? '';
+      _introController.text = userData['intro']?.toString() ?? '';
+      final gender = userData['gender']?.toString() ?? '';
+      _selectedGender = _genderOptions.contains(gender) ? gender : null;
+      _avatarBase64 = userData['avatar'];
+      _phone = userData['phone']?.toString() ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _nicknameController.dispose();
+    _introController.dispose();
+    super.dispose();
+  }
+
+  String _formatPhone(String phone) {
+    if (phone.isEmpty) return '';
+    if (phone.length != 11) return phone;
+    return '${phone.substring(0, 3)}****${phone.substring(7, 11)}';
+  }
+
+  Future<void> _handleSave() async {
+    try {
+      // 显示加载中提示
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(),
+        ),
+        barrierDismissible: false,
+      );
+
+      final result = await NetworkService.instance.updateProfile(
+        nickname: _nicknameController.text.trim(),
+        intro: _introController.text.trim(),
+        gender: _selectedGender,
+      );
+
+      // 关闭加载对话框
+      Get.back();
+
+      if (result) {
+        // 更新本地用户数据
+        final userData = UserService.to.userData;
+        if (userData != null) {
+          userData['nickname'] = _nicknameController.text.trim();
+          userData['intro'] = _introController.text.trim();
+          userData['gender'] = _selectedGender;
+          UserService.to.updateUserData(userData);
+        }
+
+        // 先返回上一页
+        Get.back(result: {
+          'nickname': _nicknameController.text.trim(),
+          'intro': _introController.text.trim(),
+          'gender': _selectedGender,
+        });
+
+        // 然后显示成功提示
+        Get.snackbar(
+          'Success',
+          'Profile updated successfully',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 2),
+        );
+      } else {
+        Get.snackbar(
+          'Error',
+          'Failed to update profile',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 2),
+        );
+      }
+    } catch (e) {
+      // 确保加载对话框被关闭
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      Get.snackbar(
+        'Error',
+        'An error occurred while updating profile',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // 如果未登录，显示加载界面
+    if (!UserService.to.isLoggedIn) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 顶部标题
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: const Row(
-                children: [
-                  Text(
-                    'Profile',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Edit Profile'),
+        actions: [
+          TextButton(
+            onPressed: _handleSave,
+            child: const Text(
+              'Save',
+              style: TextStyle(color: Color(0xFFDA5597)),
             ),
-
-            // 用户信息
-            Expanded(
-              child: Obx(() {
-                final isLoggedIn = UserService.to.isLoggedIn;
-
-                if (!isLoggedIn) {
-                  return Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Get.to(() => const LoginPage());
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00FFA3),
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 16,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'Login',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                return ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    // 用户头像和名称
-                    const CircleAvatar(
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 头像（不可修改）
+            Center(
+              child: _avatarBase64 != null
+                  ? CircleAvatar(
                       radius: 50,
-                      backgroundColor: Color(0xFF00FFA3),
+                      backgroundImage: MemoryImage(
+                        base64Decode(_avatarBase64!.contains(',') ? _avatarBase64!.split(',').last : _avatarBase64!),
+                      ),
+                    )
+                  : const CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Color(0xFF1E1E1E),
                       child: Icon(
                         Icons.person,
                         size: 50,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Test User',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 32),
+            ),
+            const SizedBox(height: 24),
 
-                    // 退出登录按钮
-                    ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          print('=== Logout Button Pressed ===');
+            // 手机号（不可修改）
+            const Text(
+              'Phone',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _formatPhone(_phone ?? ''),
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
 
-                          // 先执行登出
-                          print('Calling UserService.logout()');
-                          await UserService.to.logout();
-                          print('UserService.logout() completed');
+            // 昵称（可修改）
+            const Text(
+              'Nickname',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _nicknameController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.grey[900],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                hintText: 'Enter your nickname',
+                hintStyle: TextStyle(color: Colors.grey[700]),
+              ),
+            ),
+            const SizedBox(height: 24),
 
-                          // 检查登录状态
-                          print('Current login status: ${UserService.to.isLoggedIn}');
-
-                          // 获取 NavigationController 并模拟点击 home
-                          final navigationController = Get.find<NavigationController>();
-                          navigationController.changePage(0);
-
-                          // 关闭当前页面，返回到主页
-                          Get.back();
-
-                          // 显示退出成功提示
-                          Get.snackbar(
-                            'Success',
-                            'Logged out successfully',
-                            snackPosition: SnackPosition.BOTTOM,
-                            backgroundColor: Colors.green,
-                            colorText: Colors.white,
-                            margin: const EdgeInsets.all(16),
-                          );
-                        } catch (e) {
-                          print('Error during logout: $e');
-                          print('Stack trace: ${StackTrace.current}');
-                          Get.snackbar(
-                            'Error',
-                            'Failed to logout',
-                            snackPosition: SnackPosition.BOTTOM,
-                            backgroundColor: Colors.red,
-                            colorText: Colors.white,
-                            margin: const EdgeInsets.all(16),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'Logout',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+            // 性别选择
+            const Text(
+              'Gender',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: DropdownButton<String>(
+                value: _selectedGender,
+                isExpanded: true,
+                dropdownColor: Colors.grey[900],
+                style: const TextStyle(color: Colors.white),
+                hint: Text(
+                  'Select gender',
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+                underline: const SizedBox(),
+                items: _genderOptions.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(
+                      value.substring(0, 1).toUpperCase() + value.substring(1),
+                      style: const TextStyle(color: Colors.white),
                     ),
-                  ],
-                );
-              }),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedGender = value;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // 个人简介
+            const Text(
+              'Bio',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _introController,
+              style: const TextStyle(color: Colors.white),
+              maxLines: 3,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.grey[900],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                hintText: 'Tell us about yourself',
+                hintStyle: TextStyle(color: Colors.grey[700]),
+              ),
             ),
           ],
         ),

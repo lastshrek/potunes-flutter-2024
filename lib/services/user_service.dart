@@ -118,4 +118,17 @@ class UserService extends GetxService {
       rethrow;
     }
   }
+
+  void updateUserData(Map<String, dynamic> newData) {
+    _userData.value = newData;
+    // 保存到本地存储
+    _saveUserData();
+  }
+
+  Future<void> _saveUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_userData.value != null) {
+      await prefs.setString('user_data', jsonEncode(_userData.value));
+    }
+  }
 }
