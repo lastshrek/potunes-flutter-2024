@@ -100,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Colors.black,
               ),
               child: Text(
-                'PoTunes',
+                '破破',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,

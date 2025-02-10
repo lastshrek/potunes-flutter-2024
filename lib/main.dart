@@ -142,7 +142,7 @@ Future<void> main() async {
   final versionService = Get.put(VersionService(dio));
 
   runApp(GetMaterialApp(
-    title: 'PoTunes',
+    title: '破破',
     debugShowCheckedModeBanner: false,
     theme: ThemeData(
       colorScheme: ColorScheme.dark(
