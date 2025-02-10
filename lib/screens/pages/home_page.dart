@@ -613,7 +613,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 24),
         // Final 部分
         HorizontalPlaylistList(
-          title: 'Final',
+          title: 'Finals',
           playlists: finalPlaylists,
           isLoading: controller.isRefreshing,
           onTitleTap: () {

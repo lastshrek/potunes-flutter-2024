@@ -1,6 +1,8 @@
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 
 class UserService extends GetxService {
   static UserService get to => Get.find();
@@ -17,6 +19,8 @@ class UserService extends GetxService {
   String get token => _token.value;
   int get userId => _userId.value;
   Map<String, dynamic>? get userData => _userData.value;
+
+  final _dio = Dio();
 
   Future<UserService> init() async {
     await _loadUserData();
@@ -86,6 +90,22 @@ class UserService extends GetxService {
     } catch (e) {
       print('Error during logout: $e');
       print('Stack trace: ${StackTrace.current}');
+      rethrow;
+    }
+  }
+
+  Future<void> updateAvatar(String base64Image) async {
+    try {
+      // 直接更新本地数据
+      final prefs = await SharedPreferences.getInstance();
+      final currentData = _userData.value ?? {};
+      currentData['avatar'] = base64Image;
+      _userData.value = currentData;
+
+      // 保存到本地存储
+      await prefs.setString(_userDataKey, json.encode(currentData));
+    } catch (e) {
+      print('Error updating avatar: $e');
       rethrow;
     }
   }
