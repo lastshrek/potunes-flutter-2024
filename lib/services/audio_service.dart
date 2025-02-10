@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lyric_line.dart';
 import '../services/network_service.dart';
-import 'package:flutter/material.dart';
 import 'package:audio_session/audio_session.dart';
 
 // 修改循环模式枚举
@@ -437,8 +436,6 @@ class AudioService extends GetxService {
   }
 
   Future<void> _loadLyrics(Map<String, dynamic> track) async {
-    if (track == null) return;
-
     try {
       _isLoadingLyrics.value = true;
 

@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // 监听 NavigationController 的变化
     ever(navigationController.currentPage.obs, (index) {
       if (mounted) {
-        navigationController.pageController.jumpToPage(index as int);
+        navigationController.pageController.jumpToPage(index);
       }
     });
   }

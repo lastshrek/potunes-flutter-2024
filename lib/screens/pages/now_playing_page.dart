@@ -4,8 +4,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../../services/audio_service.dart';
-import '../../services/network_service.dart';
-import '../../config/api_config.dart';
 import '../../models/lyric_line.dart';
 import '../../widgets/empty_screen.dart';
 import 'dart:math' as math;

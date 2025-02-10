@@ -258,19 +258,6 @@ class NetworkService {
     }
   }
 
-  void _handleError(dynamic error) {
-    if (error is DioException) {
-      throw ApiException.fromDioError(error);
-    } else if (error is ApiException) {
-      throw error;
-    } else {
-      throw ApiException(
-        statusCode: 500,
-        message: error.toString(),
-      );
-    }
-  }
-
   Future<Map<String, dynamic>> getTopCharts() async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();

@@ -153,24 +153,11 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
           });
         }
 
-        // 添加时间格式化函数
-        String formatDuration(Duration duration) {
-          String twoDigits(int n) => n.toString().padLeft(2, '0');
-          String minutes = twoDigits(duration.inMinutes.remainder(60));
-          String seconds = twoDigits(duration.inSeconds.remainder(60));
-          return '$minutes:$seconds';
-        }
-
         // 打印详细的播放信息（每秒打印一次）
         final position = controller.position;
-        final duration = controller.duration;
-        final progress = duration.inMilliseconds > 0 ? position.inMilliseconds / duration.inMilliseconds : 0.0;
 
         // 只在秒数变化时打印
         if (position.inSeconds != _lastPrintedSecond) {
-          // print('Track: ${currentTrack['name']}');
-          // print('Position: ${formatDuration(position)} / ${formatDuration(duration)}');
-          // print('Progress: ${(progress * 100).toStringAsFixed(1)}%');
           _lastPrintedSecond = position.inSeconds;
         }
 

@@ -7,22 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-// import 'package:hive_flutter/hive_flutter.dart';
-// import 'package:path_provider/path_provider.dart';
-// import 'package:potunes_flutter/screens/favourites.dart';
-// import 'package:potunes_flutter/screens/screen.dart';
-// import 'package:potunes_flutter/theme/app_theme.dart';
-// import 'services/service_locator.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'screens/home_screen.dart';
 import 'services/audio_service.dart';
-import 'controllers/navigation_controller.dart';
 import 'routes/app_pages.dart';
 import 'bindings/initial_binding.dart';
 import 'services/user_service.dart';
 import 'controllers/app_controller.dart';
-// import 'screens/mini_player.dart';
-// import 'controllers/navigation_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +33,6 @@ Future<void> main() async {
 
   // 初始化 GetX 服务
   Get.put(AudioService(), permanent: true);
-  final navigationController = Get.put(NavigationController());
 
   // 修改日志处理逻辑
   if (kDebugMode) {
