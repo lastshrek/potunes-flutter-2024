@@ -211,7 +211,7 @@ class _LoginPageState extends State<LoginPage> {
                               const Text(
                                 'PoPo\nCollections\nMusic.',
                                 style: TextStyle(
-                                  color: Color(0xFF00FFA3),
+                                  color: Color(0xFFDA5597),
                                   fontSize: 40,
                                   fontWeight: FontWeight.bold,
                                   height: 1.2,
@@ -233,7 +233,7 @@ class _LoginPageState extends State<LoginPage> {
                                     contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                     hintText: 'Enter Your CellPhone Number',
                                     hintStyle: TextStyle(color: Colors.grey),
-                                    prefixIcon: Icon(Icons.phone_android, color: Color(0xFF00FFA3)),
+                                    prefixIcon: Icon(Icons.phone_android, color: Color(0xFFDA5597)),
                                     prefixIconConstraints: BoxConstraints(minWidth: 40),
                                     isDense: false,
                                     isCollapsed: false,
@@ -259,7 +259,7 @@ class _LoginPageState extends State<LoginPage> {
                                               contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                               hintText: 'Enter Captcha Received',
                                               hintStyle: TextStyle(color: Colors.grey),
-                                              prefixIcon: Icon(Icons.message, color: Color(0xFF00FFA3)),
+                                              prefixIcon: Icon(Icons.message, color: Color(0xFFDA5597)),
                                               prefixIconConstraints: BoxConstraints(minWidth: 40),
                                               isDense: false,
                                               isCollapsed: false,
@@ -304,7 +304,7 @@ class _LoginPageState extends State<LoginPage> {
                                             }
                                           },
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF00FFA3),
+                                      backgroundColor: const Color(0xFFDA5597),
                                       foregroundColor: Colors.black,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
