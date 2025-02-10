@@ -116,7 +116,7 @@ class _HomePageState extends State<HomePage> {
       return Scaffold(
         backgroundColor: Colors.black,
         body: Obx(() {
-          if (controller.isRefreshing) {
+          if (controller.collections.isEmpty) {
             return _buildSkeletonList();
           }
 
@@ -198,15 +198,133 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildSkeletonList() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[900]!,
-      highlightColor: Colors.grey[800]!,
-      child: CustomScrollView(
-        slivers: [
-          // 添加骨架屏的 sliver 组件
-          // ... 根据实际布局添加相应的骨架屏组件
-        ],
-      ),
+    return CustomScrollView(
+      slivers: [
+        // AppBar 骨架屏
+        const SliverAppBar(
+          pinned: true,
+          floating: false,
+          leadingWidth: 48,
+          leading: SizedBox(width: 48),
+          title: SizedBox(
+            height: 40,
+            child: SkeletonLoading(
+              width: double.infinity,
+              height: 40,
+            ),
+          ),
+          backgroundColor: Colors.black,
+          elevation: 0,
+          toolbarHeight: 64,
+        ),
+
+        // 内容区域骨架屏
+        SliverList(
+          delegate: SliverChildListDelegate([
+            const SizedBox(height: 8),
+            // Collections 标题骨架屏
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  SkeletonLoading(width: 100, height: 20),
+                  SkeletonLoading(width: 24, height: 24),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Collections 轮播图骨架屏
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: AspectRatio(
+                aspectRatio: 32 / 15,
+                child: SkeletonLoading(
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Final 部分骨架屏
+            _buildSectionSkeleton(),
+            const SizedBox(height: 24),
+
+            // Albums 部分骨架屏
+            _buildSectionSkeleton(),
+            const SizedBox(height: 24),
+
+            // Netease Toplist 部分骨架屏
+            _buildSectionSkeleton(),
+            const SizedBox(height: 24),
+
+            // Netease New Albums 部分骨架屏
+            _buildSectionSkeleton(),
+            const SizedBox(height: 56),
+          ]),
+        ),
+      ],
+    );
+  }
+
+  // 抽取通用的section骨架屏组件
+  Widget _buildSectionSkeleton() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 标题骨架屏
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              SkeletonLoading(width: 120, height: 20),
+              SkeletonLoading(width: 24, height: 24),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // 横向滚动列表骨架屏
+        SizedBox(
+          height: 160,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: 4,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 封面图骨架屏
+                    SkeletonLoading(
+                      width: 120,
+                      height: 120,
+                      borderRadius: 8,
+                    ),
+                    const SizedBox(height: 8),
+                    // 标题骨架屏
+                    SkeletonLoading(
+                      width: 100,
+                      height: 16,
+                    ),
+                    const SizedBox(height: 4),
+                    // 副标题骨架屏
+                    SkeletonLoading(
+                      width: 80,
+                      height: 12,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
