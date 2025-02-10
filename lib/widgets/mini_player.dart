@@ -290,11 +290,16 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                                     children: [
                                       // 播放/暂停按钮
                                       IconButton(
-                                        icon: Obx(() => Icon(
-                                              controller.isPlaying ? Icons.pause : Icons.play_arrow,
+                                        icon: Obx(() => FaIcon(
+                                              controller.isPlaying
+                                                  ? FontAwesomeIcons.pause // 使用 FontAwesome 的暂停图标
+                                                  : FontAwesomeIcons.play, // 使用 FontAwesome 的播放图标
                                               color: Colors.white,
+                                              size: 18, // 稍微调小一点图标尺寸
                                             )),
                                         onPressed: controller.togglePlay,
+                                        padding: EdgeInsets.zero, // 减小内边距使图标看起来更协调
+                                        visualDensity: VisualDensity.compact, // 使按钮更紧凑
                                       ),
                                       // 喜欢按钮 - 根据登录状态显示
                                       if (isLoggedIn)

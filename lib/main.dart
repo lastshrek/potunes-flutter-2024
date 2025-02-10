@@ -14,6 +14,9 @@ import 'routes/app_pages.dart';
 import 'bindings/initial_binding.dart';
 import 'services/user_service.dart';
 import 'controllers/app_controller.dart';
+import 'services/version_service.dart';
+import 'package:dio/dio.dart';
+import '../config/api_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -129,6 +132,15 @@ Future<void> main() async {
     statusBarColor: Colors.transparent, // Android: 透明背景
   ));
 
+  // 初始化版本检查服务
+  final dio = Dio(BaseOptions(
+    baseUrl: ApiConfig.baseUrl,
+    connectTimeout: const Duration(milliseconds: ApiConfig.connectTimeout),
+    receiveTimeout: const Duration(milliseconds: ApiConfig.receiveTimeout),
+  ));
+
+  final versionService = Get.put(VersionService(dio));
+
   runApp(GetMaterialApp(
     title: 'PoTunes',
     debugShowCheckedModeBanner: false,
@@ -209,6 +221,10 @@ Future<void> main() async {
     transitionDuration: const Duration(milliseconds: 300),
     initialBinding: InitialBinding(),
     getPages: AppPages.pages,
+    onInit: () async {
+      // 在 GetMaterialApp 初始化完成后检查版本
+      await versionService.initCheckVersion();
+    },
   ));
   if (Platform.isAndroid) {
     //覆盖状态栏，写在渲染之前MaterialApp组件会覆盖掉这个值。

@@ -23,6 +23,8 @@ class ApiConfig {
   static const String verifyCaptcha = '/users/verify';
   static const String fav = '/v1/users/favs';
   static const String like = '/v1/tracks/like';
+  // 版本相关
+  static const String version = '/v1/versions';
   // HTTP 状态码
   static const int successCode = 200;
   static const int unauthorizedCode = 401;
