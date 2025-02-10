@@ -688,4 +688,54 @@ class NetworkService {
       return false;
     }
   }
+
+  Future<bool> updateTrackPlayCount(Map<String, dynamic> track) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      // 获取当前日期，格式化为 yyyy-MM-dd
+      final now = DateTime.now();
+      final date = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      // 构建请求体
+      final requestBody = {
+        'id': track['id'],
+        'nId': track['nId'],
+        'name': track['name'],
+        'artist': track['artist'],
+        'album': track['album'],
+        'duration': track['duration'],
+        'cover_url': track['cover_url'],
+        'url': track['url'],
+        'type': track['id'] == 0 ? 'netease' : 'potunes',
+        'playlist_id': track['playlist_id'],
+        'ar': track['ar'] ?? [],
+        'original_album': track['original_album'] ?? '',
+        'original_album_id': track['original_album_id'] ?? 0,
+        'mv': track['mv'] ?? 0,
+        'date': date, // 添加日期字段
+      };
+      print('Update play count request body: $track');
+      final response = await _client.post<dynamic>(
+        ApiConfig.updatePlayCount,
+        data: requestBody,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+          contentType: 'application/json',
+        ),
+      );
+
+      if (response is Map && response['statusCode'] == 200) {
+        print('Update play count success: $response');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Error updating play count: $e');
+      return false;
+    }
+  }
 }

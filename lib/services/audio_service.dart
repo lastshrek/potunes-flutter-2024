@@ -84,6 +84,9 @@ class AudioService extends GetxService {
   // 修改 displayPlaylist getter，根据模式返回对应列表
   List<Map<String, dynamic>>? get displayPlaylist => _currentPlaylist.value;
 
+  // 移除 _hasRecordedPlay 变量，改用一个标记
+  bool _hasRecordedPlay = false;
+
   @override
   void onInit() {
     super.onInit();
@@ -98,9 +101,51 @@ class AudioService extends GetxService {
     _setupPlayerListeners();
     _loadLastState();
 
-    // 只监听播放位置以更新当前歌词行
+    // 修改播放位置监听逻辑
     ever(_position, (position) {
       _updateCurrentLine(position);
+
+      // 当播放时间达到30秒且未记录时记录一次
+      if (!_hasRecordedPlay && position.inSeconds >= 30 && _currentTrack.value != null) {
+        _updatePlayCount();
+        _hasRecordedPlay = true; // 标记已记录
+      }
+    });
+
+    // 监听播放完成事件，重置记录状态
+    _audioPlayer.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed && !_isHandlingCompletion) {
+        _isHandlingCompletion = true;
+        _hasRecordedPlay = false; // 重置记录状态
+
+        if (_repeatMode.value == RepeatMode.single) {
+          // 单曲循环
+          _audioPlayer.seek(Duration.zero).then((_) => _audioPlayer.play());
+        } else if (_currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
+          // 列表循环
+          final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
+          skipToQueueItem(nextIndex);
+        }
+        _isHandlingCompletion = false;
+      }
+    });
+
+    // 在播放新歌时重置计时器
+    _audioPlayer.currentIndexStream.listen((index) {
+      if (index != null && _currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
+        // 确保索引在有效范围内
+        final safeIndex = index.clamp(0, _currentPlaylist.value!.length - 1);
+        _currentIndex.value = safeIndex;
+        final currentTrack = _currentPlaylist.value![safeIndex];
+        _currentTrack.value = currentTrack;
+
+        // 更新歌词（同时会更新喜欢状态）
+        _loadLyrics(currentTrack);
+
+        // 查找下一首歌
+        final nextIndex = (safeIndex + 1) % _currentPlaylist.value!.length;
+        _nextTrack.value = _currentPlaylist.value![nextIndex];
+      }
     });
   }
 
@@ -150,26 +195,11 @@ class AudioService extends GetxService {
         _duration.value = duration;
       }
     });
-
-    // 监听播放完成
-    _audioPlayer.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed && !_isHandlingCompletion) {
-        _isHandlingCompletion = true;
-        if (_repeatMode.value == RepeatMode.single) {
-          // 单曲循环
-          _audioPlayer.seek(Duration.zero).then((_) => _audioPlayer.play());
-        } else if (_currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
-          // 列表循环
-          final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
-          skipToQueueItem(nextIndex);
-        }
-        _isHandlingCompletion = false;
-      }
-    });
   }
 
   Future<void> playPlaylist(List<Map<String, dynamic>> tracks, {int initialIndex = 0}) async {
     try {
+      _hasRecordedPlay = false; // 重置记录状态
       // 如果是随机播放模式，先关闭随机播放
       if (_isShuffleMode.value) {
         _isShuffleMode.value = false;
@@ -558,17 +588,6 @@ class AudioService extends GetxService {
     }
   }
 
-  // 修改 _updateCurrentIndex 方法
-  void _updateCurrentIndex(Map<String, dynamic> track) {
-    final playlist = currentPlaylist;
-    if (playlist.isNotEmpty) {
-      final index = playlist.indexWhere((t) => isSameSong(t, track));
-      if (index != -1) {
-        _currentIndex.value = index;
-      }
-    }
-  }
-
   // 修改切换循环模式的方法
   void toggleRepeatMode() {
     switch (_repeatMode.value) {
@@ -650,6 +669,7 @@ class AudioService extends GetxService {
   // 修改 skipToQueueItem 方法
   Future<void> skipToQueueItem(int index) async {
     try {
+      _hasRecordedPlay = false; // 重置记录状态
       if (_currentPlaylist.value == null || index < 0 || index >= _currentPlaylist.value!.length) {
         return;
       }
@@ -799,6 +819,7 @@ class AudioService extends GetxService {
   // 停止播放
   Future<void> stop() async {
     try {
+      _hasRecordedPlay = false; // 重置记录状态
       await _audioPlayer.stop();
       _isPlaying.value = false;
     } catch (e) {
@@ -817,6 +838,20 @@ class AudioService extends GetxService {
       await skipToQueueItem(nextIndex);
     } catch (e) {
       print('Error skipping to next: $e');
+    }
+  }
+
+  // 修改播放次数更新方法
+  Future<void> _updatePlayCount() async {
+    try {
+      if (_currentTrack.value == null) return;
+
+      final success = await NetworkService.instance.updateTrackPlayCount(_currentTrack.value!);
+      if (success) {
+        print('Play count updated for: ${_currentTrack.value!['name']}');
+      }
+    } catch (e) {
+      print('Error updating play count: $e');
     }
   }
 }

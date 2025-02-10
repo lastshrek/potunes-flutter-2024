@@ -16,6 +16,8 @@ class ApiConfig {
   static const String topListDetail = '/netease/toplist';
   static const String neteaseNewAlbum = '/netease/top_album';
   static const String neteaseNewAlbumDetail = '/netease/album';
+  // 歌曲相关
+  static const String updatePlayCount = '/v1/tracks/play_count';
   // 用户相关
   static const String captcha = '/users/captcha';
   static const String verifyCaptcha = '/users/verify';
@@ -44,4 +46,8 @@ class ApiConfig {
   // 添加网易云排行榜的API端点
   static const String neteaseToplist = '/netease/toplist';
   static const String neteasePlaylist = '/netease/playlist';
+
+  // 添加调试服务器配置
+  static const String debugHost = '127.0.0.1'; // 本地调试地址
+  static const int debugPort = 8888; // 调试端口
 }
