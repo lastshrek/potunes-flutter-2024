@@ -31,6 +31,9 @@ class ApiConfig {
   static const int badRequestCode = 422;
   static const int notFoundCode = 400;
 
+  // 用户相关
+  static const String updateAvatar = '/v1/users/avatar';
+
   // 超时时间
   static const int connectTimeout = 15000; // 15s
   static const int receiveTimeout = 15000; // 15s

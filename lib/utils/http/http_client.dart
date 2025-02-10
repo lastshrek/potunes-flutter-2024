@@ -118,6 +118,25 @@ class HttpClient {
     }
   }
 
+  Future<dynamic> patch(
+    String path, {
+    dynamic data,
+    Options? options,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        path,
+        data: data,
+        options: options,
+      );
+      return response.data;
+    } on DioException catch (e) {
+      _handleDioError(e);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   void _handleError(dynamic error) {
     if (error is DioException) {
       throw ApiException.fromDioError(error);
@@ -129,5 +148,9 @@ class HttpClient {
         message: error.toString(),
       );
     }
+  }
+
+  void _handleDioError(DioException e) {
+    throw ApiException.fromDioError(e);
   }
 }

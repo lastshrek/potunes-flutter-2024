@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 import '../../controllers/navigation_controller.dart';
 import '../../screens/pages/favourites_page.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -95,14 +96,38 @@ class _LibraryPageState extends State<LibraryPage> {
   Future<void> _processImage(XFile image) async {
     try {
       final File imageFile = File(image.path);
-      final List<int> imageBytes = await imageFile.readAsBytes();
-      final String base64Image = 'data:image/jpeg;base64,${base64Encode(imageBytes)}';
+
+      // 压缩图片
+      final List<int> compressedBytes = await FlutterImageCompress.compressWithFile(
+            imageFile.absolute.path,
+            minWidth: 512, // 限制最大宽度
+            minHeight: 512, // 限制最大高度
+            quality: 70, // 压缩质量
+          ) ??
+          [];
+
+      if (compressedBytes.isEmpty) {
+        throw '图片压缩失败';
+      }
+
+      // 转换为 base64
+      final String base64Image = 'data:image/jpeg;base64,${base64Encode(compressedBytes)}';
 
       setState(() {
         _avatarBase64 = base64Image;
       });
 
       await UserService.to.updateAvatar(base64Image);
+
+      // 添加成功提示
+      Get.snackbar(
+        'Success',
+        'Avatar updated successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+      );
     } catch (e) {
       print('Error processing image: $e');
       Get.snackbar(
@@ -132,24 +157,26 @@ class _LibraryPageState extends State<LibraryPage> {
                 // 头像
                 Stack(
                   children: [
-                    // 头像
-                    if (_avatarBase64 != null)
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundImage: MemoryImage(
-                          base64Decode(_avatarBase64!.contains(',') ? _avatarBase64!.split(',').last : _avatarBase64!),
-                        ),
-                      )
-                    else
-                      const CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Color(0xFF1E1E1E),
-                        child: Icon(
-                          Icons.person,
-                          size: 50,
-                          color: Colors.white,
-                        ),
-                      ),
+                    // 给头像添加点击事件
+                    GestureDetector(
+                      onTap: () => _pickImage(context),
+                      child: _avatarBase64 != null
+                          ? CircleAvatar(
+                              radius: 50,
+                              backgroundImage: MemoryImage(
+                                base64Decode(_avatarBase64!.contains(',') ? _avatarBase64!.split(',').last : _avatarBase64!),
+                              ),
+                            )
+                          : const CircleAvatar(
+                              radius: 50,
+                              backgroundColor: Color(0xFF1E1E1E),
+                              child: Icon(
+                                Icons.person,
+                                size: 50,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
                     // 编辑图标
                     Positioned(
                       right: 0,

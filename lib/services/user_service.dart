@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../services/network_service.dart';
 
 class UserService extends GetxService {
   static UserService get to => Get.find();
@@ -96,14 +97,22 @@ class UserService extends GetxService {
 
   Future<void> updateAvatar(String base64Image) async {
     try {
-      // 直接更新本地数据
-      final prefs = await SharedPreferences.getInstance();
-      final currentData = _userData.value ?? {};
-      currentData['avatar'] = base64Image;
-      _userData.value = currentData;
+      // 调用接口更新头像
+      final networkService = NetworkService.instance;
+      final success = await networkService.updateAvatar(base64Image);
 
-      // 保存到本地存储
-      await prefs.setString(_userDataKey, json.encode(currentData));
+      if (success) {
+        // 更新本地数据
+        final prefs = await SharedPreferences.getInstance();
+        final currentData = _userData.value ?? {};
+        currentData['avatar'] = base64Image;
+        _userData.value = currentData;
+
+        // 保存到本地存储
+        await prefs.setString(_userDataKey, json.encode(currentData));
+      } else {
+        throw '更新头像失败';
+      }
     } catch (e) {
       print('Error updating avatar: $e');
       rethrow;

@@ -738,4 +738,34 @@ class NetworkService {
       return false;
     }
   }
+
+  Future<bool> updateAvatar(String base64Image) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.patch(
+        ApiConfig.updateAvatar,
+        data: {
+          'avatar': base64Image,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+          contentType: 'application/json',
+        ),
+      );
+
+      print('Update avatar response: $response');
+
+      if (response is Map && response['statusCode'] == 200) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Error updating avatar: $e');
+      return false;
+    }
+  }
 }
