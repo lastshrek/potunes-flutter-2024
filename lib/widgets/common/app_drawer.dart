@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:potunes_flutter_2025/screens/pages/login_page.dart';
 import '../../controllers/navigation_controller.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../../services/user_service.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -111,7 +113,16 @@ class AppDrawer extends StatelessWidget {
                             ),
                             onTap: () {
                               Navigator.pop(context);
-                              NavigationController.to.changePage(2);
+                              if (UserService.to.isLoggedIn) {
+                                NavigationController.to.changePage(2);
+                              } else {
+                                showModalBottomSheet(
+                                  context: context,
+                                  backgroundColor: Colors.transparent,
+                                  isScrollControlled: true,
+                                  builder: (context) => const LoginPage(),
+                                );
+                              }
                             },
                           ),
                       ],
