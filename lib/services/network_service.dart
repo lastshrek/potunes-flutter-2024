@@ -11,7 +11,7 @@ import 'package:get/get.dart';
 import '../controllers/app_controller.dart';
 
 class NetworkService {
-  static const platform = MethodChannel('com.potunes.app/network');
+  static const platform = MethodChannel('pink.poche.potunes/network');
   // 改名为 NetworkService
   final _client = HttpClient.instance;
   static const String _networkPermissionKey = 'network_permission_granted';

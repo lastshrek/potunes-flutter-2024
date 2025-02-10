@@ -6,7 +6,7 @@ class BluetoothService extends GetxService {
   static BluetoothService get to => Get.find();
 
   // 用于接收蓝牙媒体按钮事件的通道
-  static const platform = MethodChannel('com.potunes.flutter/media_button');
+  static const platform = MethodChannel('pink.poche.potunes/media_button');
 
   // 音频服务实例
   final AudioService _audioService = AudioService.to;

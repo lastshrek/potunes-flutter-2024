@@ -146,24 +146,22 @@ class VersionService extends GetxService {
                     try {
                       Get.back();
                       print('Attempting to launch URL: $url');
-                      final Uri uri = Uri.parse(url);
 
-                      if (await canLaunchUrl(uri)) {
-                        print('Launching URL: $uri');
-                        final result = await launchUrl(
+                      // 修改这里的 URL 启动方式
+                      if (Platform.isAndroid) {
+                        final Uri uri = Uri.parse(url);
+                        await launchUrl(
                           uri,
-                          mode: LaunchMode.externalApplication,
-                        );
-                        print('Launch result: $result');
-                      } else {
-                        print('Cannot launch URL: $uri');
-                        if (Get.context != null) {
-                          Get.snackbar(
-                            '错误',
-                            '无法打开下载链接',
-                            snackPosition: SnackPosition.BOTTOM,
-                          );
-                        }
+                          mode: LaunchMode.externalNonBrowserApplication, // 使用外部应用打开
+                        ).then((bool result) {
+                          if (!result) {
+                            // 如果外部应用打开失败，尝试使用系统浏览器
+                            launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication, // 使用系统浏览器
+                            );
+                          }
+                        });
                       }
                     } catch (e) {
                       print('Error launching URL: $e');
@@ -172,12 +170,15 @@ class VersionService extends GetxService {
                           '错误',
                           '打开下载链接失败',
                           snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.black87,
+                          colorText: Colors.white,
+                          duration: const Duration(seconds: 2),
                         );
                       }
                     }
                   },
                   style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFFDA5597), // 粉色背景
+                    backgroundColor: const Color(0xFFDA5597),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 10,
@@ -199,7 +200,7 @@ class VersionService extends GetxService {
             ),
           ),
           barrierDismissible: false,
-          barrierColor: Colors.black.withOpacity(0.5), // 设置遮罩层颜色
+          barrierColor: Colors.black.withOpacity(0.5),
         );
       } else {
         print('Dialog cannot be shown: no valid context or dialog already open');

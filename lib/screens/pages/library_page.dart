@@ -203,7 +203,7 @@ class LibraryPage extends StatelessWidget {
                             child: const Text(
                               'Logout',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Colors.black,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -251,7 +251,7 @@ class LibraryPage extends StatelessWidget {
                 child: const Text(
                   'Logout',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
