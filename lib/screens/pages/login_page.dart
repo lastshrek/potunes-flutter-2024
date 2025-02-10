@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../services/network_service.dart';
-import '../../config/api_config.dart';
 import 'dart:async';
 import '../../services/user_service.dart';
-import '../../controllers/app_controller.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
