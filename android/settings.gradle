@@ -23,3 +23,10 @@ plugins {
 }
 
 include ":app"
+
+// 排除 iOS 专用模块
+gradle.beforeProject { project ->
+    if (project.path == ':app_group_directory') {
+        project.enabled = false
+    }
+}

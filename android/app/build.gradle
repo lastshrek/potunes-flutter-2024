@@ -77,6 +77,12 @@ android {
             crunchPngs false
         }
     }
+
+    configurations {
+        implementation {
+            exclude group: 'app_group_directory'
+        }
+    }
 }
 
 flutter {

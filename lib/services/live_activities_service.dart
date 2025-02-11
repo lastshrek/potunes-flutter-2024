@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
-import 'package:live_activities/live_activities.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'live_activities_stub.dart';
 
 class LiveActivitiesService extends GetxService {
   static LiveActivitiesService get to => Get.find<LiveActivitiesService>();
@@ -11,6 +13,8 @@ class LiveActivitiesService extends GetxService {
     required String artist,
     required String coverUrl,
   }) async {
+    if (!Platform.isIOS || kIsWeb) return;
+
     try {
       final Map<String, dynamic> params = {
         'title': title,
@@ -26,6 +30,8 @@ class LiveActivitiesService extends GetxService {
   }
 
   Future<void> updateMusicActivity({required bool isPlaying}) async {
+    if (!Platform.isIOS || kIsWeb) return;
+
     try {
       final Map<String, dynamic> params = {
         'isPlaying': isPlaying,
@@ -38,6 +44,8 @@ class LiveActivitiesService extends GetxService {
   }
 
   Future<void> stopMusicActivity() async {
+    if (!Platform.isIOS || kIsWeb) return;
+
     try {
       await _liveActivities.endActivity('music');
     } catch (e) {
