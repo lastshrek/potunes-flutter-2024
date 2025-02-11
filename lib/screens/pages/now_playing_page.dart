@@ -1136,7 +1136,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             child: GetX<AudioService>(
               builder: (controller) => InkWell(
                 borderRadius: BorderRadius.circular(32),
-                onTap: controller.togglePlay,
+                onTap: controller.togglePlayPause,
                 child: Center(
                   child: FaIcon(
                     controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,

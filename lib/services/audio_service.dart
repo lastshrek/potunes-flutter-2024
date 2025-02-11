@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lyric_line.dart';
 import '../services/network_service.dart';
 import 'package:audio_session/audio_session.dart';
+import 'live_activities_service.dart';
 
 // 修改循环模式枚举
 enum RepeatMode {
@@ -306,21 +307,34 @@ class AudioService extends GetxService {
       // 播放音乐
       await _audioPlayer.setUrl(track['url']);
       await _audioPlayer.play();
+
+      // 更新灵动岛
+      if (currentTrack != null) {
+        await LiveActivitiesService.to.startMusicActivity(
+          title: currentTrack?['name'] ?? '',
+          artist: currentTrack?['artist'] ?? '',
+          coverUrl: currentTrack?['cover_url'] ?? '',
+        );
+      }
     } catch (e) {
       print('Error playing track: $e');
       rethrow;
     }
   }
 
-  Future<void> togglePlay() async {
+  Future<void> togglePlayPause() async {
     try {
       if (_audioPlayer.playing) {
         await _audioPlayer.pause();
+        // 更新灵动岛状态
+        await LiveActivitiesService.to.updateMusicActivity(isPlaying: false);
       } else {
         await _audioPlayer.play();
+        // 更新灵动岛状态
+        await LiveActivitiesService.to.updateMusicActivity(isPlaying: true);
       }
     } catch (e) {
-      print('Error toggling play: $e');
+      print('Error toggling play/pause: $e');
     }
   }
 
@@ -822,6 +836,9 @@ class AudioService extends GetxService {
       _hasRecordedPlay = false; // 重置记录状态
       await _audioPlayer.stop();
       _isPlaying.value = false;
+
+      // 停止灵动岛显示
+      await LiveActivitiesService.to.stopMusicActivity();
     } catch (e) {
       print('Error stopping playback: $e');
     }

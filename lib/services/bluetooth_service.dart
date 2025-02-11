@@ -35,13 +35,13 @@ class BluetoothService extends GetxService {
   Future<void> _handleMediaButton(MethodCall call) async {
     switch (call.method) {
       case 'mediaButtonPlay':
-        await _audioService.togglePlay();
+        await _audioService.togglePlayPause();
         break;
       case 'mediaButtonPause':
-        await _audioService.togglePlay();
+        await _audioService.togglePlayPause();
         break;
       case 'mediaButtonPlayPause':
-        await _audioService.togglePlay();
+        await _audioService.togglePlayPause();
         break;
       case 'mediaButtonNext':
         await _audioService.next();

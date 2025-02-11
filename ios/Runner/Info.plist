@@ -96,5 +96,9 @@
 		<string>需要访问相册以选择头像图片</string>
 		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
+		<key>NSSupportsLiveActivities</key>
+		<true/>
+		<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+		<true/>
 	</dict>
 </plist>

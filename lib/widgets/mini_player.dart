@@ -65,7 +65,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
         curve: Curves.easeInOut,
       ));
       await _slideController.forward();
-      controller.togglePlay(); // 使用 togglePlay 替代 stop
+      controller.togglePlayPause();
       _slideController.reverse();
     } else if (details.primaryVelocity! < 0) {
       // 向左滑动，播放下一首
@@ -297,7 +297,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                                               color: Colors.white,
                                               size: 18, // 稍微调小一点图标尺寸
                                             )),
-                                        onPressed: controller.togglePlay,
+                                        onPressed: controller.togglePlayPause,
                                         padding: EdgeInsets.zero, // 减小内边距使图标看起来更协调
                                         visualDensity: VisualDensity.compact, // 使按钮更紧凑
                                       ),
