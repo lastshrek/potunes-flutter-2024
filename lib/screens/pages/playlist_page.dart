@@ -19,6 +19,9 @@ class PlaylistPage extends StatefulWidget {
   final bool isFromCollections;
   final bool isFromTopList;
   final bool isFromNewAlbum;
+  final int? trackCount;
+  final String? description;
+  final String? coverUrl;
 
   const PlaylistPage({
     super.key,
@@ -27,6 +30,9 @@ class PlaylistPage extends StatefulWidget {
     this.isFromCollections = false,
     this.isFromTopList = false,
     this.isFromNewAlbum = false,
+    this.trackCount,
+    this.description,
+    this.coverUrl,
   });
 
   @override
@@ -40,7 +46,11 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   Color? secondaryColor;
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _bgOpacity = ValueNotifier<double>(0.0);
-  List<dynamic> tracks = [];
+  static const int _pageSize = 20; // 每页加载的数量
+  List<dynamic> _allTracks = []; // 存储所有 tracks
+  List<dynamic> _displayedTracks = []; // 当前显示的 tracks
+  bool _isLoadingMore = false;
+  bool _hasMoreData = true;
   final _colorTween = ColorTween(begin: Colors.black, end: Colors.black);
   final _colorAnimation = ValueNotifier<Color>(Colors.black);
 
@@ -72,6 +82,10 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     fontSize: 14,
   );
 
+  // 为横屏模式的左右两侧分别创建 ScrollController
+  final ScrollController _landscapeLeftController = ScrollController();
+  final ScrollController _landscapeRightController = ScrollController();
+
   @override
   bool get wantKeepAlive => false;
 
@@ -80,14 +94,13 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
-    _isLoading = true;
+    _scrollController.addListener(_onScrollForPagination);
+    // 为横屏模式的右侧列表添加滚动监听
+    _landscapeRightController.addListener(_onScrollForPagination);
 
+    // 直接加载数据
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        dominantColor = Colors.black;
-        secondaryColor = Colors.black;
-      });
-      _loadPlaylistData();
+      _loadTracks();
     });
   }
 
@@ -95,10 +108,17 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_onScroll);
+    _scrollController.removeListener(_onScrollForPagination);
     _scrollController.dispose();
+    // 移除横屏模式的滚动监听并释放
+    _landscapeLeftController.removeListener(_onScrollForPagination);
+    _landscapeLeftController.dispose();
+    _landscapeRightController.removeListener(_onScrollForPagination);
+    _landscapeRightController.dispose();
     dominantColor = null;
     secondaryColor = null;
-    tracks.clear();
+    _allTracks.clear();
+    _displayedTracks.clear();
     _colorAnimation.dispose();
     super.dispose();
   }
@@ -116,7 +136,50 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     }
   }
 
-  Future<void> _loadPlaylistData() async {
+  void _onScrollForPagination() {
+    // 获取当前活动的 ScrollController
+    final activeController = MediaQuery.of(context).orientation == Orientation.landscape
+        ? _landscapeRightController // 使用右侧列表的 controller
+        : _scrollController;
+
+    if (!activeController.hasClients) return;
+
+    final maxScroll = activeController.position.maxScrollExtent;
+    final currentScroll = activeController.position.pixels;
+
+    // 当滚动到距离底部 200 像素时加载更多
+    if (maxScroll - currentScroll <= 200 && !_isLoadingMore && _hasMoreData) {
+      _loadMoreTracks();
+    }
+  }
+
+  Future<void> _loadMoreTracks() async {
+    if (_isLoadingMore || !_hasMoreData) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    final startIndex = _displayedTracks.length;
+    final endIndex = math.min(startIndex + _pageSize, _allTracks.length);
+
+    if (startIndex < _allTracks.length) {
+      await Future.delayed(const Duration(milliseconds: 100)); // 添加小延迟避免卡顿
+
+      setState(() {
+        _displayedTracks.addAll(_allTracks.getRange(startIndex, endIndex));
+        _isLoadingMore = false;
+        _hasMoreData = endIndex < _allTracks.length;
+      });
+    } else {
+      setState(() {
+        _isLoadingMore = false;
+        _hasMoreData = false;
+      });
+    }
+  }
+
+  Future<void> _loadTracks() async {
     try {
       final response = widget.isFromTopList
           ? await _networkService.getTopListDetail(widget.playlistId)
@@ -126,30 +189,27 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
       if (!mounted) return;
 
-      setState(() {
-        if (response['tracks'] != null) {
-          tracks = response['tracks'] as List<dynamic>;
+      if (response['tracks'] != null) {
+        _allTracks = response['tracks'] as List<dynamic>;
 
-          // 预加载前10个封面
-          for (var i = 0; i < math.min(10, tracks.length); i++) {
-            precacheImage(
-              CachedNetworkImageProvider(
-                tracks[i]['cover_url'] ?? '',
-                maxWidth: 80,
-                maxHeight: 80,
-              ),
-              context,
-            );
-          }
+        setState(() {
+          _displayedTracks = _allTracks.take(_pageSize).toList();
+          _isLoading = false;
+          _hasMoreData = _allTracks.length > _pageSize;
+        });
+
+        // 等待一帧以确保 setState 完成
+        await Future.microtask(() {});
+
+        // 提取颜色
+        if (widget.coverUrl != null) {
+          await _extractColors();
         }
-        _isLoading = false;
-      });
-
-      _extractColors();
+      }
     } catch (e) {
       if (!mounted) return;
       if (kDebugMode) {
-        print('Error loading playlist: $e');
+        print('Error loading playlist tracks: $e');
       }
       setState(() {
         _isLoading = false;
@@ -167,12 +227,17 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
       if (!mounted) return;
 
-      // 获取深色主色调
-      final Color mainColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.darkVibrantColor?.color ?? paletteGenerator.dominantColor?.color ?? const Color(0xff161616);
+      // 获取第一主色调
+      final Color mainColor = paletteGenerator.dominantColor?.color ?? const Color(0xff161616);
 
       // 确保颜色足够深
       final HSLColor hslColor = HSLColor.fromColor(mainColor);
-      final Color adjustedColor = hslColor.withLightness((hslColor.lightness * 0.7).clamp(0.0, 0.3)).toColor();
+
+      // 主背景色（第一主色调暗化）
+      final Color adjustedColor = hslColor.withLightness((hslColor.lightness * 0.4).clamp(0.0, 0.2)).toColor();
+
+      // AppBar 背景色（稍微亮一点的第一主色调）
+      secondaryColor = hslColor.withLightness((hslColor.lightness * 0.5).clamp(0.0, 0.25)).toColor();
 
       // 设置动画
       _colorTween.begin = _colorAnimation.value;
@@ -221,186 +286,18 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      color.withOpacity(0.8),
-                      const Color(0xff161616),
+                      color.withOpacity(0.95), // 顶部更不透明
+                      color.withOpacity(0.7), // 中间过渡色更深
+                      const Color(0xff161616), // 底部保持黑色
                     ],
-                    stops: const [0.0, 0.5],
+                    stops: const [0.0, 0.3, 1.0],
                   ),
                 ),
-                child: GestureDetector(
-                  onHorizontalDragEnd: (details) {
-                    if (details.primaryVelocity! > 0) {
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  child: Stack(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 5,
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final miniPlayerHeight = 80.0;
-                                final topPadding = MediaQuery.of(context).padding.top;
-                                final bottomPadding = 16.0;
-                                final availableHeight = constraints.maxHeight - miniPlayerHeight - topPadding - bottomPadding;
-
-                                // 减小 coverSize 的比例，为底部留出更多空间
-                                final coverSize = widget.isFromCollections
-                                    ? availableHeight * 0.4 // collections 的封面高度比例降低
-                                    : availableHeight * 0.5; // 普通封面也降低比例
-                                final infoSize = availableHeight * 0.3; // 减小信息区域
-                                final spacing = availableHeight * 0.1;
-
-                                return CustomScrollView(
-                                  physics: const ClampingScrollPhysics(),
-                                  slivers: [
-                                    SliverAppBar(
-                                      backgroundColor: Colors.transparent,
-                                      pinned: true,
-                                      expandedHeight: 0,
-                                      leading: IconButton(
-                                        icon: const Icon(
-                                          Icons.arrow_back,
-                                          color: Colors.white,
-                                          size: 24,
-                                        ),
-                                        onPressed: _handlePopBack,
-                                      ),
-                                      systemOverlayStyle: const SystemUiOverlayStyle(
-                                        statusBarColor: Colors.transparent,
-                                        statusBarIconBrightness: Brightness.light,
-                                        systemNavigationBarColor: Colors.transparent,
-                                        systemNavigationBarIconBrightness: Brightness.light,
-                                      ),
-                                    ),
-                                    SliverToBoxAdapter(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(24.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            // 专辑封面
-                                            SizedBox(
-                                              height: coverSize,
-                                              child: Center(
-                                                child: AspectRatio(
-                                                  aspectRatio: widget.isFromCollections
-                                                      ? 32 / 15 // 从 Collections 进入时使用 32:15 的比例
-                                                      : 1, // 其他情况使用 1:1 的比例
-                                                  child: Container(
-                                                    decoration: BoxDecoration(
-                                                      borderRadius: BorderRadius.circular(8.0),
-                                                      color: const Color(0xff161616),
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color: Colors.black.withOpacity(0.2),
-                                                          blurRadius: 8,
-                                                          offset: const Offset(0, 4),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    child: ClipRRect(
-                                                      borderRadius: BorderRadius.circular(8.0),
-                                                      child: Container(
-                                                        color: const Color(0xff161616),
-                                                        child: Center(
-                                                          child: ImageCacheManager.instance.buildImage(
-                                                            url: widget.playlist['cover'] ?? '',
-                                                            width: coverSize,
-                                                            height: widget.isFromCollections ? (coverSize * 15 / 32) : coverSize,
-                                                            fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
-                                                            placeholder: Container(
-                                                              color: const Color(0xff161616),
-                                                              child: const Icon(Icons.music_note, color: Colors.white54),
-                                                            ),
-                                                            errorWidget: Container(
-                                                              color: const Color(0xff161616),
-                                                              child: const Icon(Icons.music_note, color: Colors.white54),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            // 间距
-                                            SizedBox(height: spacing * 0.5),
-                                            // 播放列表信息
-                                            SizedBox(
-                                              height: infoSize,
-                                              child: SingleChildScrollView(
-                                                // 添加滚动支持
-                                                child: _buildPlaylistHeader(),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    // 增加底部空间
-                                    SliverToBoxAdapter(
-                                      child: SizedBox(height: miniPlayerHeight + bottomPadding + 32), // 增加更多底部间距
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                          Expanded(
-                            flex: 5,
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final miniPlayerHeight = 80.0;
-
-                                return CustomScrollView(
-                                  physics: const ClampingScrollPhysics(),
-                                  slivers: [
-                                    SliverPadding(
-                                      padding: EdgeInsets.only(
-                                        top: MediaQuery.of(context).padding.top + 16,
-                                      ),
-                                      sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
-                                    ),
-                                    SliverPadding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      sliver: SliverList(
-                                        delegate: SliverChildBuilderDelegate(
-                                          (context, index) {
-                                            final track = tracks[index];
-                                            return TrackListTile(
-                                              track: track,
-                                              onTap: () => _playTrack(track, tracks, index),
-                                              isPlaying: AudioService.to.isPlaying && AudioService.to.currentPlaylist?.contains(track) == true,
-                                              index: index,
-                                            );
-                                          },
-                                          childCount: tracks.length,
-                                        ),
-                                      ),
-                                    ),
-                                    // 添加底部空间以避免被 MiniPlayer 遮挡
-                                    SliverToBoxAdapter(
-                                      child: SizedBox(height: miniPlayerHeight + 16), // 添加额外的间距
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: MiniPlayer(isAboveBottomBar: false),
-                      ),
-                    ],
-                  ),
+                child: Stack(
+                  children: [
+                    // 主内容
+                    child!,
+                  ],
                 ),
               );
             },
@@ -431,6 +328,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                             final spacing = availableHeight * 0.1;
 
                             return CustomScrollView(
+                              controller: _landscapeLeftController,
                               physics: const ClampingScrollPhysics(),
                               slivers: [
                                 SliverAppBar(
@@ -461,12 +359,13 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                         // 专辑封面
                                         SizedBox(
                                           height: coverSize,
+                                          width: constraints.maxWidth,
                                           child: Center(
                                             child: AspectRatio(
-                                              aspectRatio: widget.isFromCollections
-                                                  ? 32 / 15 // 从 Collections 进入时使用 32:15 的比例
-                                                  : 1, // 其他情况使用 1:1 的比例
+                                              aspectRatio: widget.isFromCollections ? 32 / 15 : 1,
                                               child: Container(
+                                                width: constraints.maxWidth * 0.9,
+                                                height: widget.isFromCollections ? (constraints.maxWidth * 0.9 * 15 / 32) : constraints.maxWidth * 0.9,
                                                 decoration: BoxDecoration(
                                                   borderRadius: BorderRadius.circular(8.0),
                                                   color: const Color(0xff161616),
@@ -485,8 +384,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                                     child: Center(
                                                       child: ImageCacheManager.instance.buildImage(
                                                         url: widget.playlist['cover'] ?? '',
-                                                        width: coverSize,
-                                                        height: widget.isFromCollections ? (coverSize * 15 / 32) : coverSize,
+                                                        width: constraints.maxWidth * 0.9,
+                                                        height: widget.isFromCollections ? (constraints.maxWidth * 0.9 * 15 / 32) : constraints.maxWidth * 0.9,
                                                         fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
                                                         placeholder: Container(
                                                           color: const Color(0xff161616),
@@ -534,6 +433,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                             final miniPlayerHeight = 80.0;
 
                             return CustomScrollView(
+                              controller: _landscapeRightController,
                               physics: const ClampingScrollPhysics(),
                               slivers: [
                                 SliverPadding(
@@ -542,26 +442,10 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                   ),
                                   sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
                                 ),
-                                SliverPadding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  sliver: SliverList(
-                                    delegate: SliverChildBuilderDelegate(
-                                      (context, index) {
-                                        final track = tracks[index];
-                                        return TrackListTile(
-                                          track: track,
-                                          onTap: () => _playTrack(track, tracks, index),
-                                          isPlaying: AudioService.to.isPlaying && AudioService.to.currentPlaylist?.contains(track) == true,
-                                          index: index,
-                                        );
-                                      },
-                                      childCount: tracks.length,
-                                    ),
-                                  ),
-                                ),
+                                _buildTrackList(),
                                 // 添加底部空间以避免被 MiniPlayer 遮挡
                                 SliverToBoxAdapter(
-                                  child: SizedBox(height: miniPlayerHeight + 16), // 添加额外的间距
+                                  child: SizedBox(height: miniPlayerHeight + 16),
                                 ),
                               ],
                             );
@@ -599,48 +483,38 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      color.withOpacity(0.8),
-                      const Color(0xff161616),
+                      color.withOpacity(0.95), // 顶部更不透明
+                      color.withOpacity(0.7), // 中间过渡色更深
+                      const Color(0xff161616), // 底部保持黑色
                     ],
-                    stops: const [0.0, 0.5],
+                    stops: const [0.0, 0.3, 1.0],
                   ),
                 ),
-                child: child,
+                child: child!,
               );
             },
-            child: GestureDetector(
-              onHorizontalDragEnd: (details) {
-                if (details.primaryVelocity! > 0) {
-                  Navigator.of(context).pop();
-                }
-              },
-              child: SafeArea(
-                bottom: false,
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: _isLoading
-                          ? const Center(
-                              child: CircularProgressIndicator(),
-                            )
-                          : CustomScrollView(
-                              controller: _scrollController,
-                              physics: const BouncingScrollPhysics(),
-                              slivers: [
-                                _buildSliverAppBar(),
-                                SliverToBoxAdapter(
-                                  child: _buildPlaylistHeader(),
-                                ),
-                                _buildTrackList(),
-                                const SliverToBoxAdapter(
-                                  child: SizedBox(height: 32),
-                                ),
-                              ],
-                            ),
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: CustomScrollView(
+                      controller: _scrollController,
+                      physics: const BouncingScrollPhysics(),
+                      slivers: [
+                        _buildSliverAppBar(),
+                        SliverToBoxAdapter(
+                          child: _buildPlaylistHeader(),
+                        ),
+                        _buildTrackList(),
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: 32),
+                        ),
+                      ],
                     ),
-                    const MiniPlayer(isAboveBottomBar: false),
-                  ],
-                ),
+                  ),
+                  const MiniPlayer(isAboveBottomBar: false),
+                ],
               ),
             ),
           ),
@@ -658,18 +532,17 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     return ValueListenableBuilder<double>(
       valueListenable: _bgOpacity,
       builder: (context, opacity, child) {
+        // 使用 Transform.scale 代替直接改变 size
+        final double scale = ((imageSize - (imageSize - minImageSize) * opacity) / imageSize).clamp(minImageSize / imageSize, 1.0);
         final double titleOpacity = ((opacity - 0.7) * 5).clamp(0.0, 1.0);
-        final double currentSize = (imageSize - (imageSize - minImageSize) * opacity).clamp(minImageSize, imageSize);
+
+        final Color backgroundColor = opacity <= 0.01 ? Colors.transparent : (secondaryColor?.withOpacity(opacity) ?? const Color(0xff161616).withOpacity(opacity));
 
         // 计算 Collections 图片的高度
-        final double imageHeight = widget.isFromCollections
-            ? (screenWidth * 0.7 * 15 / 32) // 使用屏幕宽度来计算高度
-            : currentSize;
+        final double imageHeight = widget.isFromCollections ? (screenWidth * 0.7 * 15 / 32) : imageSize;
 
         return SliverAppBar(
-          expandedHeight: widget.isFromCollections
-              ? imageHeight + topPadding + 10 // Collections 模式下的高度
-              : imageSize + topPadding + 10, // 普通模式下的高度
+          expandedHeight: widget.isFromCollections ? imageHeight + topPadding + 10 : imageSize + topPadding + 10,
           pinned: true,
           stretch: true,
           systemOverlayStyle: const SystemUiOverlayStyle(
@@ -678,7 +551,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
             systemNavigationBarColor: Colors.transparent,
             systemNavigationBarIconBrightness: Brightness.light,
           ),
-          backgroundColor: Colors.transparent,
+          backgroundColor: backgroundColor, // 恢复背景色
           leading: IconButton(
             icon: const Icon(
               Icons.arrow_back,
@@ -708,36 +581,38 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                   right: 0,
                   bottom: 10,
                   child: Center(
-                    child: SizedBox(
-                      width: currentSize,
-                      height: widget.isFromCollections
-                          ? (screenWidth * 0.7 * 15 / 32) // 使用屏幕宽度来计算高度
-                          : currentSize,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8.0),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8.0),
-                          child: ImageCacheManager.instance.buildImage(
-                            url: widget.playlist['cover'] ?? '',
-                            width: currentSize,
-                            height: widget.isFromCollections ? (screenWidth * 0.7 * 15 / 32) : currentSize,
-                            fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
-                            placeholder: Container(
-                              color: const Color(0xff161616),
-                              child: const Icon(Icons.music_note, color: Colors.white54),
-                            ),
-                            errorWidget: Container(
-                              color: const Color(0xff161616),
-                              child: const Icon(Icons.music_note, color: Colors.white54),
+                    child: Transform.scale(
+                      scale: scale,
+                      alignment: Alignment.center,
+                      child: SizedBox(
+                        width: imageSize,
+                        height: widget.isFromCollections ? (screenWidth * 0.7 * 15 / 32) : imageSize,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2 * (1 - opacity)), // 随滚动调整阴影
+                                blurRadius: 8 * (1 - opacity), // 随滚动调整模糊
+                                offset: Offset(0, 4 * (1 - opacity)), // 随滚动调整偏移
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: ImageCacheManager.instance.buildImage(
+                              url: widget.playlist['cover'] ?? '',
+                              width: imageSize,
+                              height: widget.isFromCollections ? (screenWidth * 0.7 * 15 / 32) : imageSize,
+                              fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
+                              placeholder: Container(
+                                color: const Color(0xff161616),
+                                child: const Icon(Icons.music_note, color: Colors.white54),
+                              ),
+                              errorWidget: Container(
+                                color: const Color(0xff161616),
+                                child: const Icon(Icons.music_note, color: Colors.white54),
+                              ),
                             ),
                           ),
                         ),
@@ -756,7 +631,6 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   Widget _buildPlaylistHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.transparent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -774,7 +648,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                     ),
                     _smallDivider,
                     Text(
-                      '${tracks.length} 首歌曲',
+                      '${widget.trackCount ?? _allTracks.length} 首歌曲',
                       style: _subtitleStyle,
                     ),
                   ],
@@ -783,10 +657,10 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
               _buildPlayControls(),
             ],
           ),
-          if (widget.playlist['content']?.isNotEmpty ?? false) ...[
+          if (widget.description?.isNotEmpty ?? false) ...[
             _divider,
             Text(
-              widget.playlist['content'] ?? '',
+              widget.description!,
               style: _subtitleStyle,
             ),
           ],
@@ -815,7 +689,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
         _horizontalDivider,
         PlayButton(
           backgroundColor: dominantColor?.withOpacity(0.8),
-          tracks: List<Map<String, dynamic>>.from(tracks),
+          tracks: List<Map<String, dynamic>>.from(_displayedTracks),
         ),
       ],
     );
@@ -825,11 +699,27 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
-          if (index >= tracks.length) return null;
-          return _buildTrackItem(index, tracks[index]);
+          if (index >= _displayedTracks.length) {
+            if (_hasMoreData) {
+              return const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                ),
+              );
+            }
+            return null;
+          }
+          return _buildTrackItem(index, _displayedTracks[index]);
         },
-        childCount: tracks.length,
-        // 添加key以优化重建
+        childCount: _displayedTracks.length + (_hasMoreData ? 1 : 0),
         addAutomaticKeepAlives: false,
         addRepaintBoundaries: true,
       ),
@@ -898,7 +788,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                 ),
           ),
           onTap: () {
-            _playTrack(track, tracks, index);
+            _playTrack(track, _displayedTracks, index);
           },
         ),
       ),

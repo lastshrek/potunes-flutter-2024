@@ -689,6 +689,9 @@ class _HomePageState extends State<HomePage> {
           builder: (context) => PlaylistPage(
             playlist: playlist,
             playlistId: int.parse(playlist['id'].toString()),
+            trackCount: playlist['track_count'],
+            description: playlist['content'],
+            coverUrl: playlist['cover'],
           ),
         ),
       );
@@ -697,6 +700,9 @@ class _HomePageState extends State<HomePage> {
         () => PlaylistPage(
           playlist: playlist,
           playlistId: int.parse(playlist['id'].toString()),
+          trackCount: playlist['track_count'],
+          description: playlist['content'],
+          coverUrl: playlist['cover'],
         ),
         transition: Transition.rightToLeft,
       );
