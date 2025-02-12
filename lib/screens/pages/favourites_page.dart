@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../services/network_service.dart';
 import '../../widgets/mini_player.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/audio_service.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../screens/pages/album_detail_page.dart';
+import '../../widgets/common/current_track_highlight.dart';
 
 class FavouritesPage extends StatefulWidget {
   const FavouritesPage({super.key});
@@ -277,58 +277,50 @@ class _FavouritesPageState extends State<FavouritesPage> {
                               itemCount: favourites.length,
                               itemBuilder: (context, index) {
                                 final song = favourites[index];
+                                final audioService = Get.find<AudioService>();
+                                final highlightColor = const Color(0xFFDA5597);
+
                                 return ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 4,
-                                  ),
-                                  leading: ClipRRect(
-                                    borderRadius: BorderRadius.circular(4),
-                                    child: CachedNetworkImage(
-                                      imageUrl: song['cover_url']?.toString() ?? '',
-                                      width: 48,
-                                      height: 48,
-                                      fit: BoxFit.cover,
-                                      placeholder: (context, url) => Container(
-                                        color: Colors.grey[900],
-                                        child: const Icon(
-                                          Icons.music_note,
-                                          color: Color(0xFFDA5597),
-                                        ),
-                                      ),
-                                      errorWidget: (context, url, error) => Container(
-                                        color: Colors.grey[900],
-                                        child: const Icon(
-                                          Icons.music_note,
-                                          color: Color(0xFFDA5597),
-                                        ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                                  leading: CurrentTrackHighlight(
+                                    track: song,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        song['cover_url'] ?? '',
+                                        width: 56,
+                                        height: 56,
+                                        fit: BoxFit.cover,
                                       ),
                                     ),
                                   ),
-                                  title: Text(
-                                    song['name']?.toString() ?? 'Unknown',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
+                                  title: RichText(
+                                    text: TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text: '${index + 1}. ',
+                                          style: TextStyle(
+                                            color: audioService.isCurrentTrack(song) ? highlightColor : Colors.grey[400],
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: song['name'] ?? '',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                          ).withHighlight(audioService.isCurrentTrack(song)),
+                                        ),
+                                      ],
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   subtitle: Text(
-                                    song['artist']?.toString() ?? 'Unknown Artist',
-                                    style: const TextStyle(
-                                      color: Colors.grey,
+                                    song['artist'] ?? '',
+                                    style: TextStyle(
+                                      color: Colors.grey[400],
                                       fontSize: 14,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  trailing: Text(
-                                    _formatDuration(song['duration']),
-                                    style: const TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 14,
-                                    ),
+                                    ).withSubtleHighlight(audioService.isCurrentTrack(song)),
                                   ),
                                   onTap: () => _playSong(song, favourites, index),
                                 );

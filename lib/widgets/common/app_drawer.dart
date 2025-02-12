@@ -191,6 +191,8 @@ class AppDrawer extends StatelessWidget {
                               _buildUpdateItem('全新UI升级'),
                               _buildUpdateItem('iOS新增灵动岛'),
                               _buildUpdateItem('新增个人资料管理'),
+                              _buildUpdateItem('当前播放歌曲列表内展示'),
+                              _buildUpdateItem('收藏页细化'),
                               _buildUpdateItem('性能优化'),
                             ],
                           ),

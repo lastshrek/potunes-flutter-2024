@@ -871,4 +871,11 @@ class AudioService extends GetxService {
       print('Error updating play count: $e');
     }
   }
+
+  bool isCurrentTrack(Map<String, dynamic> track) {
+    final currentTrack = _currentTrack.value;
+    if (currentTrack == null) return false;
+
+    return (currentTrack['id']?.toString() == track['id']?.toString()) || (currentTrack['nId']?.toString() == track['nId']?.toString());
+  }
 }

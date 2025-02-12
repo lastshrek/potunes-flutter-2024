@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../services/audio_service.dart';
 import '../../widgets/mini_player.dart';
+import '../../widgets/common/current_track_highlight.dart';
 
 class AlbumDetailPage extends StatelessWidget {
   final String albumName;
@@ -171,61 +172,7 @@ class AlbumDetailPage extends StatelessWidget {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final song = songs[index];
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: CachedNetworkImage(
-                          imageUrl: song['cover_url']?.toString() ?? '',
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey[900],
-                            child: const Icon(
-                              Icons.music_note,
-                              color: Color(0xFFDA5597),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey[900],
-                            child: const Icon(
-                              Icons.music_note,
-                              color: Color(0xFFDA5597),
-                            ),
-                          ),
-                        ),
-                      ),
-                      title: Text(
-                        song['name']?.toString() ?? 'Unknown',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        song['artist']?.toString() ?? 'Unknown Artist',
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 14,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: Text(
-                        _formatDuration(song['duration']),
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 14,
-                        ),
-                      ),
-                      onTap: () => _playSong(song, index),
-                    );
+                    return _buildTrackItem(index, song);
                   },
                   childCount: songs.length,
                 ),
@@ -245,5 +192,67 @@ class AlbumDetailPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildTrackItem(int index, dynamic song) {
+    final audioService = Get.find<AudioService>();
+    final highlightColor = const Color(0xFFDA5597);
+
+    return Obx(() {
+      final currentTrack = audioService.currentTrack;
+      final isCurrentTrack = currentTrack != null && ((currentTrack['id']?.toString() == song['id']?.toString()) || (currentTrack['nId']?.toString() == song['nId']?.toString()));
+
+      return ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        leading: CurrentTrackHighlight(
+          track: song,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              song['cover_url'] ?? '',
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        title: RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: '${index + 1}. ',
+                style: TextStyle(
+                  color: isCurrentTrack ? highlightColor : Colors.grey[400],
+                  fontSize: 14,
+                ),
+              ),
+              TextSpan(
+                text: song['name'] ?? '',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ).withHighlight(isCurrentTrack),
+              ),
+            ],
+          ),
+        ),
+        subtitle: Text(
+          song['artist'] ?? '',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 14,
+          ).withSubtleHighlight(isCurrentTrack),
+        ),
+        trailing: Text(
+          _formatDuration(song['duration']),
+          style: const TextStyle(
+            color: Colors.grey,
+            fontSize: 14,
+          ),
+        ),
+        onTap: () => _playSong(song, index),
+      );
+    });
   }
 }

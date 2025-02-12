@@ -18,6 +18,7 @@ import '../../services/audio_service.dart';
 import '../../widgets/mini_player.dart';
 import '../../widgets/track_list_tile.dart';
 import '../../utils/image_cache_manager.dart';
+import '../../widgets/common/current_track_highlight.dart';
 
 class PlaylistPage extends StatefulWidget {
   final Map<String, dynamic> playlist;
@@ -785,72 +786,76 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   }
 
   Widget _buildTrackItem(int index, dynamic track) {
-    return RepaintBoundary(
-      child: Material(
-        type: MaterialType.transparency,
-        child: ListTile(
-          key: ValueKey('track_${track['id']}'),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-          tileColor: Colors.transparent,
-          selectedTileColor: Colors.transparent,
-          hoverColor: Colors.white.withOpacity(0.1),
-          splashColor: Colors.transparent,
-          leading: ClipRRect(
-            borderRadius: BorderRadius.circular(4.0),
-            child: CachedNetworkImage(
-              width: 40,
-              height: 40,
-              fit: BoxFit.cover,
-              imageUrl: track['cover_url'] ?? '',
-              memCacheWidth: 80,
-              memCacheHeight: 80,
-              fadeInDuration: Duration.zero,
-              placeholder: (_, __) => const ColoredBox(
-                color: _boxColor,
-                child: _placeholderIcon,
-              ),
-              errorWidget: (_, __, ___) => const ColoredBox(
-                color: _boxColor,
-                child: _errorIcon,
+    final audioService = Get.find<AudioService>();
+    final highlightColor = const Color(0xFFDA5597);
+
+    return Obx(() {
+      final currentTrack = audioService.currentTrack;
+      final isCurrentTrack = currentTrack != null && ((currentTrack['id']?.toString() == track['id']?.toString()) || (currentTrack['nId']?.toString() == track['nId']?.toString()));
+
+      // 创建基础文本样式
+      final baseTextStyle = const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+      );
+
+      // 根据是否是当前播放的歌曲获取高亮样式
+      final highlightedStyle = baseTextStyle.withHighlight(isCurrentTrack);
+
+      return RepaintBoundary(
+        child: Material(
+          type: MaterialType.transparency,
+          child: ListTile(
+            key: ValueKey('track_${track['id']}'),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            tileColor: Colors.transparent,
+            selectedTileColor: Colors.transparent,
+            hoverColor: Colors.white.withOpacity(0.1),
+            splashColor: Colors.transparent,
+            leading: CurrentTrackHighlight(
+              track: track,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  track['cover_url'] ?? '',
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
-          ),
-          title: RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: '${index + 1}. ',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-                TextSpan(
-                  text: track['name'] ?? '',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                ),
-              ],
+            title: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${index + 1}. ',
+                    style: TextStyle(
+                      color: isCurrentTrack ? highlightColor : Colors.grey[400],
+                      fontSize: 14,
+                    ),
+                  ),
+                  TextSpan(
+                    text: track['name'] ?? '',
+                    style: highlightedStyle,
+                  ),
+                ],
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            subtitle: Text(
+              track['artist'] ?? '',
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 14,
+              ).withSubtleHighlight(isCurrentTrack),
+            ),
+            onTap: () {
+              _playTrack(track, _displayedTracks, index);
+            },
           ),
-          subtitle: Text(
-            track['artist'] ?? '',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey,
-                ),
-          ),
-          onTap: () {
-            _playTrack(track, _displayedTracks, index);
-          },
         ),
-      ),
-    );
+      );
+    });
   }
 
   void _playTrack(dynamic track, List<dynamic> tracks, int index) {
