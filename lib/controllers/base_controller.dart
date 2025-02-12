@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/network_service.dart';
 import '../utils/http/api_exception.dart';
-import '../controllers/app_controller.dart';
 
 abstract class BaseController extends GetxController {
   final NetworkService _networkService = NetworkService.instance;
