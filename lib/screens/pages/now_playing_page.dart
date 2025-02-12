@@ -941,31 +941,49 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
   void _showPlaylistSheet() {
     final playlistScrollController = ScrollController();
 
-    void scrollToCurrentSong() {
-      if (playlistScrollController.hasClients) {
-        final currentIndex = AudioService.to.currentIndex;
-        final itemHeight = 72.0;
-        final targetOffset = currentIndex * itemHeight;
+    // 预先获取当前歌曲位置
+    final currentIndex = AudioService.to.currentIndex;
+    final itemHeight = 72.0;
+    final targetOffset = currentIndex * itemHeight;
 
-        if (targetOffset > playlistScrollController.position.maxScrollExtent) {
-          playlistScrollController.jumpTo(playlistScrollController.position.maxScrollExtent);
-        } else {
-          playlistScrollController.jumpTo(targetOffset);
-        }
-      }
-    }
+    // 计算初始显示位置（当前歌曲前面几首）
+    final initialOffset = math.max(0.0, targetOffset - itemHeight * 2);
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      enableDrag: true,
       builder: (context) {
         return DraggableScrollableSheet(
           initialChildSize: 0.8,
           minChildSize: 0.5,
           maxChildSize: 0.95,
           expand: false,
+          snap: true,
           builder: (context, sheetScrollController) {
+            // 先跳转到初始位置
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (playlistScrollController.hasClients) {
+                // 先跳到大致位置
+                playlistScrollController.jumpTo(initialOffset);
+
+                // 然后平滑滚动到精确位置
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (playlistScrollController.hasClients && mounted) {
+                    playlistScrollController.animateTo(
+                      targetOffset.clamp(
+                        0.0,
+                        playlistScrollController.position.maxScrollExtent,
+                      ),
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                    );
+                  }
+                });
+              }
+            });
+
             return Container(
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.9),
@@ -998,98 +1016,111 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                   Expanded(
                     child: GetX<AudioService>(
                       builder: (controller) {
-                        // 使用 displayPlaylist
                         final playlist = controller.displayPlaylist;
-                        final currentIndex = controller.currentIndex;
-
                         if (playlist == null || playlist.isEmpty) {
                           return const SizedBox.shrink();
                         }
 
-                        return ListView.builder(
+                        // 使用 ListView.builder 的优化版本
+                        return ListView.custom(
                           controller: playlistScrollController,
                           padding: const EdgeInsets.only(
                             top: 8.0,
                             bottom: 72.0,
                           ),
-                          itemCount: playlist.length,
-                          itemBuilder: (context, index) {
-                            final track = playlist[index];
-                            final isPlaying = index == currentIndex;
+                          // 使用自定义子项代理以优化性能
+                          childrenDelegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final track = playlist[index];
+                              final isPlaying = index == controller.currentIndex;
 
-                            return GestureDetector(
-                              onTap: () {
-                                controller.skipToQueueItem(index);
-                                Navigator.pop(context);
-                              },
-                              child: Container(
-                                color: Colors.transparent,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 12,
-                                ),
-                                child: Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: Center(
-                                        child: isPlaying
-                                            ? const _PlayingIndicator()
-                                            : Text(
-                                                '${index + 1}',
+                              return RepaintBoundary(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque, // 优化点击响应区域
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    Future.delayed(const Duration(milliseconds: 300), () {
+                                      if (mounted) {
+                                        controller.skipToQueueItem(index);
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    color: Colors.transparent,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 12,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: Center(
+                                            child: isPlaying
+                                                ? const _PlayingIndicator()
+                                                : Text(
+                                                    '${index + 1}',
+                                                    style: TextStyle(
+                                                      color: Colors.white.withOpacity(0.5),
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: CachedNetworkImage(
+                                            imageUrl: track['cover_url'] ?? '',
+                                            width: 48,
+                                            height: 48,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                track['name'] ?? '',
+                                                style: TextStyle(
+                                                  color: Colors.white.withOpacity(
+                                                    isPlaying ? 1.0 : 0.9,
+                                                  ),
+                                                  fontSize: 16,
+                                                  fontWeight: isPlaying ? FontWeight.w600 : FontWeight.normal,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                track['artist'] ?? '',
                                                 style: TextStyle(
                                                   color: Colors.white.withOpacity(0.5),
                                                   fontSize: 14,
                                                 ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: CachedNetworkImage(
-                                        imageUrl: track['cover_url'] ?? '',
-                                        width: 48,
-                                        height: 48,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            track['name'] ?? '',
-                                            style: TextStyle(
-                                              color: Colors.white.withOpacity(
-                                                isPlaying ? 1.0 : 0.9,
-                                              ),
-                                              fontSize: 16,
-                                              fontWeight: isPlaying ? FontWeight.w600 : FontWeight.normal,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                            ],
                                           ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            track['artist'] ?? '',
-                                            style: TextStyle(
-                                              color: Colors.white.withOpacity(0.5),
-                                              fontSize: 14,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                            childCount: playlist.length,
+                            addAutomaticKeepAlives: false,
+                            addRepaintBoundaries: true,
+                          ),
+                          // 优化滚动性能
+                          physics: const RangeMaintainingScrollPhysics(),
+                          cacheExtent: 72.0 * 10,
                         );
                       },
                     ),
@@ -1103,8 +1134,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
     ).then((_) {
       playlistScrollController.dispose();
     });
-
-    Future.delayed(const Duration(milliseconds: 300), scrollToCurrentSong);
   }
 
   Widget _buildControlButtons() {
