@@ -180,31 +180,7 @@ class AppDrawer extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                '1.2.2版本更新内容：',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildUpdateItem('iOS上岛'),
-                              _buildUpdateItem('一定程度上优化了进入页面时的卡顿'),
-                              const Text(
-                                '1.2.1版本更新内容：',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildUpdateItem('新增修改个人资料'),
-                              _buildUpdateItem('修改登录页面颜色'),
-                              _buildUpdateItem('左侧抽屉恢复更新记录'),
-                              const SizedBox(height: 16),
-                              const Text(
-                                '1.2.0版本更新内容：',
+                                '1.2.0版本主要更新：',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
@@ -213,9 +189,9 @@ class AppDrawer extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               _buildUpdateItem('全新UI升级'),
-                              _buildUpdateItem('修复已知问题'),
-                              _buildUpdateItem('一定记得登录'),
-                              _buildUpdateItem('美好等待着你'),
+                              _buildUpdateItem('iOS新增灵动岛'),
+                              _buildUpdateItem('新增个人资料管理'),
+                              _buildUpdateItem('性能优化'),
                             ],
                           ),
                         ),
