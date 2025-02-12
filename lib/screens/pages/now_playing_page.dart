@@ -1218,13 +1218,34 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
         ),
         // 循环模式按钮
         IconButton(
-          icon: FaIcon(
-            FontAwesomeIcons.repeat,
-            size: 20,
-            color: isFMMode
-                ? Colors.grey.withOpacity(0.4) // FM 模式下置灰
-                : Colors.white,
-          ),
+          icon: isFMMode
+              ? FaIcon(
+                  FontAwesomeIcons.repeat,
+                  size: 20,
+                  color: Colors.grey.withOpacity(0.4),
+                )
+              : Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    FaIcon(
+                      FontAwesomeIcons.repeat,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                    if (controller.repeatMode == RepeatMode.single)
+                      Positioned(
+                        top: 4,
+                        child: Text(
+                          '1',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
           onPressed: isFMMode
               ? () => ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
