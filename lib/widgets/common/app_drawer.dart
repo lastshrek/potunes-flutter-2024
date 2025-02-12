@@ -189,6 +189,7 @@ class AppDrawer extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               _buildUpdateItem('全新UI升级'),
+                              _buildUpdateItem('新增FM模式'),
                               _buildUpdateItem('iOS新增灵动岛'),
                               _buildUpdateItem('新增个人资料管理'),
                               _buildUpdateItem('当前播放歌曲列表内展示'),
