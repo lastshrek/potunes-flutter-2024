@@ -669,25 +669,30 @@ class _HomePageState extends State<HomePage> {
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () async {
-                  try {
-                    Get.snackbar(
-                      'FM',
-                      '正在加载歌曲...',
-                      snackPosition: SnackPosition.TOP,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                        '正在加载歌曲...',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 14,
+                        ),
+                      ),
                       duration: const Duration(seconds: 1),
-                    );
-                    await AudioService.to.playFMTrack();
-                  } catch (e) {
-                    Get.snackbar(
-                      'Error',
-                      '加载歌曲失败',
-                      snackPosition: SnackPosition.TOP,
-                      backgroundColor: Colors.red,
-                      colorText: Colors.white,
-                    );
-                    print('Error playing FM track: $e');
-                  }
+                      behavior: SnackBarBehavior.floating,
+                      margin: const EdgeInsets.only(
+                        bottom: 16,
+                        left: 16,
+                        right: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: const BorderRadius.all(Radius.circular(8)),
+                      ),
+                      backgroundColor: Colors.white,
+                    ),
+                  );
+                  AudioService.to.playFMTrack();
                 },
                 child: Row(
                   children: [
