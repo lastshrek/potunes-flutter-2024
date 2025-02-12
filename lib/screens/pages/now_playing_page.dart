@@ -19,7 +19,7 @@ class NowPlayingPage extends StatefulWidget {
   State<NowPlayingPage> createState() => _NowPlayingPageState();
 }
 
-class _NowPlayingPageState extends State<NowPlayingPage> {
+class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProviderStateMixin {
   Color? dominantColor;
   Color? secondaryColor;
   static final Map<String, Color> _colorCache = {};
@@ -30,10 +30,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   final _showControls = true.obs;
   Timer? _hideControlsTimer;
 
-  // 添加手势控制相关变量
-  double _dragStartY = 0;
-  double _dragDistance = 0;
-  final double _dismissThreshold = 150.0; // 触发退出的阈值
+  // 添加动画控制器
+  late AnimationController _animationController;
+  late Animation<double> _bgOpacityAnimation;
 
   @override
   void initState() {
@@ -41,7 +40,47 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     _pageController = PageController(
       initialPage: AudioService.to.currentPageIndex,
     );
-    _extractColors();
+
+    // 初始化动画控制器
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    // 背景色透明度动画
+    _bgOpacityAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    ));
+
+    // 先使用缓存的颜色（如果有）
+    final track = AudioService.to.currentTrack;
+    if (track != null) {
+      final coverUrl = track['cover_url'] ?? '';
+      if (_colorCache.containsKey(coverUrl)) {
+        dominantColor = _colorCache[coverUrl];
+        secondaryColor = dominantColor?.withOpacity(0.7);
+      } else {
+        // 默认颜色
+        dominantColor = Colors.black;
+        secondaryColor = Colors.black.withOpacity(0.7);
+      }
+    }
+
+    // 自动开始动画
+    _animationController.forward();
+
+    // 延迟提取颜色
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _extractColors();
+        }
+      });
+    });
 
     // 监听播放位置变化
     ever(AudioService.to.rxPosition, (position) {
@@ -89,6 +128,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     _lyricsScrollController.dispose();
     _pageController.dispose();
     _hideControlsTimer?.cancel();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -109,10 +149,17 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     }
 
     try {
-      final imageProvider = CachedNetworkImageProvider(coverUrl);
+      // 使用较小的图片尺寸
+      final imageProvider = ResizeImage(
+        CachedNetworkImageProvider(coverUrl),
+        width: 100,
+        height: 100,
+      );
+
       final paletteGenerator = await PaletteGenerator.fromImageProvider(
         imageProvider,
-        size: const Size(200, 200),
+        size: const Size(100, 100),
+        maximumColorCount: 8,
       );
 
       if (!mounted) return;
@@ -168,129 +215,92 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // 允许返回
-        return true;
-      },
-      child: GestureDetector(
-        // 处理垂直拖动
-        onVerticalDragStart: (details) {
-          setState(() {
-            _dragStartY = details.globalPosition.dy;
-            _dragDistance = 0;
-          });
-        },
-        onVerticalDragUpdate: (details) {
-          setState(() {
-            _dragDistance = details.globalPosition.dy - _dragStartY;
-            // 只允许向下拖动
-            if (_dragDistance < 0) _dragDistance = 0;
-          });
-        },
-        onVerticalDragEnd: (details) {
-          if (_dragDistance > _dismissThreshold) {
-            // 如果拖动距离超过阈值，关闭页面
-            Navigator.of(context).pop();
-          } else {
-            // 否则重置位置
-            setState(() {
-              _dragDistance = 0;
-            });
-          }
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          transform: Matrix4.translationValues(0, _dragDistance, 0),
-          child: GetX<AudioService>(
-            builder: (controller) {
-              final track = controller.currentTrack;
-              if (track == null) return const SizedBox.shrink();
-
-              if (track['cover_url'] != _lastTrackUrl) {
-                _extractColors();
-              }
-
-              return Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: PreferredSize(
-                  preferredSize: const Size.fromHeight(kToolbarHeight),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.7),
-                          Colors.black.withOpacity(0.0),
-                        ],
-                      ),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.7),
+                Colors.black.withOpacity(0.0),
+              ],
+            ),
+          ),
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.keyboard_arrow_down),
+              onPressed: () => Navigator.pop(context),
+            ),
+            centerTitle: true,
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildPageIndicator(0),
+                const SizedBox(width: 8),
+                _buildPageIndicator(1),
+              ],
+            ),
+            actions: [
+              // 添加喜欢按钮 - 只在登录时显示
+              Obx(() {
+                if (UserService.to.isLoggedIn) {
+                  return IconButton(
+                    icon: FaIcon(
+                      AudioService.to.isLike ? FontAwesomeIcons.solidHeart : FontAwesomeIcons.heart,
+                      color: AudioService.to.isLike ? const Color(0xFFFF69B4) : Colors.white,
+                      size: 20,
                     ),
-                    child: AppBar(
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      leading: IconButton(
-                        icon: const Icon(Icons.keyboard_arrow_down),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      centerTitle: true,
-                      title: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildPageIndicator(0),
-                          const SizedBox(width: 8),
-                          _buildPageIndicator(1),
-                        ],
-                      ),
-                      actions: [
-                        // 添加喜欢按钮 - 只在登录时显示
-                        Obx(() {
-                          if (UserService.to.isLoggedIn) {
-                            return IconButton(
-                              icon: FaIcon(
-                                controller.isLike ? FontAwesomeIcons.solidHeart : FontAwesomeIcons.heart,
-                                color: controller.isLike ? const Color(0xFFFF69B4) : Colors.white,
-                                size: 20,
-                              ),
-                              onPressed: controller.toggleLike,
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        }),
-                      ],
-                    ),
-                  ),
-                ),
-                extendBodyBehindAppBar: true,
-                body: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        dominantColor?.withOpacity(0.8) ?? Colors.black,
-                        secondaryColor?.withOpacity(0.5) ?? Colors.black87,
-                        Colors.black,
-                      ],
-                      stops: const [0.0, 0.5, 0.9],
-                    ),
-                  ),
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const BouncingScrollPhysics(),
-                    onPageChanged: (index) {
-                      AudioService.to.currentPageIndex = index;
-                    },
-                    children: [
-                      _buildPlayerPage(track, controller),
-                      _buildLyricsPage(track),
-                    ],
-                  ),
-                ),
-              );
-            },
+                    onPressed: AudioService.to.toggleLike,
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
+            ],
           ),
         ),
+      ),
+      extendBodyBehindAppBar: true,
+      body: GetX<AudioService>(
+        builder: (controller) {
+          final track = controller.currentTrack;
+          if (track == null) return const SizedBox.shrink();
+
+          if (track['cover_url'] != _lastTrackUrl) {
+            _extractColors();
+          }
+
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  dominantColor?.withOpacity(0.8) ?? Colors.black,
+                  secondaryColor?.withOpacity(0.5) ?? Colors.black87,
+                  Colors.black,
+                ],
+                stops: const [0.0, 0.5, 0.9],
+              ),
+            ),
+            child: PageView(
+              controller: _pageController,
+              physics: const BouncingScrollPhysics(),
+              onPageChanged: (index) {
+                AudioService.to.currentPageIndex = index;
+              },
+              children: [
+                _buildPlayerPage(track, controller),
+                _buildLyricsPage(track),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -336,7 +346,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                   maxHeight: MediaQuery.of(context).size.width * 0.8,
                 ),
                 child: Hero(
-                  tag: 'mini_player',
+                  tag: 'player_cover',
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
@@ -523,7 +533,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
                 maxHeight: MediaQuery.of(context).size.height * 0.7,
               ),
               child: Hero(
-                tag: 'mini_player',
+                tag: 'player_cover',
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),

@@ -214,7 +214,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                           // 播放器主体
                           Container(
                             height: 64,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
                               color: Colors.black,
                               border: Border(
@@ -230,29 +230,33 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                                 Container(
                                   width: 48,
                                   height: 48,
-                                  margin: const EdgeInsets.all(8),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(4),
-                                    child: CachedNetworkImage(
-                                      imageUrl: currentTrack['cover_url'] ?? '',
-                                      fit: BoxFit.cover,
-                                      placeholder: (context, url) => Container(
-                                        color: Colors.grey[800],
-                                        child: const Icon(
-                                          Icons.music_note,
-                                          color: Colors.white54,
+                                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                  child: Hero(
+                                    tag: 'player_cover',
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: CachedNetworkImage(
+                                        imageUrl: currentTrack['cover_url'] ?? '',
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(
+                                          color: Colors.grey[800],
+                                          child: const Icon(
+                                            Icons.music_note,
+                                            color: Colors.white54,
+                                          ),
                                         ),
-                                      ),
-                                      errorWidget: (context, url, error) => Container(
-                                        color: Colors.grey[800],
-                                        child: const Icon(
-                                          Icons.music_note,
-                                          color: Colors.white54,
+                                        errorWidget: (context, url, error) => Container(
+                                          color: Colors.grey[800],
+                                          child: const Icon(
+                                            Icons.music_note,
+                                            color: Colors.white54,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 6),
                                 // 标题和艺术家
                                 Expanded(
                                   child: Column(
@@ -269,7 +273,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                      const SizedBox(height: 2),
+                                      const SizedBox(height: 4),
                                       Text(
                                         currentTrack['artist'] ?? '',
                                         style: TextStyle(
@@ -282,36 +286,32 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                                     ],
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 // 控制按钮
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 4),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      // 播放/暂停按钮
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // 播放/暂停按钮
+                                    IconButton(
+                                      icon: Obx(() => FaIcon(
+                                            controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
+                                            color: Colors.white,
+                                            size: 18,
+                                          )),
+                                      onPressed: controller.togglePlayPause,
+                                      padding: EdgeInsets.zero,
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    // 喜欢按钮
+                                    if (isLoggedIn)
                                       IconButton(
-                                        icon: Obx(() => FaIcon(
-                                              controller.isPlaying
-                                                  ? FontAwesomeIcons.pause // 使用 FontAwesome 的暂停图标
-                                                  : FontAwesomeIcons.play, // 使用 FontAwesome 的播放图标
-                                              color: Colors.white,
-                                              size: 18, // 稍微调小一点图标尺寸
+                                        icon: Obx(() => Icon(
+                                              controller.isLike ? Icons.favorite : Icons.favorite_border,
+                                              color: controller.isLike ? const Color(0xFFDA5597) : Colors.white,
                                             )),
-                                        onPressed: controller.togglePlayPause,
-                                        padding: EdgeInsets.zero, // 减小内边距使图标看起来更协调
-                                        visualDensity: VisualDensity.compact, // 使按钮更紧凑
+                                        onPressed: controller.toggleLike,
                                       ),
-                                      // 喜欢按钮 - 根据登录状态显示
-                                      if (isLoggedIn)
-                                        IconButton(
-                                          icon: Obx(() => Icon(
-                                                controller.isLike ? Icons.favorite : Icons.favorite_border,
-                                                color: controller.isLike ? const Color(0xFFDA5597) : Colors.white,
-                                              )),
-                                          onPressed: controller.toggleLike,
-                                        ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
                               ],
                             ),
