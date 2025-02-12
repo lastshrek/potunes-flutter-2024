@@ -108,7 +108,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
       // 等待页面转场动画完成（通常是300ms）
       Future.delayed(const Duration(milliseconds: 600), () {
         if (!mounted) return;
-        _loadTracks();
+        _initializeData();
       });
     });
   }
@@ -188,9 +188,18 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     }
   }
 
+  Future<void> _initializeData() async {
+    // 先提取颜色
+    if (widget.coverUrl != null) {
+      await _extractColors();
+    }
+
+    // 再加载 tracks
+    await _loadTracks();
+  }
+
   Future<void> _loadTracks() async {
     try {
-      // 先加载 tracks 数据
       final response = widget.isFromTopList
           ? await _networkService.getTopListDetail(widget.playlistId)
           : widget.isFromNewAlbum
@@ -207,16 +216,6 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
           _isLoading = false;
           _hasMoreData = _allTracks.length > _pageSize;
         });
-
-        // 等待一帧以确保 setState 完成
-        await Future.microtask(() {});
-
-        // 延迟加载颜色，让列表先显示出来
-        if (widget.coverUrl != null) {
-          Future.delayed(const Duration(milliseconds: 100), () {
-            _extractColors();
-          });
-        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -486,9 +485,11 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                               controller: _landscapeRightController,
                               physics: const BouncingScrollPhysics(),
                               slivers: [
-                                _buildSliverAppBar(),
-                                SliverToBoxAdapter(
-                                  child: _buildPlaylistHeader(),
+                                const SliverAppBar(
+                                  backgroundColor: Colors.transparent,
+                                  pinned: true,
+                                  expandedHeight: 0,
+                                  toolbarHeight: 0,
                                 ),
                                 _buildTrackList(),
                                 SliverToBoxAdapter(
