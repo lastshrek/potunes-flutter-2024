@@ -208,13 +208,28 @@ class _LoginPageState extends State<LoginPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'PoPo\nCollections\nMusic.',
-                                style: TextStyle(
-                                  color: Color(0xFFDA5597),
-                                  fontSize: 40,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.2,
+                              RichText(
+                                text: TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: 'PoPo\nCollections\n',
+                                      style: const TextStyle(
+                                        color: Color(0xFFDA5597),
+                                        fontSize: 40,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                    const TextSpan(
+                                      text: 'Music.',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 40,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 48),
@@ -295,17 +310,17 @@ class _LoginPageState extends State<LoginPage> {
                                         : () {
                                             if (_showCaptchaInput.value) {
                                               if (_countdown.value > 0) {
-                                                _login(); // 倒计时中点击执行登录
+                                                _login();
                                               } else {
-                                                _sendCaptcha(); // 倒计时结束后点击重新发送验证码
+                                                _sendCaptcha();
                                               }
                                             } else {
-                                              _sendCaptcha(); // 首次发送验证码
+                                              _sendCaptcha();
                                             }
                                           },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFFDA5597),
-                                      foregroundColor: Colors.black,
+                                      foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
@@ -316,7 +331,7 @@ class _LoginPageState extends State<LoginPage> {
                                             height: 24,
                                             child: CircularProgressIndicator(
                                               strokeWidth: 2,
-                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                             ),
                                           )
                                         : Row(
@@ -327,6 +342,7 @@ class _LoginPageState extends State<LoginPage> {
                                                 style: const TextStyle(
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
                                                 ),
                                               ),
                                               if (isCountingDown) ...[
@@ -336,6 +352,7 @@ class _LoginPageState extends State<LoginPage> {
                                                   style: const TextStyle(
                                                     fontSize: 14,
                                                     fontWeight: FontWeight.normal,
+                                                    color: Colors.white,
                                                   ),
                                                 ),
                                               ],
