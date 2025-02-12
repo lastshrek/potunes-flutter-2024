@@ -95,12 +95,15 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
     _scrollController.addListener(_onScrollForPagination);
-    // 为横屏模式的右侧列表添加滚动监听
     _landscapeRightController.addListener(_onScrollForPagination);
 
-    // 直接加载数据
+    // 等待页面转场动画完成后再加载数据
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadTracks();
+      // 等待页面转场动画完成（通常是300ms）
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (!mounted) return;
+        _loadTracks();
+      });
     });
   }
 
@@ -434,16 +437,13 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
                             return CustomScrollView(
                               controller: _landscapeRightController,
-                              physics: const ClampingScrollPhysics(),
+                              physics: const BouncingScrollPhysics(),
                               slivers: [
-                                SliverPadding(
-                                  padding: EdgeInsets.only(
-                                    top: MediaQuery.of(context).padding.top + 16,
-                                  ),
-                                  sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
+                                _buildSliverAppBar(),
+                                SliverToBoxAdapter(
+                                  child: _buildPlaylistHeader(),
                                 ),
                                 _buildTrackList(),
-                                // 添加底部空间以避免被 MiniPlayer 遮挡
                                 SliverToBoxAdapter(
                                   child: SizedBox(height: miniPlayerHeight + 16),
                                 ),
@@ -483,40 +483,39 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      color.withOpacity(0.95), // 顶部更不透明
-                      color.withOpacity(0.7), // 中间过渡色更深
-                      const Color(0xff161616), // 底部保持黑色
+                      color.withOpacity(0.95),
+                      color.withOpacity(0.7),
+                      const Color(0xff161616),
                     ],
                     stops: const [0.0, 0.3, 1.0],
                   ),
                 ),
-                child: child!,
+                child: SafeArea(
+                  bottom: false,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: CustomScrollView(
+                          controller: _scrollController,
+                          physics: const BouncingScrollPhysics(),
+                          slivers: [
+                            _buildSliverAppBar(),
+                            SliverToBoxAdapter(
+                              child: _buildPlaylistHeader(),
+                            ),
+                            _buildTrackList(),
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 32),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const MiniPlayer(isAboveBottomBar: false),
+                    ],
+                  ),
+                ),
               );
             },
-            child: SafeArea(
-              bottom: false,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: CustomScrollView(
-                      controller: _scrollController,
-                      physics: const BouncingScrollPhysics(),
-                      slivers: [
-                        _buildSliverAppBar(),
-                        SliverToBoxAdapter(
-                          child: _buildPlaylistHeader(),
-                        ),
-                        _buildTrackList(),
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: 32),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const MiniPlayer(isAboveBottomBar: false),
-                ],
-              ),
-            ),
           ),
         ),
       );
@@ -696,6 +695,16 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   }
 
   Widget _buildTrackList() {
+    if (_isLoading) {
+      return const SliverFillRemaining(
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        ),
+      );
+    }
+
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
