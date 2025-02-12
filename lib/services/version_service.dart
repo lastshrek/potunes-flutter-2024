@@ -38,11 +38,21 @@ class VersionService extends GetxService {
 
       if (response.statusCode == ApiConfig.successCode) {
         final responseData = response.data['data'] as Map<String, dynamic>;
+
+        // 打印完整的 responseData
+        print('Full response data: $responseData');
+
         final newVersion = responseData['a_version'] as String;
         final downloadUrl = responseData['a_url'] as String;
+        // 使用正确的字段名 updateText
+        final dynamic rawUpdateText = responseData['updateText'];
+        print('Raw updateText: $rawUpdateText (type: ${rawUpdateText.runtimeType})');
+
+        final updateText = rawUpdateText?.toString() ?? '暂无更新说明';
 
         print('Server version: $newVersion');
         print('Download URL: $downloadUrl');
+        print('Processed update text: $updateText');
 
         // 验证 URL 格式
         if (downloadUrl.isEmpty) {
@@ -66,6 +76,7 @@ class VersionService extends GetxService {
           await _showUpdateDialog(
             version: newVersion,
             url: downloadUrl,
+            updateText: updateText,
           );
         } else {
           print('No update needed');
@@ -104,6 +115,7 @@ class VersionService extends GetxService {
   Future<void> _showUpdateDialog({
     required String version,
     required String url,
+    required String updateText,
   }) async {
     try {
       if (!Get.isDialogOpen! && Get.context != null) {
@@ -111,7 +123,7 @@ class VersionService extends GetxService {
           WillPopScope(
             onWillPop: () async => false,
             child: AlertDialog(
-              backgroundColor: Colors.black87, // 设置背景色
+              backgroundColor: Colors.black87,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15),
               ),
@@ -123,11 +135,37 @@ class VersionService extends GetxService {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              content: Text(
-                '有新版本 $version 可供下载，是否更新？',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '有新版本 $version 可供下载',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '更新内容：',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      updateText.replaceAll('\\n', '\n'),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               actions: [
@@ -147,18 +185,16 @@ class VersionService extends GetxService {
                       Get.back();
                       print('Attempting to launch URL: $url');
 
-                      // 修改这里的 URL 启动方式
                       if (Platform.isAndroid) {
                         final Uri uri = Uri.parse(url);
                         await launchUrl(
                           uri,
-                          mode: LaunchMode.externalNonBrowserApplication, // 使用外部应用打开
+                          mode: LaunchMode.externalNonBrowserApplication,
                         ).then((bool result) {
                           if (!result) {
-                            // 如果外部应用打开失败，尝试使用系统浏览器
                             launchUrl(
                               uri,
-                              mode: LaunchMode.externalApplication, // 使用系统浏览器
+                              mode: LaunchMode.externalApplication,
                             );
                           }
                         });
@@ -178,7 +214,7 @@ class VersionService extends GetxService {
                     }
                   },
                   style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFFDA5597),
+                    backgroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 10,
@@ -190,7 +226,7 @@ class VersionService extends GetxService {
                   child: const Text(
                     '立即更新',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),

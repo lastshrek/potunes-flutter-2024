@@ -582,7 +582,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         // Final 部分
         HorizontalPlaylistList(
           title: 'Finals',
@@ -604,7 +604,7 @@ class _HomePageState extends State<HomePage> {
             _onPlaylistTap(playlist);
           },
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
         // Albums 部分
         _buildAlbumsSection(),
         const SizedBox(height: 24),

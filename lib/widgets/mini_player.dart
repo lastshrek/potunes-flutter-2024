@@ -306,7 +306,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                                         IconButton(
                                           icon: Obx(() => Icon(
                                                 controller.isLike ? Icons.favorite : Icons.favorite_border,
-                                                color: controller.isLike ? Colors.pink : Colors.white,
+                                                color: controller.isLike ? const Color(0xFFDA5597) : Colors.white,
                                               )),
                                           onPressed: controller.toggleLike,
                                         ),

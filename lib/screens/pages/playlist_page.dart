@@ -11,6 +11,7 @@ import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
 import '../../widgets/mini_player.dart';
 import '../../widgets/track_list_tile.dart';
+import '../../utils/image_cache_manager.dart';
 
 class PlaylistPage extends StatefulWidget {
   final Map<String, dynamic> playlist;
@@ -45,7 +46,6 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   // 缓存 MediaQuery 的值
   late final double _screenWidth = MediaQuery.of(context).size.width;
-  late final double _topPadding = MediaQuery.of(context).padding.top;
 
   // 缓存计算值
   late final double _imageSize = _screenWidth * 0.7;
@@ -72,22 +72,6 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     fontSize: 14,
   );
 
-  // 缓存布局常量
-  static const _contentPadding = EdgeInsets.all(16.0);
-  static const _borderRadius = BorderRadius.all(Radius.circular(8.0));
-
-  // 缓存阴影效果
-  late final _shadowDecoration = BoxDecoration(
-    borderRadius: _borderRadius,
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withOpacity(0.2),
-        blurRadius: 8,
-        offset: const Offset(0, 4),
-      ),
-    ],
-  );
-
   @override
   bool get wantKeepAlive => false;
 
@@ -110,7 +94,6 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    print('PlaylistPage disposed');
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     dominantColor = null;
@@ -303,34 +286,40 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                               height: coverSize,
                                               child: Center(
                                                 child: AspectRatio(
-                                                  aspectRatio: widget.isFromCollections ? 32 / 15 : 1,
+                                                  aspectRatio: widget.isFromCollections
+                                                      ? 32 / 15 // 从 Collections 进入时使用 32:15 的比例
+                                                      : 1, // 其他情况使用 1:1 的比例
                                                   child: Container(
                                                     decoration: BoxDecoration(
-                                                      borderRadius: BorderRadius.circular(12),
+                                                      borderRadius: BorderRadius.circular(8.0),
+                                                      color: const Color(0xff161616),
                                                       boxShadow: [
                                                         BoxShadow(
-                                                          color: Colors.black.withOpacity(0.3),
-                                                          blurRadius: 20,
-                                                          offset: const Offset(0, 10),
+                                                          color: Colors.black.withOpacity(0.2),
+                                                          blurRadius: 8,
+                                                          offset: const Offset(0, 4),
                                                         ),
                                                       ],
                                                     ),
                                                     child: ClipRRect(
-                                                      borderRadius: BorderRadius.circular(12),
-                                                      child: CachedNetworkImage(
-                                                        imageUrl: widget.playlist['cover'] ?? '',
-                                                        fit: BoxFit.cover,
-                                                        memCacheWidth: MediaQuery.of(context).size.width.toInt(),
-                                                        memCacheHeight: MediaQuery.of(context).size.width.toInt(),
-                                                        fadeInDuration: Duration.zero,
-                                                        fadeOutDuration: Duration.zero,
-                                                        placeholder: (context, url) => const ColoredBox(
-                                                          color: Color(0xff161616),
-                                                          child: Icon(Icons.music_note, color: Colors.white54),
-                                                        ),
-                                                        errorWidget: (context, url, error) => const ColoredBox(
-                                                          color: Color(0xff161616),
-                                                          child: Icon(Icons.music_note, color: Colors.white54),
+                                                      borderRadius: BorderRadius.circular(8.0),
+                                                      child: Container(
+                                                        color: const Color(0xff161616),
+                                                        child: Center(
+                                                          child: ImageCacheManager.instance.buildImage(
+                                                            url: widget.playlist['cover'] ?? '',
+                                                            width: coverSize,
+                                                            height: widget.isFromCollections ? (coverSize * 15 / 32) : coverSize,
+                                                            fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
+                                                            placeholder: Container(
+                                                              color: const Color(0xff161616),
+                                                              child: const Icon(Icons.music_note, color: Colors.white54),
+                                                            ),
+                                                            errorWidget: Container(
+                                                              color: const Color(0xff161616),
+                                                              child: const Icon(Icons.music_note, color: Colors.white54),
+                                                            ),
+                                                          ),
                                                         ),
                                                       ),
                                                     ),
@@ -474,34 +463,40 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                           height: coverSize,
                                           child: Center(
                                             child: AspectRatio(
-                                              aspectRatio: widget.isFromCollections ? 32 / 15 : 1,
+                                              aspectRatio: widget.isFromCollections
+                                                  ? 32 / 15 // 从 Collections 进入时使用 32:15 的比例
+                                                  : 1, // 其他情况使用 1:1 的比例
                                               child: Container(
                                                 decoration: BoxDecoration(
-                                                  borderRadius: BorderRadius.circular(12),
+                                                  borderRadius: BorderRadius.circular(8.0),
+                                                  color: const Color(0xff161616),
                                                   boxShadow: [
                                                     BoxShadow(
-                                                      color: Colors.black.withOpacity(0.3),
-                                                      blurRadius: 20,
-                                                      offset: const Offset(0, 10),
+                                                      color: Colors.black.withOpacity(0.2),
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 4),
                                                     ),
                                                   ],
                                                 ),
                                                 child: ClipRRect(
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  child: CachedNetworkImage(
-                                                    imageUrl: widget.playlist['cover'] ?? '',
-                                                    fit: BoxFit.cover,
-                                                    memCacheWidth: MediaQuery.of(context).size.width.toInt(),
-                                                    memCacheHeight: MediaQuery.of(context).size.width.toInt(),
-                                                    fadeInDuration: Duration.zero,
-                                                    fadeOutDuration: Duration.zero,
-                                                    placeholder: (context, url) => const ColoredBox(
-                                                      color: Color(0xff161616),
-                                                      child: Icon(Icons.music_note, color: Colors.white54),
-                                                    ),
-                                                    errorWidget: (context, url, error) => const ColoredBox(
-                                                      color: Color(0xff161616),
-                                                      child: Icon(Icons.music_note, color: Colors.white54),
+                                                  borderRadius: BorderRadius.circular(8.0),
+                                                  child: Container(
+                                                    color: const Color(0xff161616),
+                                                    child: Center(
+                                                      child: ImageCacheManager.instance.buildImage(
+                                                        url: widget.playlist['cover'] ?? '',
+                                                        width: coverSize,
+                                                        height: widget.isFromCollections ? (coverSize * 15 / 32) : coverSize,
+                                                        fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
+                                                        placeholder: Container(
+                                                          color: const Color(0xff161616),
+                                                          child: const Icon(Icons.music_note, color: Colors.white54),
+                                                        ),
+                                                        errorWidget: Container(
+                                                          color: const Color(0xff161616),
+                                                          child: const Icon(Icons.music_note, color: Colors.white54),
+                                                        ),
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
@@ -655,8 +650,9 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   }
 
   Widget _buildSliverAppBar() {
-    final double imageSize = MediaQuery.of(context).size.width * 0.7;
-    final double minImageSize = MediaQuery.of(context).size.width * 0.3;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double imageSize = screenWidth * 0.7;
+    final double minImageSize = screenWidth * 0.3;
     final double topPadding = MediaQuery.of(context).padding.top;
 
     return ValueListenableBuilder<double>(
@@ -665,10 +661,15 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
         final double titleOpacity = ((opacity - 0.7) * 5).clamp(0.0, 1.0);
         final double currentSize = (imageSize - (imageSize - minImageSize) * opacity).clamp(minImageSize, imageSize);
 
-        final Color backgroundColor = opacity <= 0.01 ? Colors.transparent : (secondaryColor?.withOpacity(opacity) ?? const Color(0xff161616).withOpacity(opacity));
+        // 计算 Collections 图片的高度
+        final double imageHeight = widget.isFromCollections
+            ? (screenWidth * 0.7 * 15 / 32) // 使用屏幕宽度来计算高度
+            : currentSize;
 
         return SliverAppBar(
-          expandedHeight: imageSize + topPadding + 10,
+          expandedHeight: widget.isFromCollections
+              ? imageHeight + topPadding + 10 // Collections 模式下的高度
+              : imageSize + topPadding + 10, // 普通模式下的高度
           pinned: true,
           stretch: true,
           systemOverlayStyle: const SystemUiOverlayStyle(
@@ -677,7 +678,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
             systemNavigationBarColor: Colors.transparent,
             systemNavigationBarIconBrightness: Brightness.light,
           ),
-          backgroundColor: backgroundColor,
+          backgroundColor: Colors.transparent,
           leading: IconButton(
             icon: const Icon(
               Icons.arrow_back,
@@ -709,7 +710,9 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                   child: Center(
                     child: SizedBox(
                       width: currentSize,
-                      height: widget.isFromCollections ? (currentSize * 15 / 32) : currentSize,
+                      height: widget.isFromCollections
+                          ? (screenWidth * 0.7 * 15 / 32) // 使用屏幕宽度来计算高度
+                          : currentSize,
                       child: Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8.0),
@@ -723,20 +726,18 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8.0),
-                          child: CachedNetworkImage(
-                            imageUrl: widget.playlist['cover'] ?? '',
-                            fit: BoxFit.cover,
-                            memCacheWidth: MediaQuery.of(context).size.width.toInt(),
-                            memCacheHeight: MediaQuery.of(context).size.width.toInt(),
-                            fadeInDuration: Duration.zero,
-                            fadeOutDuration: Duration.zero,
-                            placeholder: (context, url) => const ColoredBox(
-                              color: Color(0xff161616),
-                              child: Icon(Icons.music_note, color: Colors.white54),
+                          child: ImageCacheManager.instance.buildImage(
+                            url: widget.playlist['cover'] ?? '',
+                            width: currentSize,
+                            height: widget.isFromCollections ? (screenWidth * 0.7 * 15 / 32) : currentSize,
+                            fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
+                            placeholder: Container(
+                              color: const Color(0xff161616),
+                              child: const Icon(Icons.music_note, color: Colors.white54),
                             ),
-                            errorWidget: (context, url, error) => const ColoredBox(
-                              color: Color(0xff161616),
-                              child: Icon(Icons.music_note, color: Colors.white54),
+                            errorWidget: Container(
+                              color: const Color(0xff161616),
+                              child: const Icon(Icons.music_note, color: Colors.white54),
                             ),
                           ),
                         ),
