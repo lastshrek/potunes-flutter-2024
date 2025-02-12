@@ -589,20 +589,15 @@ class _HomePageState extends State<HomePage> {
           playlists: finalPlaylists,
           isLoading: controller.isRefreshing,
           onTitleTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AllPlaylistsPage(
-                  title: 'Final',
-                  playlists: finalPlaylists,
-                  apiPath: ApiConfig.allFinals,
-                ),
+            _navigateToPage(
+              AllPlaylistsPage(
+                title: 'Final',
+                playlists: finalPlaylists,
+                apiPath: ApiConfig.allFinals,
               ),
             );
           },
-          onPlaylistTap: (playlist) {
-            _onPlaylistTap(playlist);
-          },
+          onPlaylistTap: _onPlaylistTap,
         ),
         const SizedBox(height: 8),
         // Albums 部分

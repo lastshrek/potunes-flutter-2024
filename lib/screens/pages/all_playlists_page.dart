@@ -66,6 +66,17 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
     }
   }
 
+  void _navigateToPage(Widget page) {
+    if (!mounted) return;
+
+    Get.to(
+      () => page,
+      transition: Transition.rightToLeft,
+      duration: const Duration(milliseconds: 300),
+      preventDuplicates: false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
@@ -77,7 +88,7 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -134,13 +145,20 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
                       final playlist = _playlists[index];
                       return GestureDetector(
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => PlaylistPage(
-                                playlist: playlist,
-                                playlistId: playlist['id'] ?? 0,
-                              ),
+                          final playlistId = playlist['id'];
+                          if (playlistId == null) {
+                            print('Error: Invalid playlist ID');
+                            return;
+                          }
+
+                          _navigateToPage(
+                            PlaylistPage(
+                              playlist: playlist,
+                              playlistId: int.parse(playlistId.toString()),
+                              trackCount: playlist['count'] ?? playlist['track_count'],
+                              description: playlist['content'] ?? '',
+                              coverUrl: playlist['cover'] ?? '',
+                              isFromCollections: widget.apiPath == ApiConfig.allCollections,
                             ),
                           );
                         },
