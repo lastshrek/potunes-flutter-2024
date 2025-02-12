@@ -189,17 +189,22 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   }
 
   Future<void> _initializeData() async {
-    // 先提取颜色
-    if (widget.coverUrl != null) {
-      await _extractColors();
-    }
+    // 同时启动颜色提取和数据加载
+    final colorFuture = _extractColors();
+    final tracksFuture = _loadTracks();
 
-    // 再加载 tracks
-    await _loadTracks();
+    // 等待颜色提取完成
+    await colorFuture;
+
+    // 然后等待数据加载完成
+    await tracksFuture;
   }
 
   Future<void> _loadTracks() async {
     try {
+      // 添加小延迟，确保颜色提取有足够时间完成
+      await Future.delayed(const Duration(milliseconds: 100));
+
       final response = widget.isFromTopList
           ? await _networkService.getTopListDetail(widget.playlistId)
           : widget.isFromNewAlbum
@@ -250,66 +255,59 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
       final frame = await codec.getNextFrame();
       final compressedImage = frame.image;
 
+      // 使用 PaletteGenerator 提取颜色
       final paletteGenerator = await PaletteGenerator.fromImage(
         compressedImage,
         maximumColorCount: 10,
       );
 
-      if (!mounted) return;
+      if (mounted) {
+        final Color mainColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.dominantColor?.color ?? Colors.black;
 
-      // 直接使用第一主色
-      final Color mainColor = paletteGenerator.dominantColor?.color ?? const Color(0xff161616);
-      final Color appBarColor = mainColor.withOpacity(0.95);
-
-      // 设置动画
-      _colorTween.begin = dominantColor ?? Colors.black; // 使用当前颜色作为起始点
-      _colorTween.end = mainColor;
-
-      // 执行颜色渐变动画
-      const duration = Duration(milliseconds: 800); // 增加动画时长
-      final curve = Curves.easeInOut; // 添加缓动效果
-      final startTime = DateTime.now();
-
-      void updateColor() {
-        final elapsedTime = DateTime.now().difference(startTime);
-        if (elapsedTime >= duration) {
-          setState(() {
-            dominantColor = mainColor;
-            secondaryColor = appBarColor;
-          });
-          _colorAnimation.value = mainColor;
-          return;
-        }
-
-        // 使用缓动曲线
-        final t = curve.transform((elapsedTime.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0));
-
-        final currentColor = Color.lerp(_colorTween.begin!, _colorTween.end!, t)!;
+        // 设置动画
+        _colorTween.begin = _colorAnimation.value;
+        _colorTween.end = mainColor;
 
         setState(() {
-          dominantColor = currentColor;
-          secondaryColor = currentColor.withOpacity(0.95);
+          dominantColor = mainColor;
+          secondaryColor = mainColor.withOpacity(0.95);
         });
-        _colorAnimation.value = currentColor;
 
-        // 使用 Timer 代替 microtask 以获得更平滑的动画
-        Timer(const Duration(milliseconds: 16), updateColor);
+        // 执行颜色渐变动画
+        const duration = Duration(milliseconds: 1200); // 增加动画时长
+        final startTime = DateTime.now();
+
+        void updateColor() {
+          final elapsedTime = DateTime.now().difference(startTime);
+          if (elapsedTime >= duration) {
+            _colorAnimation.value = mainColor;
+            return;
+          }
+
+          // 使用 easeInOut 曲线
+          final t = Curves.easeInOut.transform((elapsedTime.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0));
+          _colorAnimation.value = Color.lerp(_colorTween.begin!, _colorTween.end!, t)!;
+
+          if (mounted) {
+            Timer(const Duration(milliseconds: 16), updateColor); // 使用 Timer 代替 microtask
+          }
+        }
+
+        updateColor();
       }
-
-      updateColor();
     } catch (e) {
-      debugPrint('提取颜色时出错: $e');
+      print('Error extracting colors: $e');
     }
   }
 
+  // 添加 _loadImageData 静态方法
   static Future<Uint8List> _loadImageData(Map<String, dynamic> params) async {
     try {
       final url = params['url'] as String;
-      // 直接返回原始图片数据，不在 isolate 中进行压缩
       final response = await http.get(Uri.parse(url));
       return response.bodyBytes;
     } catch (e) {
-      debugPrint('加载图片数据失败: $e');
+      print('Error loading image data: $e');
       rethrow;
     }
   }
