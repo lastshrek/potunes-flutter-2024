@@ -5,6 +5,7 @@ import 'package:palette_generator/palette_generator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:flutter/services.dart';
+import 'dart:math' as math;
 
 import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
@@ -39,36 +40,70 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _bgOpacity = ValueNotifier<double>(0.0);
   List<dynamic> tracks = [];
+  final _colorTween = ColorTween(begin: Colors.black, end: Colors.black);
+  final _colorAnimation = ValueNotifier<Color>(Colors.black);
 
-  // 添加缓存标记
-  static final Map<String, Color> _colorCache = {};
-  static final Map<String, List<dynamic>> _tracksCache = {};
+  // 缓存 MediaQuery 的值
+  late final double _screenWidth = MediaQuery.of(context).size.width;
+  late final double _topPadding = MediaQuery.of(context).padding.top;
+
+  // 缓存计算值
+  late final double _imageSize = _screenWidth * 0.7;
+
+  // 使用 const 构造器优化性能
+  static const _placeholderIcon = Icon(Icons.music_note, color: Colors.white54);
+  static const _errorIcon = Icon(Icons.music_note, color: Colors.white54);
+  static const _boxColor = Color(0xff161616);
+
+  // 添加常量组件
+  static const _divider = SizedBox(height: 12);
+  static const _smallDivider = SizedBox(height: 4);
+  static const _horizontalDivider = SizedBox(width: 8);
+
+  // 缓存主题相关样式
+  late final _titleStyle = const TextStyle(
+    color: Colors.white,
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+  );
+
+  late final _subtitleStyle = TextStyle(
+    color: Colors.grey[400],
+    fontSize: 14,
+  );
+
+  // 缓存布局常量
+  static const _contentPadding = EdgeInsets.all(16.0);
+  static const _borderRadius = BorderRadius.all(Radius.circular(8.0));
+
+  // 缓存阴影效果
+  late final _shadowDecoration = BoxDecoration(
+    borderRadius: _borderRadius,
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.2),
+        blurRadius: 8,
+        offset: const Offset(0, 4),
+      ),
+    ],
+  );
 
   @override
-  bool get wantKeepAlive => false; // 设置为 false 表示不保持在内存中
+  bool get wantKeepAlive => false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
-
-    // 使用缓存数据
-    final String cacheKey = widget.playlist['cover'] ?? '';
-    if (_colorCache.containsKey(cacheKey)) {
-      dominantColor = _colorCache[cacheKey];
-      secondaryColor = dominantColor?.withOpacity(0.7);
-    }
-
-    // 移除缓存数据的使用，总是加载新数据
     _isLoading = true;
 
-    // 等待页面完全构建后再加载数据
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_colorCache.containsKey(cacheKey)) {
-        _extractColors();
-      }
-      _loadPlaylistData(); // 总是加载新数据
+      setState(() {
+        dominantColor = Colors.black;
+        secondaryColor = Colors.black;
+      });
+      _loadPlaylistData();
     });
   }
 
@@ -78,53 +113,24 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     print('PlaylistPage disposed');
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
-
-    // 清理不必要的缓存
-    if (!mounted) {
-      imageCache.clear();
-      imageCache.clearLiveImages();
-    }
-
-    // 清理颜色
     dominantColor = null;
     secondaryColor = null;
-
-    // 清理列表数据但保留缓存
     tracks.clear();
-
-    // 限制缓存大小但不清空
-    if (_colorCache.length > 50) {
-      final keysToRemove = _colorCache.keys.take(_colorCache.length - 50);
-      for (final key in keysToRemove) {
-        _colorCache.remove(key);
-      }
-    }
-    if (_tracksCache.length > 20) {
-      final keysToRemove = _tracksCache.keys.take(_tracksCache.length - 20);
-      for (final key in keysToRemove) {
-        _tracksCache.remove(key);
-      }
-    }
-
+    _colorAnimation.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      // 当页面不可见时清理资源
-      imageCache.clear();
-      imageCache.clearLiveImages();
-    }
-    super.didChangeAppLifecycleState(state);
-  }
-
+  // 优化滚动监听器
   void _onScroll() {
+    if (!_scrollController.hasClients) return;
     final double offset = _scrollController.offset;
-    final double imageSize = MediaQuery.of(context).size.width * 0.7;
     final double delayHeight = 90.0;
-    final double opacity = offset <= 0 ? 0.0 : ((offset - delayHeight) / imageSize).clamp(0.0, 1.0);
-    _bgOpacity.value = opacity;
+
+    // 只在必要时更新值
+    final double newOpacity = offset <= 0 ? 0.0 : ((offset - delayHeight) / _imageSize).clamp(0.0, 1.0);
+    if ((_bgOpacity.value - newOpacity).abs() > 0.01) {
+      _bgOpacity.value = newOpacity;
+    }
   }
 
   Future<void> _loadPlaylistData() async {
@@ -140,38 +146,37 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
       setState(() {
         if (response['tracks'] != null) {
           tracks = response['tracks'] as List<dynamic>;
-          // 更新缓存数据
-          _tracksCache['${widget.playlistId}'] = List<dynamic>.from(tracks);
+
+          // 预加载前10个封面
+          for (var i = 0; i < math.min(10, tracks.length); i++) {
+            precacheImage(
+              CachedNetworkImageProvider(
+                tracks[i]['cover_url'] ?? '',
+                maxWidth: 80,
+                maxHeight: 80,
+              ),
+              context,
+            );
+          }
         }
         _isLoading = false;
       });
+
+      _extractColors();
     } catch (e) {
       if (!mounted) return;
-      // 如果加载失败，尝试使用缓存数据
-      if (_tracksCache.containsKey('${widget.playlistId}')) {
-        setState(() {
-          tracks = List<dynamic>.from(_tracksCache['${widget.playlistId}']!);
-          _isLoading = false;
-        });
-      } else {
-        if (kDebugMode) {
-          print('Error loading playlist: $e');
-        }
-        setState(() {
-          _isLoading = false;
-        });
+      if (kDebugMode) {
+        print('Error loading playlist: $e');
       }
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> _extractColors() async {
     try {
-      final String cacheKey = widget.playlist['cover'] ?? '';
-      final imageProvider = CachedNetworkImageProvider(cacheKey);
-
-      // 预加载图片
-      await precacheImage(imageProvider, context);
-
+      final imageProvider = CachedNetworkImageProvider(widget.playlist['cover'] ?? '');
       final PaletteGenerator paletteGenerator = await PaletteGenerator.fromImageProvider(
         imageProvider,
         maximumColorCount: 20,
@@ -179,24 +184,36 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
       if (!mounted) return;
 
+      // 获取深色主色调
       final Color mainColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.darkVibrantColor?.color ?? paletteGenerator.dominantColor?.color ?? const Color(0xff161616);
 
-      // 缓存颜色
-      _colorCache[cacheKey] = mainColor;
+      // 确保颜色足够深
+      final HSLColor hslColor = HSLColor.fromColor(mainColor);
+      final Color adjustedColor = hslColor.withLightness((hslColor.lightness * 0.7).clamp(0.0, 0.3)).toColor();
 
-      setState(() {
-        dominantColor = mainColor;
-        secondaryColor = paletteGenerator.mutedColor?.color ?? paletteGenerator.vibrantColor?.color ?? dominantColor?.withOpacity(0.7) ?? const Color(0xff161616);
+      // 设置动画
+      _colorTween.begin = _colorAnimation.value;
+      _colorTween.end = adjustedColor;
 
-        secondaryColor = HSLColor.fromColor(secondaryColor!).withLightness((HSLColor.fromColor(secondaryColor!).lightness * 0.7).clamp(0.0, 1.0)).toColor();
-      });
+      // 执行颜色过渡动画
+      const duration = Duration(milliseconds: 500);
+      final startTime = DateTime.now();
+
+      void updateColor() {
+        final elapsedTime = DateTime.now().difference(startTime);
+        if (elapsedTime >= duration) {
+          _colorAnimation.value = adjustedColor;
+          return;
+        }
+
+        final t = (elapsedTime.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
+        _colorAnimation.value = Color.lerp(_colorTween.begin!, _colorTween.end!, t)!;
+        Future.microtask(updateColor);
+      }
+
+      updateColor();
     } catch (e) {
-      if (!mounted) return;
       debugPrint('Error extracting colors: $e');
-      setState(() {
-        dominantColor = const Color(0xff161616);
-        secondaryColor = const Color(0xff121212);
-      });
     }
   }
 
@@ -207,22 +224,197 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     if (isLandscape) {
       return WillPopScope(
         onWillPop: () async {
+          _handlePopBack();
           return true;
         },
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  secondaryColor?.withOpacity(0.8) ?? const Color(0xff161616),
-                  const Color(0xff161616),
-                ],
-                stops: const [0.0, 0.5],
-              ),
-            ),
+          body: ValueListenableBuilder<Color>(
+            valueListenable: _colorAnimation,
+            builder: (context, color, child) {
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      color.withOpacity(0.8),
+                      const Color(0xff161616),
+                    ],
+                    stops: const [0.0, 0.5],
+                  ),
+                ),
+                child: GestureDetector(
+                  onHorizontalDragEnd: (details) {
+                    if (details.primaryVelocity! > 0) {
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: Stack(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 5,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final miniPlayerHeight = 80.0;
+                                final topPadding = MediaQuery.of(context).padding.top;
+                                final bottomPadding = 16.0;
+                                final availableHeight = constraints.maxHeight - miniPlayerHeight - topPadding - bottomPadding;
+
+                                // 减小 coverSize 的比例，为底部留出更多空间
+                                final coverSize = widget.isFromCollections
+                                    ? availableHeight * 0.4 // collections 的封面高度比例降低
+                                    : availableHeight * 0.5; // 普通封面也降低比例
+                                final infoSize = availableHeight * 0.3; // 减小信息区域
+                                final spacing = availableHeight * 0.1;
+
+                                return CustomScrollView(
+                                  physics: const ClampingScrollPhysics(),
+                                  slivers: [
+                                    SliverAppBar(
+                                      backgroundColor: Colors.transparent,
+                                      pinned: true,
+                                      expandedHeight: 0,
+                                      leading: IconButton(
+                                        icon: const Icon(
+                                          Icons.arrow_back,
+                                          color: Colors.white,
+                                          size: 24,
+                                        ),
+                                        onPressed: _handlePopBack,
+                                      ),
+                                      systemOverlayStyle: const SystemUiOverlayStyle(
+                                        statusBarColor: Colors.transparent,
+                                        statusBarIconBrightness: Brightness.light,
+                                        systemNavigationBarColor: Colors.transparent,
+                                        systemNavigationBarIconBrightness: Brightness.light,
+                                      ),
+                                    ),
+                                    SliverToBoxAdapter(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(24.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            // 专辑封面
+                                            SizedBox(
+                                              height: coverSize,
+                                              child: Center(
+                                                child: AspectRatio(
+                                                  aspectRatio: widget.isFromCollections ? 32 / 15 : 1,
+                                                  child: Container(
+                                                    decoration: BoxDecoration(
+                                                      borderRadius: BorderRadius.circular(12),
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: Colors.black.withOpacity(0.3),
+                                                          blurRadius: 20,
+                                                          offset: const Offset(0, 10),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: ClipRRect(
+                                                      borderRadius: BorderRadius.circular(12),
+                                                      child: CachedNetworkImage(
+                                                        imageUrl: widget.playlist['cover'] ?? '',
+                                                        fit: BoxFit.cover,
+                                                        memCacheWidth: MediaQuery.of(context).size.width.toInt(),
+                                                        memCacheHeight: MediaQuery.of(context).size.width.toInt(),
+                                                        fadeInDuration: Duration.zero,
+                                                        fadeOutDuration: Duration.zero,
+                                                        placeholder: (context, url) => const ColoredBox(
+                                                          color: Color(0xff161616),
+                                                          child: Icon(Icons.music_note, color: Colors.white54),
+                                                        ),
+                                                        errorWidget: (context, url, error) => const ColoredBox(
+                                                          color: Color(0xff161616),
+                                                          child: Icon(Icons.music_note, color: Colors.white54),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            // 间距
+                                            SizedBox(height: spacing * 0.5),
+                                            // 播放列表信息
+                                            SizedBox(
+                                              height: infoSize,
+                                              child: SingleChildScrollView(
+                                                // 添加滚动支持
+                                                child: _buildPlaylistHeader(),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    // 增加底部空间
+                                    SliverToBoxAdapter(
+                                      child: SizedBox(height: miniPlayerHeight + bottomPadding + 32), // 增加更多底部间距
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            flex: 5,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final miniPlayerHeight = 80.0;
+
+                                return CustomScrollView(
+                                  physics: const ClampingScrollPhysics(),
+                                  slivers: [
+                                    SliverPadding(
+                                      padding: EdgeInsets.only(
+                                        top: MediaQuery.of(context).padding.top + 16,
+                                      ),
+                                      sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
+                                    ),
+                                    SliverPadding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      sliver: SliverList(
+                                        delegate: SliverChildBuilderDelegate(
+                                          (context, index) {
+                                            final track = tracks[index];
+                                            return TrackListTile(
+                                              track: track,
+                                              onTap: () => _playTrack(track, tracks, index),
+                                              isPlaying: AudioService.to.isPlaying && AudioService.to.currentPlaylist?.contains(track) == true,
+                                              index: index,
+                                            );
+                                          },
+                                          childCount: tracks.length,
+                                        ),
+                                      ),
+                                    ),
+                                    // 添加底部空间以避免被 MiniPlayer 遮挡
+                                    SliverToBoxAdapter(
+                                      child: SizedBox(height: miniPlayerHeight + 16), // 添加额外的间距
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: MiniPlayer(isAboveBottomBar: false),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
             child: GestureDetector(
               onHorizontalDragEnd: (details) {
                 if (details.primaryVelocity! > 0) {
@@ -257,8 +449,18 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                   pinned: true,
                                   expandedHeight: 0,
                                   leading: IconButton(
-                                    icon: const Icon(Icons.arrow_back),
-                                    onPressed: () => Navigator.pop(context),
+                                    icon: const Icon(
+                                      Icons.arrow_back,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                    onPressed: _handlePopBack,
+                                  ),
+                                  systemOverlayStyle: const SystemUiOverlayStyle(
+                                    statusBarColor: Colors.transparent,
+                                    statusBarIconBrightness: Brightness.light,
+                                    systemNavigationBarColor: Colors.transparent,
+                                    systemNavigationBarIconBrightness: Brightness.light,
                                   ),
                                 ),
                                 SliverToBoxAdapter(
@@ -289,19 +491,17 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                                   child: CachedNetworkImage(
                                                     imageUrl: widget.playlist['cover'] ?? '',
                                                     fit: BoxFit.cover,
-                                                    placeholder: (context, url) => Container(
-                                                      color: Colors.grey[800],
-                                                      child: const Icon(
-                                                        Icons.music_note,
-                                                        color: Colors.white54,
-                                                      ),
+                                                    memCacheWidth: MediaQuery.of(context).size.width.toInt(),
+                                                    memCacheHeight: MediaQuery.of(context).size.width.toInt(),
+                                                    fadeInDuration: Duration.zero,
+                                                    fadeOutDuration: Duration.zero,
+                                                    placeholder: (context, url) => const ColoredBox(
+                                                      color: Color(0xff161616),
+                                                      child: Icon(Icons.music_note, color: Colors.white54),
                                                     ),
-                                                    errorWidget: (context, url, error) => Container(
-                                                      color: Colors.grey[800],
-                                                      child: const Icon(
-                                                        Icons.music_note,
-                                                        color: Colors.white54,
-                                                      ),
+                                                    errorWidget: (context, url, error) => const ColoredBox(
+                                                      color: Color(0xff161616),
+                                                      child: Icon(Icons.music_note, color: Colors.white54),
                                                     ),
                                                   ),
                                                 ),
@@ -390,22 +590,29 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     } else {
       return WillPopScope(
         onWillPop: () async {
+          _handlePopBack();
           return true;
         },
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  secondaryColor?.withOpacity(0.8) ?? const Color(0xff161616),
-                  const Color(0xff161616),
-                ],
-                stops: const [0.0, 0.5],
-              ),
-            ),
+          body: ValueListenableBuilder<Color>(
+            valueListenable: _colorAnimation,
+            builder: (context, color, child) {
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      color.withOpacity(0.8),
+                      const Color(0xff161616),
+                    ],
+                    stops: const [0.0, 0.5],
+                  ),
+                ),
+                child: child,
+              );
+            },
             child: GestureDetector(
               onHorizontalDragEnd: (details) {
                 if (details.primaryVelocity! > 0) {
@@ -418,7 +625,9 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                   children: [
                     Expanded(
                       child: _isLoading
-                          ? _buildSkeleton(context)
+                          ? const Center(
+                              child: CircularProgressIndicator(),
+                            )
                           : CustomScrollView(
                               controller: _scrollController,
                               physics: const BouncingScrollPhysics(),
@@ -427,82 +636,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                 SliverToBoxAdapter(
                                   child: _buildPlaylistHeader(),
                                 ),
-                                SliverList(
-                                  delegate: SliverChildBuilderDelegate(
-                                    (context, index) {
-                                      if (index >= tracks.length) return null;
-                                      final track = tracks[index];
-                                      return Material(
-                                        type: MaterialType.transparency,
-                                        child: ListTile(
-                                          key: ValueKey('track_${track['id']}'),
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                          tileColor: Colors.transparent,
-                                          selectedTileColor: Colors.transparent,
-                                          hoverColor: Colors.white.withOpacity(0.1),
-                                          splashColor: Colors.transparent,
-                                          leading: ClipRRect(
-                                            borderRadius: BorderRadius.circular(4.0),
-                                            child: CachedNetworkImage(
-                                              width: 40,
-                                              height: 40,
-                                              fit: BoxFit.cover,
-                                              imageUrl: track['cover_url'] ?? '',
-                                              placeholder: (context, url) => Container(
-                                                color: Colors.grey[800],
-                                                child: const Icon(
-                                                  Icons.music_note,
-                                                  color: Colors.white54,
-                                                ),
-                                              ),
-                                              errorWidget: (context, url, error) => Container(
-                                                color: Colors.grey[800],
-                                                child: const Icon(
-                                                  Icons.music_note,
-                                                  color: Colors.white54,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          title: RichText(
-                                            text: TextSpan(
-                                              children: [
-                                                TextSpan(
-                                                  text: '${index + 1}. ',
-                                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                                        color: Colors.white,
-                                                        fontWeight: FontWeight.w500,
-                                                      ),
-                                                ),
-                                                TextSpan(
-                                                  text: track['name'] ?? '',
-                                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                                        fontWeight: FontWeight.w500,
-                                                        color: Colors.white,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          subtitle: Text(
-                                            track['artist'] ?? '',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                  color: Colors.grey,
-                                                ),
-                                          ),
-                                          onTap: () {
-                                            _playTrack(track, tracks, index);
-                                          },
-                                        ),
-                                      );
-                                    },
-                                    childCount: tracks.length,
-                                  ),
-                                ),
+                                _buildTrackList(),
                                 const SliverToBoxAdapter(
                                   child: SizedBox(height: 32),
                                 ),
@@ -520,158 +654,6 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     }
   }
 
-  Widget _buildSkeleton(BuildContext context) {
-    final double imageSize = MediaQuery.of(context).size.width * 0.7;
-    final double topPadding = MediaQuery.of(context).padding.top;
-
-    return Container(
-      color: const Color(0xff161616),
-      child: CustomScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            expandedHeight: imageSize + topPadding,
-            pinned: true,
-            backgroundColor: Colors.transparent,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.only(top: 20.0 + topPadding),
-                    child: Center(
-                      child: Container(
-                        width: imageSize,
-                        height: imageSize,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8.0),
-                          color: Colors.grey[800],
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 200,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[800],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              width: 80,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[800],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[800],
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[800],
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[800],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[800],
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            width: 120,
-                            height: 14,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[800],
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              childCount: 10,
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 32),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSliverAppBar() {
     final double imageSize = MediaQuery.of(context).size.width * 0.7;
     final double minImageSize = MediaQuery.of(context).size.width * 0.3;
@@ -680,7 +662,6 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     return ValueListenableBuilder<double>(
       valueListenable: _bgOpacity,
       builder: (context, opacity, child) {
-        final bool showTitle = opacity > 0.9;
         final double titleOpacity = ((opacity - 0.7) * 5).clamp(0.0, 1.0);
         final double currentSize = (imageSize - (imageSize - minImageSize) * opacity).clamp(minImageSize, imageSize);
 
@@ -690,18 +671,20 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
           expandedHeight: imageSize + topPadding + 10,
           pinned: true,
           stretch: true,
-          systemOverlayStyle: SystemUiOverlayStyle(
-            statusBarColor: backgroundColor,
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
-            statusBarBrightness: Brightness.dark,
+            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarIconBrightness: Brightness.light,
           ),
           backgroundColor: backgroundColor,
           leading: IconButton(
             icon: const Icon(
-              Icons.arrow_back_ios,
+              Icons.arrow_back,
               color: Colors.white,
+              size: 24,
             ),
-            onPressed: () => Get.back(),
+            onPressed: _handlePopBack,
           ),
           title: Opacity(
             opacity: titleOpacity,
@@ -743,20 +726,17 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                           child: CachedNetworkImage(
                             imageUrl: widget.playlist['cover'] ?? '',
                             fit: BoxFit.cover,
-                            memCacheWidth: 800,
-                            placeholder: (context, url) => Container(
-                              color: Colors.grey[800],
-                              child: const Icon(
-                                Icons.music_note,
-                                color: Colors.white54,
-                              ),
+                            memCacheWidth: MediaQuery.of(context).size.width.toInt(),
+                            memCacheHeight: MediaQuery.of(context).size.width.toInt(),
+                            fadeInDuration: Duration.zero,
+                            fadeOutDuration: Duration.zero,
+                            placeholder: (context, url) => const ColoredBox(
+                              color: Color(0xff161616),
+                              child: Icon(Icons.music_note, color: Colors.white54),
                             ),
-                            errorWidget: (context, url, error) => Container(
-                              color: Colors.grey[800],
-                              child: const Icon(
-                                Icons.music_note,
-                                color: Colors.white54,
-                              ),
+                            errorWidget: (context, url, error) => const ColoredBox(
+                              color: Color(0xff161616),
+                              child: Icon(Icons.music_note, color: Colors.white54),
                             ),
                           ),
                         ),
@@ -787,61 +767,139 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                   children: [
                     Text(
                       widget.playlist['title'] ?? '',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: _titleStyle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    _smallDivider,
                     Text(
                       '${tracks.length} 首歌曲',
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 14,
-                      ),
+                      style: _subtitleStyle,
                     ),
                   ],
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const FaIcon(
-                      FontAwesomeIcons.shuffle,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      if (!AudioService.to.isShuffleMode) {
-                        AudioService.to.toggleShuffle();
-                      }
-                      AudioService.to.skipToQueueItem(0);
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  PlayButton(
-                    backgroundColor: dominantColor?.withOpacity(0.8),
-                    tracks: List<Map<String, dynamic>>.from(tracks),
-                  ),
-                ],
-              ),
+              _buildPlayControls(),
             ],
           ),
           if (widget.playlist['content']?.isNotEmpty ?? false) ...[
-            const SizedBox(height: 12),
+            _divider,
             Text(
               widget.playlist['content'] ?? '',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 14,
-              ),
+              style: _subtitleStyle,
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildPlayControls() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const FaIcon(
+            FontAwesomeIcons.shuffle,
+            color: Colors.white,
+            size: 20,
+          ),
+          onPressed: () {
+            if (!AudioService.to.isShuffleMode) {
+              AudioService.to.toggleShuffle();
+            }
+            AudioService.to.skipToQueueItem(0);
+          },
+        ),
+        _horizontalDivider,
+        PlayButton(
+          backgroundColor: dominantColor?.withOpacity(0.8),
+          tracks: List<Map<String, dynamic>>.from(tracks),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTrackList() {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          if (index >= tracks.length) return null;
+          return _buildTrackItem(index, tracks[index]);
+        },
+        childCount: tracks.length,
+        // 添加key以优化重建
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: true,
+      ),
+    );
+  }
+
+  Widget _buildTrackItem(int index, dynamic track) {
+    return RepaintBoundary(
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          key: ValueKey('track_${track['id']}'),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+          tileColor: Colors.transparent,
+          selectedTileColor: Colors.transparent,
+          hoverColor: Colors.white.withOpacity(0.1),
+          splashColor: Colors.transparent,
+          leading: ClipRRect(
+            borderRadius: BorderRadius.circular(4.0),
+            child: CachedNetworkImage(
+              width: 40,
+              height: 40,
+              fit: BoxFit.cover,
+              imageUrl: track['cover_url'] ?? '',
+              memCacheWidth: 80,
+              memCacheHeight: 80,
+              fadeInDuration: Duration.zero,
+              placeholder: (_, __) => const ColoredBox(
+                color: _boxColor,
+                child: _placeholderIcon,
+              ),
+              errorWidget: (_, __, ___) => const ColoredBox(
+                color: _boxColor,
+                child: _errorIcon,
+              ),
+            ),
+          ),
+          title: RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: '${index + 1}. ',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+                TextSpan(
+                  text: track['name'] ?? '',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                ),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            track['artist'] ?? '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey,
+                ),
+          ),
+          onTap: () {
+            _playTrack(track, tracks, index);
+          },
+        ),
       ),
     );
   }
@@ -851,6 +909,33 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
       List<Map<String, dynamic>>.from(tracks),
       initialIndex: index,
     );
+  }
+
+  void _handlePopBack() {
+    Navigator.of(context).pop();
+
+    // 在返回过程中执行颜色渐变，目标颜色改为纯黑色
+    _colorTween.begin = _colorAnimation.value;
+    _colorTween.end = Colors.black;
+
+    const duration = Duration(milliseconds: 150);
+    final startTime = DateTime.now();
+
+    void updateColor() {
+      final elapsedTime = DateTime.now().difference(startTime);
+      if (elapsedTime >= duration) {
+        _colorAnimation.value = Colors.black;
+        return;
+      }
+
+      final t = (elapsedTime.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
+      _colorAnimation.value = Color.lerp(_colorTween.begin!, _colorTween.end!, t)!;
+      if (mounted) {
+        Future.microtask(updateColor);
+      }
+    }
+
+    updateColor();
   }
 }
 

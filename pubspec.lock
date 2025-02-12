@@ -580,10 +580,10 @@ packages:
     dependency: transitive
     description:
       name: mime
-      sha256: "41a20518f0cb1256669420fdba0cd90d21561e560ac240f26ef8322e45bb7ed6"
+      sha256: "801fd0b26f14a4a58ccb09d5892c3fbdeff209594300a542492cf13fba9d247a"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.0"
+    version: "1.0.6"
   nm:
     dependency: transitive
     description:
@@ -620,10 +620,10 @@ packages:
     dependency: "direct main"
     description:
       name: palette_generator
-      sha256: "0b20245c451f14a5ca0818ab7a377765162389f8e8f0db361cceabf0fed9d1ea"
+      sha256: "5a96b78983752faeb94866b30cb8f52e94ef176722bf51d1c5541d6a3044368f"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.3+5"
+    version: "0.3.3+6"
   path:
     dependency: transitive
     description:
@@ -760,14 +760,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.1"
-  pretty_dio_logger:
-    dependency: "direct main"
-    description:
-      name: pretty_dio_logger
-      sha256: "36f2101299786d567869493e2f5731de61ce130faa14679473b26905a92b6407"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.4.0"
   rxdart:
     dependency: "direct main"
     description:
@@ -784,22 +776,38 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.3.2"
+  share_plus:
+    dependency: "direct main"
+    description:
+      name: share_plus
+      sha256: "3ef39599b00059db0990ca2e30fca0a29d8b37aae924d60063f8e0184cf20900"
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.2.2"
+  share_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: share_plus_platform_interface
+      sha256: "251eb156a8b5fa9ce033747d73535bf53911071f8d3b6f4f0b578505ce0d4496"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.4.0"
   shared_preferences:
     dependency: "direct main"
     description:
       name: shared_preferences
-      sha256: "688ee90fbfb6989c980254a56cb26ebe9bb30a3a2dff439a78894211f73de67a"
+      sha256: "846849e3e9b68f3ef4b60c60cf4b3e02e9321bc7f4d8c4692cf87ffa82fc8a3a"
       url: "https://pub.dev"
     source: hosted
-    version: "2.5.1"
+    version: "2.5.2"
   shared_preferences_android:
     dependency: transitive
     description:
       name: shared_preferences_android
-      sha256: "650584dcc0a39856f369782874e562efd002a9c94aec032412c9eb81419cce1f"
+      sha256: ea86be7b7114f9e94fddfbb52649e59a03d6627ccd2387ebddcd6624719e9f16
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.4"
+    version: "2.4.5"
   shared_preferences_foundation:
     dependency: transitive
     description:
@@ -1094,5 +1102,5 @@ packages:
     source: hosted
     version: "3.1.3"
 sdks:
-  dart: ">=3.6.1 <4.0.0"
+  dart: ">=3.6.0 <4.0.0"
   flutter: ">=3.27.0"

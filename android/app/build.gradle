@@ -66,7 +66,7 @@ android {
         release {
             keyAlias keystoreProperties['keyAlias']
             keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storeFile keystoreProperties['storeFile'] ? rootProject.file(keystoreProperties['storeFile']) : null
             storePassword keystoreProperties['storePassword']
         }
     }
@@ -75,6 +75,14 @@ android {
         release {
             signingConfig signingConfigs.release
             crunchPngs false
+            ndk {
+                abiFilters "armeabi-v7a", "arm64-v8a"
+            }
+        }
+        debug {
+            ndk {
+                abiFilters "armeabi-v7a", "arm64-v8a"
+            }
         }
     }
 

@@ -180,6 +180,17 @@ class AppDrawer extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
+                                '1.2.2版本更新内容：',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              _buildUpdateItem('iOS上岛'),
+                              _buildUpdateItem('一定程度上优化了进入页面时的卡顿'),
+                              const Text(
                                 '1.2.1版本更新内容：',
                                 style: TextStyle(
                                   color: Colors.white,

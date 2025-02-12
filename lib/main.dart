@@ -141,6 +141,10 @@ Future<void> main() async {
 
   final versionService = Get.put(VersionService(dio));
 
+  // 设置图片缓存
+  PaintingBinding.instance.imageCache.maximumSize = 100; // 限制缓存数量
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 * 1024 * 1024; // 限制缓存大小为50MB
+
   runApp(GetMaterialApp(
     title: '破破',
     debugShowCheckedModeBanner: false,
