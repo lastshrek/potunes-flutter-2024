@@ -7,8 +7,62 @@ import '../../services/audio_service.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../screens/pages/album_detail_page.dart';
 
-class FavouritesPage extends StatelessWidget {
+class FavouritesPage extends StatefulWidget {
   const FavouritesPage({super.key});
+
+  @override
+  State<FavouritesPage> createState() => _FavouritesPageState();
+}
+
+class _FavouritesPageState extends State<FavouritesPage> {
+  Future<List<dynamic>>? _favouritesFuture;
+  final selectedIndex = 0.obs; // 添加分段选择器的状态
+
+  static const _appBarTitle = Text(
+    'Favourites',
+    style: TextStyle(
+      color: Colors.white,
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+    ),
+  );
+
+  static const _loadingIndicator = Center(
+    child: CircularProgressIndicator(
+      color: Color(0xFFDA5597),
+    ),
+  );
+
+  static const _appBarActions = [
+    IconButton(
+      icon: Icon(Icons.search, color: Colors.white),
+      onPressed: null, // TODO: 实现搜索功能
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 立即构建界面框架，延迟加载数据
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // 先显示加载动画
+        setState(() {
+          _favouritesFuture = Future.delayed(
+            const Duration(milliseconds: 1000), // 延迟 500ms
+            () => _loadFavourites(),
+          ).then((value) => value);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    selectedIndex.close(); // 记得在 dispose 中关闭
+    super.dispose();
+  }
 
   String _formatDuration(dynamic milliseconds) {
     try {
@@ -70,349 +124,322 @@ class FavouritesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 添加分段选择器的状态
-    final selectedIndex = 0.obs;
-
     return Scaffold(
       backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: _appBarTitle,
+        actions: _appBarActions,
+      ),
       body: Stack(
         children: [
-          Column(
-            children: [
-              // AppBar
-              AppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                  onPressed: () => Get.back(),
-                ),
-                title: const Text(
-                  'Favourites',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+          FutureBuilder<List<dynamic>>(
+            future: _favouritesFuture,
+            builder: (context, snapshot) {
+              if (_favouritesFuture == null) {
+                return const SizedBox.shrink();
+              }
+
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return _loadingIndicator;
+              }
+
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text(
+                    'Error loading favourites',
+                    style: TextStyle(color: Colors.grey[600]),
                   ),
-                ),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.search, color: Colors.white),
-                    onPressed: () {
-                      // TODO: 实现搜索功能
-                    },
-                  ),
-                ],
-              ),
+                );
+              }
 
-              // 主内容区域
-              Expanded(
-                child: FutureBuilder<List<dynamic>>(
-                  future: _loadFavourites(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFDA5597),
-                        ),
-                      );
-                    }
+              final favourites = snapshot.data ?? [];
+              final albums = _groupByAlbum(favourites);
 
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Text(
-                          'Error loading favourites',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      );
-                    }
-
-                    final favourites = snapshot.data ?? [];
-                    final albums = _groupByAlbum(favourites);
-
-                    return Column(
+              return Column(
+                children: [
+                  // 顶部统计信息和控制按钮
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
                       children: [
-                        // 顶部统计信息和控制按钮
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.favorite,
-                                color: Color(0xFFDA5597),
-                                size: 24,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${favourites.length} Songs',
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const Spacer(),
-                              // 随机播放按钮
-                              IconButton(
-                                icon: const FaIcon(
-                                  FontAwesomeIcons.shuffle,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  if (favourites.isNotEmpty) {
-                                    final shuffledList = List<Map<String, dynamic>>.from(favourites)..shuffle();
-                                    _playSong(shuffledList[0], shuffledList, 0);
-                                  }
-                                },
-                              ),
-                              // 播放全部按钮
-                              IconButton(
-                                icon: const FaIcon(
-                                  FontAwesomeIcons.play,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  if (favourites.isNotEmpty) {
-                                    _playSong(favourites[0], favourites, 0);
-                                  }
-                                },
-                              ),
-                            ],
+                        const Icon(
+                          Icons.favorite,
+                          color: Color(0xFFDA5597),
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${favourites.length} Songs',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
                           ),
                         ),
-
-                        // 添加分段选择器
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[900],
-                            borderRadius: BorderRadius.circular(8),
+                        const Spacer(),
+                        // 随机播放按钮
+                        IconButton(
+                          icon: const FaIcon(
+                            FontAwesomeIcons.shuffle,
+                            color: Colors.white,
+                            size: 20,
                           ),
-                          child: Obx(
-                            () => Row(
-                              children: [
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => selectedIndex.value = 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      decoration: BoxDecoration(
-                                        color: selectedIndex.value == 0 ? const Color(0xFFDA5597) : null,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Text(
-                                        'Songs',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => selectedIndex.value = 1,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      decoration: BoxDecoration(
-                                        color: selectedIndex.value == 1 ? const Color(0xFFDA5597) : null,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Text(
-                                        'Albums',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          onPressed: () {
+                            if (favourites.isNotEmpty) {
+                              final shuffledList = List<Map<String, dynamic>>.from(favourites)..shuffle();
+                              _playSong(shuffledList[0], shuffledList, 0);
+                            }
+                          },
                         ),
-
-                        // 内容区域
-                        Expanded(
-                          child: Obx(
-                            () => selectedIndex.value == 0
-                                ? ListView.builder(
-                                    padding: const EdgeInsets.only(bottom: 100),
-                                    itemCount: favourites.length,
-                                    itemBuilder: (context, index) {
-                                      final song = favourites[index];
-                                      return ListTile(
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 4,
-                                        ),
-                                        leading: ClipRRect(
-                                          borderRadius: BorderRadius.circular(4),
-                                          child: CachedNetworkImage(
-                                            imageUrl: song['cover_url']?.toString() ?? '',
-                                            width: 48,
-                                            height: 48,
-                                            fit: BoxFit.cover,
-                                            placeholder: (context, url) => Container(
-                                              color: Colors.grey[900],
-                                              child: const Icon(
-                                                Icons.music_note,
-                                                color: Color(0xFFDA5597),
-                                              ),
-                                            ),
-                                            errorWidget: (context, url, error) => Container(
-                                              color: Colors.grey[900],
-                                              child: const Icon(
-                                                Icons.music_note,
-                                                color: Color(0xFFDA5597),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        title: Text(
-                                          song['name']?.toString() ?? 'Unknown',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        subtitle: Text(
-                                          song['artist']?.toString() ?? 'Unknown Artist',
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 14,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        trailing: Text(
-                                          _formatDuration(song['duration']),
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        onTap: () => _playSong(song, favourites, index),
-                                      );
-                                    },
-                                  )
-                                : ListView.builder(
-                                    padding: const EdgeInsets.only(bottom: 100),
-                                    itemCount: albums.length,
-                                    itemBuilder: (context, index) {
-                                      final albumName = albums.keys.elementAt(index);
-                                      final albumSongs = albums[albumName]!;
-
-                                      return ListTile(
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 4,
-                                        ),
-                                        leading: Container(
-                                          width: 48,
-                                          height: 48,
-                                          decoration: BoxDecoration(
-                                            gradient: const LinearGradient(
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                              colors: [
-                                                Color(0xFFDA5597),
-                                                Color(0xFF904C77),
-                                              ],
-                                            ),
-                                            borderRadius: BorderRadius.circular(4),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withOpacity(0.2),
-                                                blurRadius: 4,
-                                                offset: const Offset(2, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Stack(
-                                            children: [
-                                              // 装饰性圆形图案
-                                              Positioned(
-                                                top: -10,
-                                                right: -10,
-                                                child: Container(
-                                                  width: 30,
-                                                  height: 30,
-                                                  decoration: BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    color: Colors.white.withOpacity(0.1),
-                                                  ),
-                                                ),
-                                              ),
-                                              // 中心图标
-                                              const Center(
-                                                child: FaIcon(
-                                                  FontAwesomeIcons.compactDisc,
-                                                  color: Colors.white,
-                                                  size: 24,
-                                                ),
-                                              ),
-                                              // 装饰性条纹
-                                              Positioned(
-                                                bottom: 4,
-                                                left: 4,
-                                                right: 4,
-                                                child: Container(
-                                                  height: 2,
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.white.withOpacity(0.3),
-                                                    borderRadius: BorderRadius.circular(1),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        title: Text(
-                                          albumName,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        subtitle: Text(
-                                          '${albumSongs.length} songs',
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        onTap: () {
-                                          Get.to(
-                                            () => AlbumDetailPage(
-                                              albumName: albumName,
-                                              songs: albumSongs,
-                                            ),
-                                            transition: Transition.rightToLeft,
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
+                        // 播放全部按钮
+                        IconButton(
+                          icon: const FaIcon(
+                            FontAwesomeIcons.play,
+                            color: Colors.white,
+                            size: 20,
                           ),
+                          onPressed: () {
+                            if (favourites.isNotEmpty) {
+                              _playSong(favourites[0], favourites, 0);
+                            }
+                          },
                         ),
                       ],
-                    );
-                  },
-                ),
-              ),
-            ],
+                    ),
+                  ),
+
+                  // 添加分段选择器
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Obx(
+                      () => Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => selectedIndex.value = 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: selectedIndex.value == 0 ? const Color(0xFFDA5597) : null,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Songs',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => selectedIndex.value = 1,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: selectedIndex.value == 1 ? const Color(0xFFDA5597) : null,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Albums',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // 内容区域
+                  Expanded(
+                    child: Obx(
+                      () => selectedIndex.value == 0
+                          ? ListView.builder(
+                              padding: const EdgeInsets.only(bottom: 100),
+                              itemCount: favourites.length,
+                              itemBuilder: (context, index) {
+                                final song = favourites[index];
+                                return ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 4,
+                                  ),
+                                  leading: ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: CachedNetworkImage(
+                                      imageUrl: song['cover_url']?.toString() ?? '',
+                                      width: 48,
+                                      height: 48,
+                                      fit: BoxFit.cover,
+                                      placeholder: (context, url) => Container(
+                                        color: Colors.grey[900],
+                                        child: const Icon(
+                                          Icons.music_note,
+                                          color: Color(0xFFDA5597),
+                                        ),
+                                      ),
+                                      errorWidget: (context, url, error) => Container(
+                                        color: Colors.grey[900],
+                                        child: const Icon(
+                                          Icons.music_note,
+                                          color: Color(0xFFDA5597),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    song['name']?.toString() ?? 'Unknown',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    song['artist']?.toString() ?? 'Unknown Artist',
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  trailing: Text(
+                                    _formatDuration(song['duration']),
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  onTap: () => _playSong(song, favourites, index),
+                                );
+                              },
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.only(bottom: 100),
+                              itemCount: albums.length,
+                              itemBuilder: (context, index) {
+                                final albumName = albums.keys.elementAt(index);
+                                final albumSongs = albums[albumName]!;
+
+                                return ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 4,
+                                  ),
+                                  leading: Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Color(0xFFDA5597),
+                                          Color(0xFF904C77),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 4,
+                                          offset: const Offset(2, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        // 装饰性圆形图案
+                                        Positioned(
+                                          top: -10,
+                                          right: -10,
+                                          child: Container(
+                                            width: 30,
+                                            height: 30,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: Colors.white.withOpacity(0.1),
+                                            ),
+                                          ),
+                                        ),
+                                        // 中心图标
+                                        const Center(
+                                          child: FaIcon(
+                                            FontAwesomeIcons.compactDisc,
+                                            color: Colors.white,
+                                            size: 24,
+                                          ),
+                                        ),
+                                        // 装饰性条纹
+                                        Positioned(
+                                          bottom: 4,
+                                          left: 4,
+                                          right: 4,
+                                          child: Container(
+                                            height: 2,
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withOpacity(0.3),
+                                              borderRadius: BorderRadius.circular(1),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  title: Text(
+                                    albumName,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    '${albumSongs.length} songs',
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    Get.to(
+                                      () => AlbumDetailPage(
+                                        albumName: albumName,
+                                        songs: albumSongs,
+                                      ),
+                                      transition: Transition.rightToLeft,
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
-          // MiniPlayer
           const Positioned(
             left: 0,
             right: 0,

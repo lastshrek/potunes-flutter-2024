@@ -165,6 +165,14 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
+  void _navigateToPage(Widget page) {
+    Get.to(
+      () => page,
+      transition: Transition.rightToLeft,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final userData = UserService.to.userData;
@@ -275,9 +283,7 @@ class _LibraryPageState extends State<LibraryPage> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    onTap: () {
-                      Get.to(() => const FavouritesPage());
-                    },
+                    onTap: () => _navigateToPage(const FavouritesPage()),
                   ),
                   // 编辑资料
                   ListTile(
@@ -292,9 +298,7 @@ class _LibraryPageState extends State<LibraryPage> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    onTap: () {
-                      Get.to(() => const ProfilePage());
-                    },
+                    onTap: () => _navigateToPage(const ProfilePage()),
                   ),
                 ],
               ),

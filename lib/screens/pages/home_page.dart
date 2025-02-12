@@ -634,79 +634,35 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onCollectionPlaylistTap(Map<String, dynamic> playlist) {
-    if (Platform.isAndroid) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PlaylistPage(
-            playlist: playlist,
-            playlistId: int.parse(playlist['id'].toString()),
-            isFromCollections: true,
-          ),
-        ),
-      );
-    } else {
-      Get.to(
-        () => PlaylistPage(
-          playlist: playlist,
-          playlistId: int.parse(playlist['id'].toString()),
-          isFromCollections: true,
-        ),
-        transition: Transition.rightToLeft,
-      );
-    }
+    _navigateToPage(
+      PlaylistPage(
+        playlist: playlist,
+        playlistId: int.parse(playlist['id'].toString()),
+        isFromCollections: true,
+      ),
+    );
   }
 
   void _onViewAllCollectionsTap() {
-    if (Platform.isAndroid) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AllPlaylistsPage(
-            title: 'Collections',
-            playlists: collections,
-            apiPath: ApiConfig.allCollections,
-          ),
-        ),
-      );
-    } else {
-      Get.to(
-        () => AllPlaylistsPage(
-          title: 'Collections',
-          playlists: collections,
-          apiPath: ApiConfig.allCollections,
-        ),
-        transition: Transition.rightToLeft,
-      );
-    }
+    _navigateToPage(
+      AllPlaylistsPage(
+        title: 'Collections',
+        playlists: collections,
+        apiPath: ApiConfig.allCollections,
+      ),
+    );
   }
 
   void _onPlaylistTap(Map<String, dynamic> playlist) {
-    if (Platform.isAndroid) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PlaylistPage(
-            playlist: playlist,
-            playlistId: int.parse(playlist['id'].toString()),
-            trackCount: playlist['track_count'],
-            description: playlist['content'],
-            coverUrl: playlist['cover'],
-          ),
-        ),
-      );
-    } else {
-      Get.to(
-        () => PlaylistPage(
-          playlist: playlist,
-          playlistId: int.parse(playlist['id'].toString()),
-          trackCount: playlist['track_count'],
-          description: playlist['content'],
-          coverUrl: playlist['cover'],
-        ),
-        transition: Transition.rightToLeft,
-      );
-    }
+    _navigateToPage(
+      PlaylistPage(
+        playlist: playlist,
+        playlistId: int.parse(playlist['id'].toString()),
+        trackCount: playlist['track_count'],
+        description: playlist['content'],
+        coverUrl: playlist['cover'],
+      ),
+    );
   }
 
   Widget _buildAlbumsSection() {
@@ -715,77 +671,43 @@ class _HomePageState extends State<HomePage> {
       playlists: controller.albums,
       isLoading: controller.isRefreshing,
       onTitleTap: () {
-        if (Platform.isAndroid) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AllPlaylistsPage(
-                title: 'Albums',
-                playlists: controller.albums,
-                apiPath: ApiConfig.allAlbums,
-              ),
-            ),
-          );
-        } else {
-          Get.to(
-            () => AllPlaylistsPage(
-              title: 'Albums',
-              playlists: controller.albums,
-              apiPath: ApiConfig.allAlbums,
-            ),
-            transition: Transition.rightToLeft,
-          );
-        }
+        _navigateToPage(
+          AllPlaylistsPage(
+            title: 'Albums',
+            playlists: controller.albums,
+            apiPath: ApiConfig.allAlbums,
+          ),
+        );
       },
       onPlaylistTap: _onPlaylistTap,
     );
   }
 
   void _onNeteaseToplistTap(Map<String, dynamic> playlist) {
-    if (Platform.isAndroid) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PlaylistPage(
-            playlist: playlist,
-            playlistId: int.parse(playlist['nId'].toString()),
-            isFromTopList: true,
-          ),
-        ),
-      );
-    } else {
-      Get.to(
-        () => PlaylistPage(
-          playlist: playlist,
-          playlistId: int.parse(playlist['nId'].toString()),
-          isFromTopList: true,
-        ),
-        transition: Transition.rightToLeft,
-      );
-    }
+    _navigateToPage(
+      PlaylistPage(
+        playlist: playlist,
+        playlistId: int.parse(playlist['nId'].toString()),
+        isFromTopList: true,
+      ),
+    );
   }
 
   void _onNeteaseNewAlbumTap(Map<String, dynamic> playlist) {
-    if (Platform.isAndroid) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PlaylistPage(
-            playlist: playlist,
-            playlistId: int.parse(playlist['nId'].toString()),
-            isFromNewAlbum: true,
-          ),
-        ),
-      );
-    } else {
-      Get.to(
-        () => PlaylistPage(
-          playlist: playlist,
-          playlistId: int.parse(playlist['nId'].toString()),
-          isFromNewAlbum: true,
-        ),
-        transition: Transition.rightToLeft,
-      );
-    }
+    _navigateToPage(
+      PlaylistPage(
+        playlist: playlist,
+        playlistId: int.parse(playlist['nId'].toString()),
+        isFromNewAlbum: true,
+      ),
+    );
+  }
+
+  void _navigateToPage(Widget page) {
+    Get.to(
+      () => page,
+      transition: Transition.rightToLeft,
+      duration: const Duration(milliseconds: 300),
+    );
   }
 }

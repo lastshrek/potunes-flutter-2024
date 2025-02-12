@@ -22,8 +22,8 @@ class MiniPlayer extends StatefulWidget {
 }
 
 class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateMixin {
-  late AnimationController _slideController;
-  late Animation<Offset> _slideAnimation;
+  late final AnimationController _slideController;
+  late final Animation<Offset> _slideAnimation;
   final ValueNotifier<Color> _backgroundColor = ValueNotifier<Color>(Colors.black);
   int _lastPrintedSecond = -1;
   String? _lastCoverUrl;
@@ -31,17 +31,36 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+
+    // 初始化动画控制器
     _slideController = AnimationController(
-      vsync: this,
       duration: const Duration(milliseconds: 200),
+      vsync: this,
     );
+
+    // 创建滑动动画
     _slideAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: const Offset(1.0, 0.0),
+      begin: const Offset(0, 0),
+      end: const Offset(0, 1),
     ).animate(CurvedAnimation(
       parent: _slideController,
       curve: Curves.easeInOut,
     ));
+
+    // 监听路由变化
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = Navigator.of(context);
+      navigator.widget.observers.add(
+        _RouteObserver(
+          onPush: () {
+            _slideController.forward();
+          },
+          onPop: () {
+            _slideController.reverse();
+          },
+        ),
+      );
+    });
   }
 
   @override
@@ -186,6 +205,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                     onTap: () {
                       Navigator.of(context).push(
                         PageRouteBuilder(
+                          settings: const RouteSettings(name: '/now_playing'),
                           pageBuilder: (context, animation, secondaryAnimation) {
                             return const NowPlayingPage();
                           },
@@ -351,5 +371,32 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
         });
       },
     );
+  }
+}
+
+// 自定义路由观察者
+class _RouteObserver extends NavigatorObserver {
+  final VoidCallback onPush;
+  final VoidCallback onPop;
+
+  _RouteObserver({
+    required this.onPush,
+    required this.onPop,
+  });
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    // 只在进入 NowPlayingPage 时触发动画
+    if (route.settings.name == '/now_playing') {
+      onPush();
+    }
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    // 只在退出 NowPlayingPage 时触发动画
+    if (route.settings.name == '/now_playing') {
+      onPop();
+    }
   }
 }
