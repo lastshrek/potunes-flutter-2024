@@ -36,10 +36,7 @@ Future<void> main() async {
   );
 
   // 初始化服务
-  Get.put(LiveActivitiesService(), permanent: true);
-  Get.put(AudioService(), permanent: true);
-  Get.put(UserService(), permanent: true);
-  Get.put(AppController(), permanent: true);
+  await initServices();
 
   // 修改日志处理逻辑
   if (kDebugMode) {
@@ -227,6 +224,10 @@ Future<void> main() async {
     SystemUiOverlayStyle systemUiOverlayStyle = const SystemUiOverlayStyle(statusBarColor: Colors.transparent);
     SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
   }
+}
+
+Future<void> initServices() async {
+  await Get.putAsync(() => UserService().init());
 }
 
 // Future<void> openHiveBox(String boxName, {bool limit = false}) async {

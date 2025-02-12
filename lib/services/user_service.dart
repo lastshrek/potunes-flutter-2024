@@ -24,6 +24,7 @@ class UserService extends GetxService {
   final _dio = Dio();
 
   Future<UserService> init() async {
+    print('Initializing UserService...');
     await _loadUserData();
     return this;
   }
@@ -35,12 +36,20 @@ class UserService extends GetxService {
       final userDataStr = prefs.getString(_userDataKey);
 
       if (token != null && userDataStr != null) {
-        _token.value = token;
-        _userData.value = json.decode(userDataStr);
-        _isLoggedIn.value = true;
+        try {
+          final userData = json.decode(userDataStr) as Map<String, dynamic>;
+
+          // 设置所有状态
+          _token.value = token;
+          _userData.value = userData;
+          _userId.value = userData['id'] ?? 0;
+          _isLoggedIn.value = true;
+        } catch (parseError) {
+          await _clearUserData();
+        }
       }
     } catch (e) {
-      print('Error loading user data: $e');
+      await _clearUserData();
     }
   }
 
@@ -57,42 +66,36 @@ class UserService extends GetxService {
       // 保存用户数据
       final userData = data['user'] as Map<String, dynamic>;
       await prefs.setString(_userDataKey, json.encode(userData));
+
+      // 更新所有状态
       _userData.value = userData;
-
+      _userId.value = userData['id'] ?? 0;
       _isLoggedIn.value = true;
-
-      print('=== Login Data Saved ===');
-      print('Token: $token');
-      print('User Data: $userData');
-      print('Is Logged In: ${_isLoggedIn.value}');
     } catch (e) {
-      print('Error saving user data: $e');
       rethrow;
     }
   }
 
-  Future<void> logout() async {
-    print('=== UserService.logout() called ===');
+  Future<void> _clearUserData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      // 清除存储的用户数据
       await prefs.remove(_tokenKey);
       await prefs.remove(_userDataKey);
 
-      // 重置状态
+      // 重置所有状态
       _token.value = '';
       _userData.value = null;
+      _userId.value = 0;
       _isLoggedIn.value = false;
-
-      print('=== Logout Successful ===');
-      print('Token cleared: ${_token.value}');
-      print('User data cleared: ${_userData.value}');
-      print('Login status: ${_isLoggedIn.value}');
     } catch (e) {
-      print('Error during logout: $e');
-      print('Stack trace: ${StackTrace.current}');
-      rethrow;
+      print('Error clearing user data: $e');
     }
+  }
+
+  Future<void> logout() async {
+    print('Logging out user...');
+    await _clearUserData();
+    print('User logged out successfully');
   }
 
   Future<void> updateAvatar(String base64Image) async {
