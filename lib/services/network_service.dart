@@ -802,4 +802,26 @@ class NetworkService {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>> getRadioTrack() async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.get<dynamic>(ApiConfig.radio);
+
+      if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
+        final track = response['data'] as Map<String, dynamic>;
+        return _processTrackData(track);
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: '无效的响应格式',
+      );
+    } catch (e) {
+      print('=== Error getting radio track: $e ===');
+      rethrow;
+    }
+  }
 }

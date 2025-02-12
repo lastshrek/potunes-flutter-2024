@@ -160,15 +160,14 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return GetX<AudioService>(
       builder: (controller) {
-        final currentTrack = controller.currentTrack;
-        if (currentTrack == null) {
+        if (controller.currentTrack == null) {
           return const SizedBox.shrink();
         }
 
         // 当歌曲改变时更新背景色
-        if (currentTrack['cover_url'] != null) {
+        if (controller.currentTrack!['cover_url'] != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _updateBackgroundColor(currentTrack['cover_url']);
+            _updateBackgroundColor(controller.currentTrack!['cover_url']);
           });
         }
 
@@ -182,6 +181,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
 
         return Obx(() {
           final isLoggedIn = UserService.to.isLoggedIn;
+          final isFMMode = controller.isFMMode;
 
           return TweenAnimationBuilder<double>(
             tween: Tween<double>(
@@ -201,169 +201,359 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
               builder: (context, backgroundColor, child) {
                 return Material(
                   color: Colors.transparent,
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        PageRouteBuilder(
-                          settings: const RouteSettings(name: '/now_playing'),
-                          pageBuilder: (context, animation, secondaryAnimation) {
-                            return const NowPlayingPage();
-                          },
-                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                            const begin = Offset(0.0, 1.0);
-                            const end = Offset.zero;
-                            const curve = Curves.easeInOut;
-                            var tween = Tween(begin: begin, end: end).chain(
-                              CurveTween(curve: curve),
-                            );
-                            var offsetAnimation = animation.drive(tween);
-                            return SlideTransition(
-                              position: offsetAnimation,
-                              child: child,
-                            );
-                          },
-                        ),
-                      );
-                    },
-                    onHorizontalDragEnd: _handleDragEnd,
-                    child: SlideTransition(
-                      position: _slideAnimation,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // 播放器主体
-                          Container(
-                            height: 64,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.black,
-                              border: Border(
-                                top: BorderSide(
-                                  color: Colors.grey[900]!,
-                                  width: 0.5,
-                                ),
+                  child: isFMMode
+                      ? GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              PageRouteBuilder(
+                                settings: const RouteSettings(name: '/now_playing'),
+                                pageBuilder: (context, animation, secondaryAnimation) {
+                                  return const NowPlayingPage();
+                                },
+                                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                  const begin = Offset(0.0, 1.0);
+                                  const end = Offset.zero;
+                                  const curve = Curves.easeInOut;
+                                  var tween = Tween(begin: begin, end: end).chain(
+                                    CurveTween(curve: curve),
+                                  );
+                                  var offsetAnimation = animation.drive(tween);
+                                  return SlideTransition(
+                                    position: offsetAnimation,
+                                    child: child,
+                                  );
+                                },
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                // 封面
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                                  child: Hero(
-                                    tag: 'player_cover',
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: CachedNetworkImage(
-                                        imageUrl: currentTrack['cover_url'] ?? '',
-                                        fit: BoxFit.cover,
-                                        placeholder: (context, url) => Container(
-                                          color: Colors.grey[800],
-                                          child: const Icon(
-                                            Icons.music_note,
-                                            color: Colors.white54,
-                                          ),
-                                        ),
-                                        errorWidget: (context, url, error) => Container(
-                                          color: Colors.grey[800],
-                                          child: const Icon(
-                                            Icons.music_note,
-                                            color: Colors.white54,
+                            );
+                          },
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // 播放器主体
+                              Container(
+                                height: 64,
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  border: Border(
+                                    top: BorderSide(
+                                      color: Colors.grey[900]!,
+                                      width: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    // 封面
+                                    Container(
+                                      width: 48,
+                                      height: 48,
+                                      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                      child: Hero(
+                                        tag: 'player_cover',
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(4),
+                                          child: CachedNetworkImage(
+                                            imageUrl: controller.currentTrack!['cover_url'] ?? '',
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, url) => Container(
+                                              color: Colors.grey[800],
+                                              child: const Icon(
+                                                Icons.music_note,
+                                                color: Colors.white54,
+                                              ),
+                                            ),
+                                            errorWidget: (context, url, error) => Container(
+                                              color: Colors.grey[800],
+                                              child: const Icon(
+                                                Icons.music_note,
+                                                color: Colors.white54,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 6),
+                                    // 标题和艺术家
+                                    Expanded(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            controller.currentTrack!['name'] ?? '',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            controller.currentTrack!['artist'] ?? '',
+                                            style: TextStyle(
+                                              color: Colors.grey[400],
+                                              fontSize: 12,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // 控制按钮
+                                    Obx(() => Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // 播放/暂停按钮
+                                            IconButton(
+                                              icon: FaIcon(
+                                                controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
+                                                color: Colors.white,
+                                                size: 18,
+                                              ),
+                                              onPressed: controller.togglePlayPause,
+                                              padding: EdgeInsets.zero,
+                                              visualDensity: VisualDensity.compact,
+                                            ),
+                                            // FM 模式下的下一首按钮
+                                            if (controller.isFMMode)
+                                              IconButton(
+                                                icon: const FaIcon(
+                                                  FontAwesomeIcons.forward,
+                                                  color: Colors.white,
+                                                  size: 18,
+                                                ),
+                                                onPressed: controller.next,
+                                                padding: EdgeInsets.zero,
+                                                visualDensity: VisualDensity.compact,
+                                              ),
+                                            // 喜欢按钮
+                                            if (isLoggedIn)
+                                              IconButton(
+                                                icon: Icon(
+                                                  controller.isLike ? Icons.favorite : Icons.favorite_border,
+                                                  color: controller.isLike ? const Color(0xFFDA5597) : Colors.white,
+                                                ),
+                                                onPressed: controller.toggleLike,
+                                              ),
+                                          ],
+                                        )),
+                                  ],
                                 ),
-                                const SizedBox(width: 6),
-                                // 标题和艺术家
-                                Expanded(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                              ),
+                              // 进度条
+                              Container(
+                                width: double.infinity,
+                                height: 2,
+                                color: backgroundColor.withOpacity(0.95),
+                                child: StreamBuilder<Duration>(
+                                  stream: controller.player.positionStream,
+                                  builder: (context, snapshot) {
+                                    final position = snapshot.data ?? Duration.zero;
+                                    final duration = controller.duration;
+                                    final progress = duration.inMilliseconds > 0 ? position.inMilliseconds / duration.inMilliseconds : 0.0;
+
+                                    return ClipRRect(
+                                      borderRadius: BorderRadius.circular(1),
+                                      child: LinearProgressIndicator(
+                                        value: progress.clamp(0.0, 1.0),
+                                        backgroundColor: Colors.white.withOpacity(0.1),
+                                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                        minHeight: 2,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              PageRouteBuilder(
+                                settings: const RouteSettings(name: '/now_playing'),
+                                pageBuilder: (context, animation, secondaryAnimation) {
+                                  return const NowPlayingPage();
+                                },
+                                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                  const begin = Offset(0.0, 1.0);
+                                  const end = Offset.zero;
+                                  const curve = Curves.easeInOut;
+                                  var tween = Tween(begin: begin, end: end).chain(
+                                    CurveTween(curve: curve),
+                                  );
+                                  var offsetAnimation = animation.drive(tween);
+                                  return SlideTransition(
+                                    position: offsetAnimation,
+                                    child: child,
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                          onHorizontalDragEnd: (details) {
+                            if (details.primaryVelocity! > 0) {
+                              AudioService.to.previous();
+                            } else if (details.primaryVelocity! < 0) {
+                              AudioService.to.next();
+                            }
+                          },
+                          child: SlideTransition(
+                            position: _slideAnimation,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // 播放器主体
+                                Container(
+                                  height: 64,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black,
+                                    border: Border(
+                                      top: BorderSide(
+                                        color: Colors.grey[900]!,
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
                                     children: [
-                                      Text(
-                                        currentTrack['name'] ?? '',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
+                                      // 封面
+                                      Container(
+                                        width: 48,
+                                        height: 48,
+                                        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                        child: Hero(
+                                          tag: 'player_cover',
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(4),
+                                            child: CachedNetworkImage(
+                                              imageUrl: controller.currentTrack!['cover_url'] ?? '',
+                                              fit: BoxFit.cover,
+                                              placeholder: (context, url) => Container(
+                                                color: Colors.grey[800],
+                                                child: const Icon(
+                                                  Icons.music_note,
+                                                  color: Colors.white54,
+                                                ),
+                                              ),
+                                              errorWidget: (context, url, error) => Container(
+                                                color: Colors.grey[800],
+                                                child: const Icon(
+                                                  Icons.music_note,
+                                                  color: Colors.white54,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        currentTrack['artist'] ?? '',
-                                        style: TextStyle(
-                                          color: Colors.grey[400],
-                                          fontSize: 12,
+                                      const SizedBox(width: 6),
+                                      // 标题和艺术家
+                                      Expanded(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              controller.currentTrack!['name'] ?? '',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              controller.currentTrack!['artist'] ?? '',
+                                              style: TextStyle(
+                                                color: Colors.grey[400],
+                                                fontSize: 12,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
+                                      const SizedBox(width: 8),
+                                      // 控制按钮
+                                      Obx(() => Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              // 播放/暂停按钮
+                                              IconButton(
+                                                icon: FaIcon(
+                                                  controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
+                                                  color: Colors.white,
+                                                  size: 18,
+                                                ),
+                                                onPressed: controller.togglePlayPause,
+                                                padding: EdgeInsets.zero,
+                                                visualDensity: VisualDensity.compact,
+                                              ),
+                                              // FM 模式下的下一首按钮
+                                              if (controller.isFMMode)
+                                                IconButton(
+                                                  icon: const FaIcon(
+                                                    FontAwesomeIcons.forward,
+                                                    color: Colors.white,
+                                                    size: 18,
+                                                  ),
+                                                  onPressed: controller.next,
+                                                  padding: EdgeInsets.zero,
+                                                  visualDensity: VisualDensity.compact,
+                                                ),
+                                              // 喜欢按钮
+                                              if (isLoggedIn)
+                                                IconButton(
+                                                  icon: Icon(
+                                                    controller.isLike ? Icons.favorite : Icons.favorite_border,
+                                                    color: controller.isLike ? const Color(0xFFDA5597) : Colors.white,
+                                                  ),
+                                                  onPressed: controller.toggleLike,
+                                                ),
+                                            ],
+                                          )),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                // 控制按钮
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // 播放/暂停按钮
-                                    IconButton(
-                                      icon: Obx(() => FaIcon(
-                                            controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
-                                            color: Colors.white,
-                                            size: 18,
-                                          )),
-                                      onPressed: controller.togglePlayPause,
-                                      padding: EdgeInsets.zero,
-                                      visualDensity: VisualDensity.compact,
-                                    ),
-                                    // 喜欢按钮
-                                    if (isLoggedIn)
-                                      IconButton(
-                                        icon: Obx(() => Icon(
-                                              controller.isLike ? Icons.favorite : Icons.favorite_border,
-                                              color: controller.isLike ? const Color(0xFFDA5597) : Colors.white,
-                                            )),
-                                        onPressed: controller.toggleLike,
-                                      ),
-                                  ],
+                                // 进度条
+                                Container(
+                                  width: double.infinity,
+                                  height: 2,
+                                  color: backgroundColor.withOpacity(0.95),
+                                  child: StreamBuilder<Duration>(
+                                    stream: controller.player.positionStream,
+                                    builder: (context, snapshot) {
+                                      final position = snapshot.data ?? Duration.zero;
+                                      final duration = controller.duration;
+                                      final progress = duration.inMilliseconds > 0 ? position.inMilliseconds / duration.inMilliseconds : 0.0;
+
+                                      return ClipRRect(
+                                        borderRadius: BorderRadius.circular(1),
+                                        child: LinearProgressIndicator(
+                                          value: progress.clamp(0.0, 1.0),
+                                          backgroundColor: Colors.white.withOpacity(0.1),
+                                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                          minHeight: 2,
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          // 进度条
-                          Container(
-                            width: double.infinity,
-                            height: 2,
-                            color: backgroundColor.withOpacity(0.95),
-                            child: StreamBuilder<Duration>(
-                              stream: controller.player.positionStream,
-                              builder: (context, snapshot) {
-                                final position = snapshot.data ?? Duration.zero;
-                                final duration = controller.duration;
-                                final progress = duration.inMilliseconds > 0 ? position.inMilliseconds / duration.inMilliseconds : 0.0;
-
-                                return ClipRRect(
-                                  borderRadius: BorderRadius.circular(1),
-                                  child: LinearProgressIndicator(
-                                    value: progress.clamp(0.0, 1.0),
-                                    backgroundColor: Colors.white.withOpacity(0.1),
-                                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                                    minHeight: 2,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                        ),
                 );
               },
             ),

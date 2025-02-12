@@ -6,7 +6,6 @@ import '../../screens/pages/playlist_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/api_config.dart';
 import 'package:get/get.dart';
-import 'package:shimmer/shimmer.dart';
 import '../../controllers/home_controller.dart';
 import '../../screens/pages/all_playlists_page.dart';
 import 'dart:io' show Platform;
@@ -160,7 +159,54 @@ class _HomePageState extends State<HomePage> {
                     print('Search query: $value');
                   },
                 ),
-                _buildCollectionsSection(context),
+                SliverList(
+                  delegate: SliverChildListDelegate([
+                    _buildCollectionsSection(context),
+                    const SizedBox(height: 24),
+                    _buildRadioSection(),
+                    const SizedBox(height: 24),
+                    _buildAlbumsSection(),
+                    const SizedBox(height: 24),
+                    // Final 部分
+                    HorizontalPlaylistList(
+                      title: 'Finals',
+                      playlists: controller.finals,
+                      isLoading: controller.isRefreshing,
+                      onTitleTap: () {
+                        _navigateToPage(
+                          AllPlaylistsPage(
+                            title: 'Final',
+                            playlists: controller.finals,
+                            apiPath: ApiConfig.allFinals,
+                          ),
+                        );
+                      },
+                      onPlaylistTap: _onPlaylistTap,
+                    ),
+                    const SizedBox(height: 8),
+                    // Netease Toplist 部分
+                    HorizontalPlaylistList(
+                      title: 'Netease Toplist',
+                      playlists: controller.neteaseToplist,
+                      isLoading: controller.isRefreshing,
+                      onTitleTap: null,
+                      onPlaylistTap: _onNeteaseToplistTap,
+                    ),
+                    const SizedBox(height: 24),
+                    // Netease New Albums 部分
+                    HorizontalPlaylistList(
+                      title: 'Netease New Albums',
+                      playlists: controller.neteaseNewAlbums,
+                      isLoading: controller.isRefreshing,
+                      onTitleTap: null,
+                      onPlaylistTap: _onNeteaseNewAlbumTap,
+                    ),
+                    // 添加固定的底部间距
+                    SizedBox(
+                      height: AudioService.to.currentTrack != null ? 0 : 56,
+                    ),
+                  ]),
+                ),
               ],
             ),
           );
@@ -305,326 +351,387 @@ class _HomePageState extends State<HomePage> {
     final finalPlaylists = controller.finals;
     final neteaseToplist = controller.neteaseToplist;
 
-    return SliverList(
-      delegate: SliverChildListDelegate([
-        const SizedBox(height: 8),
-        // Collections 部分
-        Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  controller.isRefreshing
-                      ? const SkeletonLoading(
-                          width: 100,
-                          height: 18,
-                        )
-                      : const Text(
-                          'Collections',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              controller.isRefreshing
+                  ? const SkeletonLoading(
+                      width: 100,
+                      height: 18,
+                    )
+                  : const Text(
+                      'Collections',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: controller.isRefreshing
+                    ? const SkeletonLoading(
+                        width: 24,
+                        height: 24,
+                      )
+                    : IconButton(
+                        icon: const Icon(
+                          Icons.arrow_outward,
+                          color: Colors.white,
+                          size: 20,
                         ),
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: controller.isRefreshing
-                        ? const SkeletonLoading(
-                            width: 24,
-                            height: 24,
-                          )
-                        : IconButton(
-                            icon: const Icon(
-                              Icons.arrow_outward,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () {
-                              _onViewAllCollectionsTap();
-                            },
-                          ),
-                  ),
-                ],
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          _onViewAllCollectionsTap();
+                        },
+                      ),
               ),
-            ),
-            const SizedBox(height: 8),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
-                if (isLandscape) {
-                  // 横屏布局
-                  return SizedBox(
-                    height: 140,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: controller.isRefreshing ? 3 : collections.length,
-                      itemBuilder: (context, index) {
-                        if (controller.isRefreshing) {
-                          return Container(
+            if (isLandscape) {
+              // 横屏布局
+              return SizedBox(
+                height: 140,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: controller.isRefreshing ? 3 : collections.length,
+                  itemBuilder: (context, index) {
+                    if (controller.isRefreshing) {
+                      return Container(
+                        width: 298,
+                        margin: const EdgeInsets.only(right: 12),
+                        child: const SkeletonLoading(),
+                      );
+                    }
+                    final item = collections[index];
+                    return GestureDetector(
+                      onTap: () => _onCollectionPlaylistTap(item),
+                      child: Stack(
+                        children: [
+                          Container(
                             width: 298,
                             margin: const EdgeInsets.only(right: 12),
-                            child: const SkeletonLoading(),
-                          );
-                        }
-                        final item = collections[index];
-                        return GestureDetector(
-                          onTap: () => _onCollectionPlaylistTap(item),
-                          child: Stack(
-                            children: [
-                              Container(
-                                width: 298,
-                                margin: const EdgeInsets.only(right: 12),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
                                 ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: CachedNetworkImage(
-                                    imageUrl: item['cover'] ?? '',
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => Container(
-                                      color: Colors.grey[800],
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.music_note,
-                                          color: Colors.white54,
-                                          size: 32,
-                                        ),
-                                      ),
-                                    ),
-                                    errorWidget: (context, url, error) => Container(
-                                      color: Colors.grey[800],
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.error_outline,
-                                          color: Colors.white54,
-                                          size: 32,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // 渐变遮罩
-                              Positioned(
-                                left: 0,
-                                right: 12,
-                                bottom: 0,
-                                top: 0,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.transparent,
-                                        Colors.black.withOpacity(0.7),
-                                      ],
-                                      stops: const [0.5, 1.0],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // 标题
-                              Positioned(
-                                left: 24,
-                                right: 36,
-                                bottom: 16,
-                                child: Text(
-                                  item['title']?.toString() ?? '',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    shadows: [
-                                      Shadow(
-                                        offset: Offset(1, 1),
-                                        blurRadius: 3,
-                                        color: Colors.black,
-                                      ),
-                                    ],
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                } else {
-                  // 竖屏布局
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: AspectRatio(
-                      aspectRatio: 32 / 15,
-                      child: controller.isRefreshing
-                          ? const SkeletonLoading()
-                          : Swiper(
-                              itemBuilder: (context, index) {
-                                final item = collections[index];
-                                return GestureDetector(
-                                  onTap: () => _onCollectionPlaylistTap(item),
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(8),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(0.2),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ],
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: CachedNetworkImage(
-                                            imageUrl: item['cover'] ?? '',
-                                            fit: BoxFit.cover,
-                                            placeholder: (context, url) => Container(
-                                              color: Colors.grey[800],
-                                              child: const Center(
-                                                child: Icon(
-                                                  Icons.music_note,
-                                                  color: Colors.white54,
-                                                  size: 32,
-                                                ),
-                                              ),
-                                            ),
-                                            errorWidget: (context, url, error) => Container(
-                                              color: Colors.grey[800],
-                                              child: const Center(
-                                                child: Icon(
-                                                  Icons.error_outline,
-                                                  color: Colors.white54,
-                                                  size: 32,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      // 渐变遮罩
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(8),
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              Colors.transparent,
-                                              Colors.black.withOpacity(0.7),
-                                            ],
-                                            stops: const [0.6, 1.0],
-                                          ),
-                                        ),
-                                      ),
-                                      // 标题
-                                      Positioned(
-                                        left: 12,
-                                        right: 12,
-                                        bottom: 12,
-                                        child: Text(
-                                          item['title']?.toString() ?? '',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            shadows: [
-                                              Shadow(
-                                                offset: Offset(1, 1),
-                                                blurRadius: 3,
-                                                color: Colors.black,
-                                              ),
-                                            ],
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                              itemCount: collections.length,
-                              autoplay: true,
-                              autoplayDelay: 3000,
-                              viewportFraction: 1.0,
-                              scale: 1.0,
+                              ],
                             ),
-                    ),
-                  );
-                }
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // Final 部分
-        HorizontalPlaylistList(
-          title: 'Finals',
-          playlists: finalPlaylists,
-          isLoading: controller.isRefreshing,
-          onTitleTap: () {
-            _navigateToPage(
-              AllPlaylistsPage(
-                title: 'Final',
-                playlists: finalPlaylists,
-                apiPath: ApiConfig.allFinals,
-              ),
-            );
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: item['cover'] ?? '',
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.grey[800],
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.music_note,
+                                      color: Colors.white54,
+                                      size: 32,
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.grey[800],
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.error_outline,
+                                      color: Colors.white54,
+                                      size: 32,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          // 渐变遮罩
+                          Positioned(
+                            left: 0,
+                            right: 12,
+                            bottom: 0,
+                            top: 0,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withOpacity(0.7),
+                                  ],
+                                  stops: const [0.5, 1.0],
+                                ),
+                              ),
+                            ),
+                          ),
+                          // 标题
+                          Positioned(
+                            left: 24,
+                            right: 36,
+                            bottom: 16,
+                            child: Text(
+                              item['title']?.toString() ?? '',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                shadows: [
+                                  Shadow(
+                                    offset: Offset(1, 1),
+                                    blurRadius: 3,
+                                    color: Colors.black,
+                                  ),
+                                ],
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              );
+            } else {
+              // 竖屏布局
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: AspectRatio(
+                  aspectRatio: 32 / 15,
+                  child: controller.isRefreshing
+                      ? const SkeletonLoading()
+                      : Swiper(
+                          itemBuilder: (context, index) {
+                            final item = collections[index];
+                            return GestureDetector(
+                              onTap: () => _onCollectionPlaylistTap(item),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: CachedNetworkImage(
+                                        imageUrl: item['cover'] ?? '',
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(
+                                          color: Colors.grey[800],
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.music_note,
+                                              color: Colors.white54,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        ),
+                                        errorWidget: (context, url, error) => Container(
+                                          color: Colors.grey[800],
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.error_outline,
+                                              color: Colors.white54,
+                                              size: 32,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // 渐变遮罩
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.black.withOpacity(0.7),
+                                        ],
+                                        stops: const [0.6, 1.0],
+                                      ),
+                                    ),
+                                  ),
+                                  // 标题
+                                  Positioned(
+                                    left: 12,
+                                    right: 12,
+                                    bottom: 12,
+                                    child: Text(
+                                      item['title']?.toString() ?? '',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        shadows: [
+                                          Shadow(
+                                            offset: Offset(1, 1),
+                                            blurRadius: 3,
+                                            color: Colors.black,
+                                          ),
+                                        ],
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          itemCount: collections.length,
+                          autoplay: true,
+                          autoplayDelay: 3000,
+                          viewportFraction: 1.0,
+                          scale: 1.0,
+                        ),
+                ),
+              );
+            }
           },
-          onPlaylistTap: _onPlaylistTap,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRadioSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // FM 标题
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text(
+                'FM',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
-        // Albums 部分
-        _buildAlbumsSection(),
-        const SizedBox(height: 24),
-        // Netease Toplist 部分
-        HorizontalPlaylistList(
-          title: 'Netease Toplist',
-          playlists: neteaseToplist,
-          isLoading: controller.isRefreshing,
-          onTitleTap: null,
-          onPlaylistTap: _onNeteaseToplistTap,
+        // Radio 卡片
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            height: 120,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white.withOpacity(0.05),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.05),
+                  blurRadius: 10,
+                  spreadRadius: -3,
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () async {
+                  try {
+                    Get.snackbar(
+                      'FM',
+                      '正在加载歌曲...',
+                      snackPosition: SnackPosition.TOP,
+                      duration: const Duration(seconds: 1),
+                    );
+                    await AudioService.to.playFMTrack();
+                  } catch (e) {
+                    Get.snackbar(
+                      'Error',
+                      '加载歌曲失败',
+                      snackPosition: SnackPosition.TOP,
+                      backgroundColor: Colors.red,
+                      colorText: Colors.white,
+                    );
+                    print('Error playing FM track: $e');
+                  }
+                },
+                child: Row(
+                  children: [
+                    const SizedBox(width: 24),
+                    const Icon(
+                      Icons.radio,
+                      color: Colors.white,
+                      size: 48,
+                    ),
+                    const SizedBox(width: 16),
+                    const Text(
+                      'Just Listen',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      margin: const EdgeInsets.only(right: 24),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.1),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
-        const SizedBox(height: 24),
-        // Netease New Albums 部分
-        HorizontalPlaylistList(
-          title: 'Netease New Albums',
-          playlists: controller.neteaseNewAlbums,
-          isLoading: controller.isRefreshing,
-          onTitleTap: null,
-          onPlaylistTap: _onNeteaseNewAlbumTap,
-        ),
-        // 添加固定的底部间距
-        SizedBox(
-          height: AudioService.to.currentTrack != null ? 0 : 56,
-        ),
-      ]),
+      ],
     );
   }
 

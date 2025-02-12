@@ -17,6 +17,7 @@ import 'controllers/app_controller.dart';
 import 'services/version_service.dart';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
+import 'services/live_activities_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,8 +35,11 @@ Future<void> main() async {
     preloadArtwork: true,
   );
 
-  // 初始化 GetX 服务
+  // 初始化服务
+  Get.put(LiveActivitiesService(), permanent: true);
   Get.put(AudioService(), permanent: true);
+  Get.put(UserService(), permanent: true);
+  Get.put(AppController(), permanent: true);
 
   // 修改日志处理逻辑
   if (kDebugMode) {
@@ -119,18 +123,6 @@ Future<void> main() async {
       developer.log(message);
     };
   }
-
-  await Get.putAsync(() => UserService().init());
-
-  // 初始化 AppController
-  Get.put(AppController());
-
-  // 设置状态栏样式为亮色（白色）
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarBrightness: Brightness.dark, // iOS: 暗色背景，白色前景
-    statusBarIconBrightness: Brightness.light, // Android: 白色图标
-    statusBarColor: Colors.transparent, // Android: 透明背景
-  ));
 
   // 初始化版本检查服务
   final dio = Dio(BaseOptions(

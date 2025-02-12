@@ -215,67 +215,69 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.black.withOpacity(0.7),
-                Colors.black.withOpacity(0.0),
-              ],
+    return GetX<AudioService>(
+      builder: (controller) {
+        final track = controller.currentTrack;
+        final isFMMode = controller.isFMMode;
+
+        if (track == null) return const SizedBox.shrink();
+
+        if (track['cover_url'] != _lastTrackUrl) {
+          _extractColors();
+        }
+
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(kToolbarHeight),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.7),
+                    Colors.black.withOpacity(0.0),
+                  ],
+                ),
+              ),
+              child: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.keyboard_arrow_down),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                centerTitle: true,
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildPageIndicator(0),
+                    const SizedBox(width: 8),
+                    _buildPageIndicator(1),
+                  ],
+                ),
+                actions: [
+                  // 添加喜欢按钮 - 只在登录时显示
+                  Obx(() {
+                    if (UserService.to.isLoggedIn) {
+                      return IconButton(
+                        icon: FaIcon(
+                          AudioService.to.isLike ? FontAwesomeIcons.solidHeart : FontAwesomeIcons.heart,
+                          color: AudioService.to.isLike ? const Color(0xFFFF69B4) : Colors.white,
+                          size: 20,
+                        ),
+                        onPressed: AudioService.to.toggleLike,
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
+                ],
+              ),
             ),
           ),
-          child: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.keyboard_arrow_down),
-              onPressed: () => Navigator.pop(context),
-            ),
-            centerTitle: true,
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildPageIndicator(0),
-                const SizedBox(width: 8),
-                _buildPageIndicator(1),
-              ],
-            ),
-            actions: [
-              // 添加喜欢按钮 - 只在登录时显示
-              Obx(() {
-                if (UserService.to.isLoggedIn) {
-                  return IconButton(
-                    icon: FaIcon(
-                      AudioService.to.isLike ? FontAwesomeIcons.solidHeart : FontAwesomeIcons.heart,
-                      color: AudioService.to.isLike ? const Color(0xFFFF69B4) : Colors.white,
-                      size: 20,
-                    ),
-                    onPressed: AudioService.to.toggleLike,
-                  );
-                }
-                return const SizedBox.shrink();
-              }),
-            ],
-          ),
-        ),
-      ),
-      extendBodyBehindAppBar: true,
-      body: GetX<AudioService>(
-        builder: (controller) {
-          final track = controller.currentTrack;
-          if (track == null) return const SizedBox.shrink();
-
-          if (track['cover_url'] != _lastTrackUrl) {
-            _extractColors();
-          }
-
-          return Container(
+          extendBodyBehindAppBar: true,
+          body: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -295,13 +297,13 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                 AudioService.to.currentPageIndex = index;
               },
               children: [
-                _buildPlayerPage(track, controller),
+                _buildPlayerPage(track, controller, isFMMode),
                 _buildLyricsPage(track),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -327,7 +329,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
     );
   }
 
-  Widget _buildPlayerPage(Map<String, dynamic> track, AudioService controller) {
+  Widget _buildPlayerPage(Map<String, dynamic> track, AudioService controller, bool isFMMode) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
     final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
@@ -467,42 +469,44 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                   ),
                   const SizedBox(height: 16),
                   // 播放控制
-                  _buildControlButtons(),
+                  _buildControlButtons(controller, isFMMode),
                   const SizedBox(height: 16),
                   // 添加 Coming Up Next 容器
-                  GestureDetector(
-                    onTap: _showPlaylistSheet,
-                    child: Center(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Container(
-                            height: 40,
-                            width: 160,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.black.withOpacity(0.5),
-                                  Colors.black.withOpacity(0.3),
-                                ],
+                  if (!isFMMode)
+                    GestureDetector(
+                      onTap: _showPlaylistSheet,
+                      child: Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Container(
+                              height: 40,
+                              width: 160,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.black.withOpacity(0.5),
+                                    Colors.black.withOpacity(0.3),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.1),
+                                  width: 0.5,
+                                ),
                               ),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.1),
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'Coming Up Next',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.8),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 0.5,
+                              child: Center(
+                                child: Text(
+                                  'Coming Up Next',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                               ),
                             ),
@@ -510,7 +514,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                         ),
                       ),
                     ),
-                  ),
                   const SizedBox(height: 16),
                 ],
               ),
@@ -655,42 +658,44 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                 ),
                 const SizedBox(height: 16),
                 // 播放控制
-                _buildControlButtons(),
+                _buildControlButtons(controller, isFMMode),
                 const SizedBox(height: 16),
                 // Coming Up Next 容器
-                GestureDetector(
-                  onTap: _showPlaylistSheet,
-                  child: Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          height: 40,
-                          width: 160,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.black.withOpacity(0.5),
-                                Colors.black.withOpacity(0.3),
-                              ],
+                if (!isFMMode)
+                  GestureDetector(
+                    onTap: _showPlaylistSheet,
+                    child: Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            height: 40,
+                            width: 160,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.black.withOpacity(0.5),
+                                  Colors.black.withOpacity(0.3),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.1),
+                                width: 0.5,
+                              ),
                             ),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.1),
-                              width: 0.5,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Coming Up Next',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 0.5,
+                            child: Center(
+                              child: Text(
+                                'Coming Up Next',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
                             ),
                           ),
@@ -698,7 +703,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                       ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -825,7 +829,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // 播放控制按钮
-                        _buildControlButtons(),
+                        _buildControlButtons(AudioService.to, false),
                         SizedBox(height: bottomPadding + 8),
                       ],
                     ),
@@ -1136,30 +1140,47 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
     });
   }
 
-  Widget _buildControlButtons() {
+  Widget _buildControlButtons(AudioService controller, bool isFMMode) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
+        // 随机播放按钮
         IconButton(
-          icon: GetX<AudioService>(
-            builder: (controller) => FaIcon(
-              FontAwesomeIcons.shuffle,
-              size: 20,
-              color: Colors.white.withOpacity(
-                controller.isShuffleMode ? 1.0 : 0.4,
-              ),
-            ),
+          icon: FaIcon(
+            FontAwesomeIcons.shuffle,
+            size: 20,
+            color: isFMMode
+                ? Colors.grey.withOpacity(0.4) // FM 模式下置灰
+                : Colors.white.withOpacity(controller.isShuffleMode ? 1.0 : 0.4),
           ),
-          onPressed: AudioService.to.toggleShuffle,
+          onPressed: isFMMode
+              ? () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('FM 模式下不支持随机播放'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  )
+              : controller.toggleShuffle,
         ),
+        // 上一首按钮
         IconButton(
           icon: FaIcon(
             FontAwesomeIcons.backward,
             size: 24,
-            color: Colors.white.withOpacity(0.8),
+            color: isFMMode
+                ? Colors.grey.withOpacity(0.4) // FM 模式下置灰
+                : Colors.white.withOpacity(0.8),
           ),
-          onPressed: AudioService.to.previous,
+          onPressed: isFMMode
+              ? () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('FM 模式下不支持上一首'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  )
+              : controller.previous,
         ),
+        // 播放/暂停按钮
         Container(
           width: 64,
           height: 64,
@@ -1173,71 +1194,46 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
           ),
           child: Material(
             color: Colors.transparent,
-            child: GetX<AudioService>(
-              builder: (controller) => InkWell(
-                borderRadius: BorderRadius.circular(32),
-                onTap: controller.togglePlayPause,
-                child: Center(
-                  child: FaIcon(
-                    controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
-                    size: 24,
-                    color: Colors.white,
-                  ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(32),
+              onTap: controller.togglePlayPause,
+              child: Center(
+                child: FaIcon(
+                  controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
+                  size: 24,
+                  color: Colors.white,
                 ),
               ),
             ),
           ),
         ),
+        // 下一首按钮
         IconButton(
           icon: FaIcon(
             FontAwesomeIcons.forward,
             size: 24,
             color: Colors.white.withOpacity(0.8),
           ),
-          onPressed: AudioService.to.next,
+          onPressed: controller.next,
         ),
-        Obx(() {
-          final repeatMode = AudioService.to.repeatMode;
-          IconData icon;
-          Color color;
-          Widget? child;
-
-          switch (repeatMode) {
-            case RepeatMode.all:
-              icon = FontAwesomeIcons.repeat;
-              color = Colors.white;
-              child = null;
-              break;
-            case RepeatMode.single:
-              icon = FontAwesomeIcons.repeat;
-              color = Colors.white;
-              // 为单曲循环模式添加数字 1
-              child = Stack(
-                alignment: Alignment.center,
-                children: [
-                  const FaIcon(FontAwesomeIcons.repeat, size: 20),
-                  Positioned(
-                    top: 4,
-                    child: Text(
-                      '1',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
+        // 循环模式按钮
+        IconButton(
+          icon: FaIcon(
+            FontAwesomeIcons.repeat,
+            size: 20,
+            color: isFMMode
+                ? Colors.grey.withOpacity(0.4) // FM 模式下置灰
+                : Colors.white,
+          ),
+          onPressed: isFMMode
+              ? () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('FM 模式下不支持循环播放'),
+                      duration: Duration(seconds: 1),
                     ),
-                  ),
-                ],
-              );
-              break;
-          }
-
-          return IconButton(
-            icon: child ?? FaIcon(icon, size: 20),
-            color: color,
-            onPressed: AudioService.to.toggleRepeatMode,
-          );
-        }),
+                  )
+              : controller.toggleRepeatMode,
+        ),
       ],
     );
   }

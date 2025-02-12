@@ -16,6 +16,7 @@ class ApiConfig {
   static const String topListDetail = '/netease/toplist';
   static const String neteaseNewAlbum = '/netease/top_album';
   static const String neteaseNewAlbumDetail = '/netease/album';
+  static const String radio = '/v1/tracks/fm';
   // 歌曲相关
   static const String updatePlayCount = '/v1/tracks/play_count';
   // 用户相关
