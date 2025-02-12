@@ -1,4 +1,8 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:ui';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
@@ -6,6 +10,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
+import 'package:flutter/rendering.dart';
+import 'package:flutter/material.dart';
 
 import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
@@ -184,6 +190,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   Future<void> _loadTracks() async {
     try {
+      // 先加载 tracks 数据
       final response = widget.isFromTopList
           ? await _networkService.getTopListDetail(widget.playlistId)
           : widget.isFromNewAlbum
@@ -204,9 +211,11 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
         // 等待一帧以确保 setState 完成
         await Future.microtask(() {});
 
-        // 提取颜色
+        // 延迟加载颜色，让列表先显示出来
         if (widget.coverUrl != null) {
-          await _extractColors();
+          Future.delayed(const Duration(milliseconds: 100), () {
+            _extractColors();
+          });
         }
       }
     } catch (e) {
@@ -222,49 +231,87 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   Future<void> _extractColors() async {
     try {
-      final imageProvider = CachedNetworkImageProvider(widget.playlist['cover'] ?? '');
-      final PaletteGenerator paletteGenerator = await PaletteGenerator.fromImageProvider(
-        imageProvider,
-        maximumColorCount: 20,
+      final imageUrl = widget.playlist['cover'] ?? '';
+      if (imageUrl.isEmpty) return;
+
+      // 在后台加载图片数据
+      final imageData = await compute(_loadImageData, {
+        'url': imageUrl,
+        'maxSize': 100,
+      });
+
+      if (!mounted) return;
+
+      // 在主线程中压缩图片并提取颜色
+      final codec = await instantiateImageCodec(
+        imageData,
+        targetWidth: 100,
+        targetHeight: 100,
+      );
+      final frame = await codec.getNextFrame();
+      final compressedImage = frame.image;
+
+      final paletteGenerator = await PaletteGenerator.fromImage(
+        compressedImage,
+        maximumColorCount: 10,
       );
 
       if (!mounted) return;
 
-      // 获取第一主色调
+      // 直接使用第一主色
       final Color mainColor = paletteGenerator.dominantColor?.color ?? const Color(0xff161616);
-
-      // 确保颜色足够深
-      final HSLColor hslColor = HSLColor.fromColor(mainColor);
-
-      // 主背景色（第一主色调暗化）
-      final Color adjustedColor = hslColor.withLightness((hslColor.lightness * 0.4).clamp(0.0, 0.2)).toColor();
-
-      // AppBar 背景色（稍微亮一点的第一主色调）
-      secondaryColor = hslColor.withLightness((hslColor.lightness * 0.5).clamp(0.0, 0.25)).toColor();
+      final Color appBarColor = mainColor.withOpacity(0.95);
 
       // 设置动画
-      _colorTween.begin = _colorAnimation.value;
-      _colorTween.end = adjustedColor;
+      _colorTween.begin = dominantColor ?? Colors.black; // 使用当前颜色作为起始点
+      _colorTween.end = mainColor;
 
-      // 执行颜色过渡动画
-      const duration = Duration(milliseconds: 500);
+      // 执行颜色渐变动画
+      const duration = Duration(milliseconds: 800); // 增加动画时长
+      final curve = Curves.easeInOut; // 添加缓动效果
       final startTime = DateTime.now();
 
       void updateColor() {
         final elapsedTime = DateTime.now().difference(startTime);
         if (elapsedTime >= duration) {
-          _colorAnimation.value = adjustedColor;
+          setState(() {
+            dominantColor = mainColor;
+            secondaryColor = appBarColor;
+          });
+          _colorAnimation.value = mainColor;
           return;
         }
 
-        final t = (elapsedTime.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
-        _colorAnimation.value = Color.lerp(_colorTween.begin!, _colorTween.end!, t)!;
-        Future.microtask(updateColor);
+        // 使用缓动曲线
+        final t = curve.transform((elapsedTime.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0));
+
+        final currentColor = Color.lerp(_colorTween.begin!, _colorTween.end!, t)!;
+
+        setState(() {
+          dominantColor = currentColor;
+          secondaryColor = currentColor.withOpacity(0.95);
+        });
+        _colorAnimation.value = currentColor;
+
+        // 使用 Timer 代替 microtask 以获得更平滑的动画
+        Timer(const Duration(milliseconds: 16), updateColor);
       }
 
       updateColor();
     } catch (e) {
-      debugPrint('Error extracting colors: $e');
+      debugPrint('提取颜色时出错: $e');
+    }
+  }
+
+  static Future<Uint8List> _loadImageData(Map<String, dynamic> params) async {
+    try {
+      final url = params['url'] as String;
+      // 直接返回原始图片数据，不在 isolate 中进行压缩
+      final response = await http.get(Uri.parse(url));
+      return response.bodyBytes;
+    } catch (e) {
+      debugPrint('加载图片数据失败: $e');
+      rethrow;
     }
   }
 
