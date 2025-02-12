@@ -730,13 +730,16 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
             if (!AudioService.to.isShuffleMode) {
               AudioService.to.toggleShuffle();
             }
-            AudioService.to.skipToQueueItem(0);
+            AudioService.to.playPlaylist(
+              List<Map<String, dynamic>>.from(_allTracks),
+              initialIndex: 0,
+            );
           },
         ),
-        _horizontalDivider,
+        const SizedBox(width: 8),
         PlayButton(
           backgroundColor: dominantColor?.withOpacity(0.8),
-          tracks: List<Map<String, dynamic>>.from(_displayedTracks),
+          tracks: List<Map<String, dynamic>>.from(_allTracks),
         ),
       ],
     );
@@ -854,7 +857,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   void _playTrack(dynamic track, List<dynamic> tracks, int index) {
     AudioService.to.playPlaylist(
-      List<Map<String, dynamic>>.from(tracks),
+      List<Map<String, dynamic>>.from(_allTracks),
       initialIndex: index,
     );
   }

@@ -998,10 +998,11 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                   Expanded(
                     child: GetX<AudioService>(
                       builder: (controller) {
+                        // 使用 displayPlaylist
                         final playlist = controller.displayPlaylist;
                         final currentIndex = controller.currentIndex;
 
-                        if (playlist == null) {
+                        if (playlist == null || playlist.isEmpty) {
                           return const SizedBox.shrink();
                         }
 
