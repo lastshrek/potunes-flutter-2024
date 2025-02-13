@@ -42,7 +42,6 @@ abstract class BaseController extends GetxController {
   }
 
   void _handleConnectivityChange(ConnectivityResult result) async {
-    print('${runtimeType.toString()} connectivity changed: $result');
     if (result == ConnectivityResult.none) {
       _isNetworkReady.value = false;
       _error.value = '网络连接已断开';

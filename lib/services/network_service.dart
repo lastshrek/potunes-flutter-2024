@@ -70,13 +70,10 @@ class NetworkService {
       await checkNetworkPermission();
     }
     try {
-      print('Making GET request to: ${ApiConfig.baseUrl}${ApiConfig.home}');
       final response = await _client.get<dynamic>(ApiConfig.home);
-      print('Home data raw response: $response');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
         final data = response['data'] as Map<String, dynamic>;
-        print('Home data processed response: $data');
 
         // 处理所有可能包含歌曲的列表
         if (data['tracks'] is List) {
@@ -176,9 +173,6 @@ class NetworkService {
     }
 
     try {
-      final String fullUrl = '${ApiConfig.baseUrl}$path';
-      print('GET request to: $fullUrl');
-
       final response = await _client.get(
         path,
         options: Options(
@@ -187,9 +181,6 @@ class NetworkService {
           },
         ),
       );
-
-      print('Response type: ${response.runtimeType}');
-      print('Response data: $response');
 
       // 如果响应是 Map 类型
       if (response is Map<String, dynamic>) {
@@ -228,8 +219,6 @@ class NetworkService {
       await checkNetworkPermission();
     }
     try {
-      print('Making POST request to: ${ApiConfig.baseUrl}$path'); // 添加请求日志
-
       final response = await _client.post(
         path,
         data: data,
@@ -239,8 +228,6 @@ class NetworkService {
           },
         ),
       );
-
-      print('Response received: $response'); // 添加响应日志
 
       if (response is Map<String, dynamic>) {
         return response;
@@ -443,7 +430,6 @@ class NetworkService {
               'mv': item['mv'],
             });
 
-            print('Processed favourite item: $processed');
             return processed;
           }
           throw ApiException(
@@ -491,8 +477,6 @@ class NetworkService {
         'mv': track['mv'] ?? 0,
       };
 
-      print('Request body: $requestBody');
-
       final response = await _client.post<dynamic>(
         ApiConfig.like,
         data: requestBody,
@@ -503,8 +487,6 @@ class NetworkService {
           contentType: 'application/json',
         ),
       );
-
-      print('Like track response: $response');
 
       if (response is Map && response['statusCode'] == 200) {
         return true;
@@ -538,7 +520,6 @@ class NetworkService {
       final response = await _client.get(
         '${ApiConfig.baseUrl}${ApiConfig.topListDetail}/$id',
       );
-      print('netease top list detail: ${ApiConfig.baseUrl}${ApiConfig.topListDetail}/$id');
       if (response is Map<String, dynamic> && response['statusCode'] == 200) {
         final data = response['data'] as Map<String, dynamic>;
 

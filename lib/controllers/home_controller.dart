@@ -3,8 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../services/network_service.dart';
 import '../config/api_config.dart';
-import 'package:flutter/material.dart';
-import '../utils/http/api_exception.dart';
 import '../controllers/base_controller.dart';
 
 class HomeController extends BaseController {
@@ -32,68 +30,47 @@ class HomeController extends BaseController {
   @override
   void onInit() {
     super.onInit();
-    print('HomeController onInit called');
     loadCachedData();
   }
 
   @override
   void onReady() {
     super.onReady();
-    print('HomeController onReady called');
-    // 总是刷新数据，不管缓存是否存在
-    refreshData();
-  }
-
-  @override
-  void onNetworkReady() {
-    print('HomeController network ready, refreshing data...');
     refreshData();
   }
 
   @override
   Future<void> refreshData() async {
     if (!isNetworkReady) {
-      print('Network not ready, skipping refresh');
       return;
     }
 
-    print('Starting data refresh...');
     try {
       _isRefreshing.value = true;
 
       // 获取主页数据
       final response = await _networkService.getHomeData();
-      print('Home data response: $response');
 
-      if (response != null) {
-        if (response['collections'] != null) {
-          _collections.assignAll(List<Map<String, dynamic>>.from(response['collections']));
-          print('Updated collections: ${_collections.length}');
-        }
+      if (response['collections'] != null) {
+        _collections.assignAll(List<Map<String, dynamic>>.from(response['collections']));
+      }
 
-        if (response['finals'] != null) {
-          _finals.assignAll(List<Map<String, dynamic>>.from(response['finals']));
-          print('Updated finals: ${_finals.length}');
-        }
+      if (response['finals'] != null) {
+        _finals.assignAll(List<Map<String, dynamic>>.from(response['finals']));
+      }
 
-        if (response['albums'] != null) {
-          _albums.assignAll(List<Map<String, dynamic>>.from(response['albums']));
-          print('Updated albums: ${_albums.length}');
-        }
+      if (response['albums'] != null) {
+        _albums.assignAll(List<Map<String, dynamic>>.from(response['albums']));
+      }
 
-        if (response['netease_toplist'] != null) {
-          _neteaseToplist.assignAll(List<Map<String, dynamic>>.from(response['netease_toplist']));
-          print('Updated netease toplist: ${_neteaseToplist.length}');
-        }
-      } else {
-        print('Home data response is null');
+      if (response['netease_toplist'] != null) {
+        _neteaseToplist.assignAll(List<Map<String, dynamic>>.from(response['netease_toplist']));
       }
 
       // 获取网易云新专辑数据
       await _fetchNeteaseNewAlbums();
 
       await _saveToCache();
-      print('Data refresh complete');
     } catch (e, stackTrace) {
       print('Error refreshing data: $e');
       print('Stack trace: $stackTrace');
@@ -104,7 +81,6 @@ class HomeController extends BaseController {
 
   @override
   Future<void> loadCachedData() async {
-    print('Loading cached data...');
     try {
       final prefs = await SharedPreferences.getInstance();
 
@@ -113,7 +89,6 @@ class HomeController extends BaseController {
       if (cachedCollections != null) {
         final List<dynamic> decoded = jsonDecode(cachedCollections);
         _collections.assignAll(decoded.map((item) => Map<String, dynamic>.from(item)).toList());
-        print('Loaded ${_collections.length} collections from cache');
       }
 
       // 加载最终版
@@ -121,7 +96,6 @@ class HomeController extends BaseController {
       if (cachedFinals != null) {
         final List<dynamic> decoded = jsonDecode(cachedFinals);
         _finals.assignAll(decoded.map((item) => Map<String, dynamic>.from(item)).toList());
-        print('Loaded ${_finals.length} finals from cache');
       }
 
       // 加载专辑
@@ -129,7 +103,6 @@ class HomeController extends BaseController {
       if (cachedAlbums != null) {
         final List<dynamic> decoded = jsonDecode(cachedAlbums);
         _albums.assignAll(decoded.map((item) => Map<String, dynamic>.from(item)).toList());
-        print('Loaded ${_albums.length} albums from cache');
       }
 
       // 加载网易云排行榜
@@ -137,10 +110,7 @@ class HomeController extends BaseController {
       if (cachedNetease != null) {
         final List<dynamic> decoded = jsonDecode(cachedNetease);
         _neteaseToplist.assignAll(decoded.map((item) => Map<String, dynamic>.from(item)).toList());
-        print('Loaded ${_neteaseToplist.length} netease items from cache');
       }
-
-      print('Cache load complete');
     } catch (e) {
       print('Error loading cached data: $e');
     }
@@ -148,14 +118,10 @@ class HomeController extends BaseController {
 
   Future<void> _fetchNeteaseNewAlbums() async {
     try {
-      print('Fetching netease new albums...');
       final neteaseNewAlbumsResponse = await _networkService.get(ApiConfig.neteaseNewAlbum);
-      print('New albums raw response: $neteaseNewAlbumsResponse');
 
       if (neteaseNewAlbumsResponse != null && neteaseNewAlbumsResponse is Map<String, dynamic> && neteaseNewAlbumsResponse['data'] != null) {
         final rawAlbums = neteaseNewAlbumsResponse['data'] is List ? neteaseNewAlbumsResponse['data'] as List : neteaseNewAlbumsResponse['data']['albums'] as List;
-
-        print('Raw albums data: $rawAlbums');
 
         final mappedAlbums = rawAlbums.map((album) {
           if (album is Map<String, dynamic>) {
@@ -171,7 +137,6 @@ class HomeController extends BaseController {
         }).toList();
 
         _neteaseNewAlbums.assignAll(mappedAlbums);
-        print('Updated new albums: ${_neteaseNewAlbums.length}');
       }
     } catch (e, stackTrace) {
       print('Error loading new albums: $e');
@@ -188,8 +153,6 @@ class HomeController extends BaseController {
       await prefs.setString(_albumsKey, jsonEncode(_albums));
       await prefs.setString(_neteaseKey, jsonEncode(_neteaseToplist));
       await prefs.setInt(_lastUpdateKey, DateTime.now().millisecondsSinceEpoch);
-
-      print('Data saved to cache');
     } catch (e) {
       print('Error saving to cache: $e');
     }

@@ -22,19 +22,16 @@ class TopChartsController extends BaseController {
   @override
   void onInit() {
     super.onInit();
-    print('TopChartsController onInit called');
     loadCachedData();
   }
 
   @override
   void onNetworkReady() {
-    print('TopChartsController network ready, refreshing data...');
     refreshData();
   }
 
   @override
   Future<void> loadCachedData() async {
-    print('Loading cached data...');
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedData = prefs.getString(_chartsKey);
@@ -42,7 +39,6 @@ class TopChartsController extends BaseController {
       if (cachedData != null) {
         final List<dynamic> decoded = jsonDecode(cachedData);
         _charts.assignAll(decoded.map((item) => Map<String, dynamic>.from(item)).toList());
-        print('Loaded ${_charts.length} items from cache');
       }
     } catch (e) {
       print('Error loading cached data: $e');
@@ -63,11 +59,9 @@ class TopChartsController extends BaseController {
   @override
   Future<void> refreshData() async {
     if (!isNetworkReady) {
-      print('Network not ready, skipping refresh');
       return;
     }
 
-    print('Refreshing data...');
     try {
       _isRefreshing.value = true;
       final response = await _networkService.getTopCharts();
@@ -76,7 +70,6 @@ class TopChartsController extends BaseController {
         final chartsList = response['charts'] as List;
         final newCharts = chartsList.map((item) => item as Map<String, dynamic>).toList();
         _charts.assignAll(newCharts);
-        print('Loaded ${_charts.length} items from network');
         await _saveToCache(newCharts);
       } else {
         print('Invalid data format');

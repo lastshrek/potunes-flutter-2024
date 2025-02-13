@@ -20,50 +20,34 @@ class VersionService extends GetxService {
   Future<void> checkVersion() async {
     // 只在 Android 平台检查更新
     if (!Platform.isAndroid) {
-      print('Skip version check: not Android platform');
       return;
     }
 
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
-      print('Current app version: $currentVersion');
 
       final response = await _dio.get(
         ApiConfig.version,
         queryParameters: {'platform': 'android'},
       );
 
-      print('Version check response: ${response.data}');
-
       if (response.statusCode == ApiConfig.successCode) {
         final responseData = response.data['data'] as Map<String, dynamic>;
-
-        // 打印完整的 responseData
-        print('Full response data: $responseData');
-
         final newVersion = responseData['a_version'] as String;
         final downloadUrl = responseData['a_url'] as String;
         // 使用正确的字段名 updateText
         final dynamic rawUpdateText = responseData['updateText'];
-        print('Raw updateText: $rawUpdateText (type: ${rawUpdateText.runtimeType})');
 
         final updateText = rawUpdateText?.toString() ?? '暂无更新说明';
-
-        print('Server version: $newVersion');
-        print('Download URL: $downloadUrl');
-        print('Processed update text: $updateText');
-
         // 验证 URL 格式
         if (downloadUrl.isEmpty) {
-          print('Download URL is empty');
           return;
         }
 
         try {
           final uri = Uri.parse(downloadUrl);
           if (!uri.hasScheme || !uri.hasAuthority) {
-            print('Invalid URL format: $downloadUrl');
             return;
           }
         } catch (e) {
@@ -72,14 +56,11 @@ class VersionService extends GetxService {
         }
 
         if (_shouldUpdate(currentVersion, newVersion)) {
-          print('Update needed: $currentVersion -> $newVersion');
           await _showUpdateDialog(
             version: newVersion,
             url: downloadUrl,
             updateText: updateText,
           );
-        } else {
-          print('No update needed');
         }
       }
     } catch (err) {
