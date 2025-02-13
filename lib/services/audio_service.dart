@@ -107,32 +107,44 @@ class AudioService extends GetxService {
     _setupPlayerListeners();
     _loadLastState();
 
-    // 修改播放位置监听逻辑
-    ever(_position, (position) {
-      _updateCurrentLine(position);
+    // 添加播放器状态监听
+    _audioPlayer.playbackEventStream.listen((event) {});
 
-      // 当播放时间达到30秒且未记录时记录一次
-      if (!_hasRecordedPlay && position.inSeconds >= 30 && _currentTrack.value != null) {
-        _updatePlayCount();
-        _hasRecordedPlay = true; // 标记已记录
-      }
+    // 添加播放器错误监听
+    _audioPlayer.playerStateStream.listen((state) {
+      _isPlaying.value = state.playing;
     });
 
-    // 监听播放完成事件，重置记录状态
-    _audioPlayer.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed && !_isHandlingCompletion) {
-        _isHandlingCompletion = true;
-        _hasRecordedPlay = false; // 重置记录状态
+    // 修改位置监听部分
+    _audioPlayer.positionStream.listen((position) {
+      _position.value = position;
+      _updateCurrentLine(position);
 
-        if (_repeatMode.value == RepeatMode.single) {
-          // 单曲循环
-          _audioPlayer.seek(Duration.zero).then((_) => _audioPlayer.play());
-        } else if (_currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
-          // 列表循环
-          final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
-          skipToQueueItem(nextIndex);
+      // 检查播放进度
+      if (_audioPlayer.duration != null) {
+        final duration = _audioPlayer.duration!;
+
+        // 当播放时间达到30秒且未记录时记录一次
+        if (!_hasRecordedPlay && position.inSeconds >= 30 && _currentTrack.value != null) {
+          _updatePlayCount();
+          _hasRecordedPlay = true;
         }
-        _isHandlingCompletion = false;
+
+        // 检查是否接近结束
+        if (duration - position <= const Duration(milliseconds: 500)) {
+          if (_isFMMode.value && !_isHandlingCompletion) {
+            _isHandlingCompletion = true;
+
+            // 先停止播放
+            _audioPlayer.stop().then((_) async {
+              try {
+                await playFMTrack();
+              } finally {
+                _isHandlingCompletion = false;
+              }
+            });
+          }
+        }
       }
     });
 
@@ -412,27 +424,22 @@ class AudioService extends GetxService {
   }
 
   Future<void> next() async {
-    if (_isFMMode.value) {
-      await _playNextFMTrack();
-      return;
-    }
     try {
-      if (_currentPlaylist.value == null) return;
-
-      if (_repeatMode.value == RepeatMode.single) {
-        // 单曲循环时重新播放当前歌曲
-        await _audioPlayer.seek(Duration.zero);
-        await _audioPlayer.play();
-      } else {
-        // 计算下一首歌的索引
-        final currentIndex = _currentIndex.value;
-        final nextIndex = currentIndex < _currentPlaylist.value!.length - 1 ? currentIndex + 1 : 0;
-
-        // 直接调用 skipToQueueItem，而不是 seekToNext
-        await skipToQueueItem(nextIndex);
+      // 检查是否为 FM 模式
+      if (_isFMMode.value) {
+        await playFMTrack(); // 直接播放新的 FM 歌曲
+        return;
       }
+
+      // 非 FM 模式的原有逻辑
+      if (_currentPlaylist.value == null || _currentPlaylist.value!.isEmpty) {
+        return;
+      }
+
+      final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
+      await skipToQueueItem(nextIndex);
     } catch (e) {
-      print('Error playing next track: $e');
+      print('Error in next: $e');
     }
   }
 
@@ -959,12 +966,13 @@ class AudioService extends GetxService {
     }
   }
 
-  // 添加跳转到下一首的方法
+  // 修改 skipToNext 方法
   Future<void> skipToNext() async {
     if (_isFMMode.value) {
-      await _playNextFMTrack();
+      await playFMTrack(); // FM 模式下直接播放新歌
       return;
     }
+
     try {
       if (_currentPlaylist.value == null || _currentPlaylist.value!.isEmpty) {
         return;
@@ -1062,60 +1070,6 @@ class AudioService extends GetxService {
       await _saveLastState();
     } catch (e) {
       print('Error playing FM track: $e');
-      rethrow;
-    }
-  }
-
-  // 修改 _playNextFMTrack 方法
-  Future<void> _playNextFMTrack() async {
-    try {
-      // 确保保持 FM 模式
-      _isFMMode.value = true;
-
-      final track = await NetworkService.instance.getRadioTrack();
-
-      // 清除当前播放列表并设置当前歌曲
-      _currentPlaylist.value = [track];
-      _currentIndex.value = 0;
-      _currentTrack.value = track;
-      _nextTrack.value = null;
-
-      // 加载歌词
-      await _loadLyrics(track);
-
-      // 创建 MediaItem
-      final mediaItem = MediaItem(
-        id: '${track['id']}_${track['nId']}',
-        title: track['name']?.toString() ?? '',
-        artist: track['artist']?.toString() ?? '',
-        album: track['album']?.toString() ?? '',
-        duration: Duration(milliseconds: int.parse(track['duration'].toString())),
-        artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
-        playable: true,
-        displayTitle: track['name']?.toString() ?? '',
-        displaySubtitle: track['artist']?.toString() ?? '',
-        extras: {
-          'type': track['type'] ?? 'potunes',
-          'url': track['url'],
-          'isLive': false,
-          'hasLyrics': true,
-        },
-      );
-
-      // 创建 AudioSource
-      final audioSource = AudioSource.uri(
-        Uri.parse(track['url']),
-        tag: mediaItem,
-      );
-
-      // 设置并播放音频
-      await _audioPlayer.setAudioSource(audioSource);
-      await _audioPlayer.play();
-
-      // 保存状态
-      await _saveLastState();
-    } catch (e) {
-      print('Error playing next FM track: $e');
       rethrow;
     }
   }

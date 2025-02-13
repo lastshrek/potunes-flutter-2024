@@ -227,7 +227,15 @@ Future<void> main() async {
 }
 
 Future<void> initServices() async {
+  print('Starting services initialization...');
+
+  // 初始化 AppController
+  Get.put(AppController());
+
+  // 初始化 UserService
   await Get.putAsync(() => UserService().init());
+
+  print('All services initialized');
 }
 
 // Future<void> openHiveBox(String boxName, {bool limit = false}) async {

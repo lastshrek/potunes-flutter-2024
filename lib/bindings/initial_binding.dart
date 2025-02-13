@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import '../controllers/app_controller.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/top_charts_controller.dart';
 import '../controllers/navigation_controller.dart';
@@ -11,6 +12,9 @@ class InitialBinding implements Bindings {
     // 服务
     Get.put(UserService(), permanent: true);
     Get.put(AudioService(), permanent: true);
+
+    // 初始化 AppController
+    Get.put(AppController());
 
     // 控制器
     Get.put(NavigationController(), permanent: true);

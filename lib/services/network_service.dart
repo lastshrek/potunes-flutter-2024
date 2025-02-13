@@ -716,7 +716,6 @@ class NetworkService {
         'mv': track['mv'] ?? 0,
         'date': date, // 添加日期字段
       };
-      print('Update play count request body: $track');
       final response = await _client.post<dynamic>(
         ApiConfig.updatePlayCount,
         data: requestBody,
@@ -729,7 +728,6 @@ class NetworkService {
       );
 
       if (response is Map && response['statusCode'] == 200) {
-        print('Update play count success: $response');
         return true;
       }
       return false;
@@ -756,8 +754,6 @@ class NetworkService {
           contentType: 'application/json',
         ),
       );
-
-      print('Update avatar response: $response');
 
       if (response is Map && response['statusCode'] == 200) {
         return true;

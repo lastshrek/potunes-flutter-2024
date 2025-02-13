@@ -24,7 +24,6 @@ class UserService extends GetxService {
   final _dio = Dio();
 
   Future<UserService> init() async {
-    print('Initializing UserService...');
     await _loadUserData();
     return this;
   }
@@ -93,9 +92,7 @@ class UserService extends GetxService {
   }
 
   Future<void> logout() async {
-    print('Logging out user...');
     await _clearUserData();
-    print('User logged out successfully');
   }
 
   Future<void> updateAvatar(String base64Image) async {
