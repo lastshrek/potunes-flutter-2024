@@ -17,7 +17,6 @@ import 'controllers/app_controller.dart';
 import 'services/version_service.dart';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
-import 'services/live_activities_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -98,16 +97,6 @@ Future<void> main() async {
       }
     };
   }
-
-  // if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-  //   await Hive.initFlutter('Potunes');
-  // } else {
-  //   await Hive.initFlutter();
-  // }
-  // await openHiveBox('settings');
-  // await openHiveBox('downloads');
-  // await openHiveBox('Favorite Songs');
-  // await openHiveBox('cache', limit: true);
 
   if (Platform.isAndroid) {
     setOptimalDisplayMode();
@@ -227,37 +216,12 @@ Future<void> main() async {
 }
 
 Future<void> initServices() async {
-  print('Starting services initialization...');
-
   // 初始化 AppController
   Get.put(AppController());
 
   // 初始化 UserService
   await Get.putAsync(() => UserService().init());
-
-  print('All services initialized');
 }
-
-// Future<void> openHiveBox(String boxName, {bool limit = false}) async {
-//   final box = await Hive.openBox(boxName).onError((error, stackTrace) async {
-//     final Directory dir = await getApplicationDocumentsDirectory();
-//     final String dirPath = dir.path;
-//     File dbFile = File('$dirPath/$boxName.hive');
-//     File lockFile = File('$dirPath/$boxName.lock');
-//     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-//       dbFile = File('$dirPath/BlackHole/$boxName.hive');
-//       lockFile = File('$dirPath/BlackHole/$boxName.lock');
-//     }
-//     await dbFile.delete();
-//     await lockFile.delete();
-//     await Hive.openBox(boxName);
-//     throw 'Failed to open $boxName Box\nError: $error';
-//   });
-//   // clear box if it grows large
-//   if (limit && box.length > 500) {
-//     box.clear();
-//   }
-// }
 
 Future<void> setOptimalDisplayMode() async {
   final List<DisplayMode> supported = await FlutterDisplayMode.supported;

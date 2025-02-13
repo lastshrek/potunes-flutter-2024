@@ -51,12 +51,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onTabTapped(int index) {
     if (index == 2) {
       final isLoggedIn = UserService.to.isLoggedIn;
-      final userData = UserService.to.userData;
-
-      print('=== Library Tab Tapped ===');
-      print('Is Logged In: $isLoggedIn');
-      print('User Data: $userData');
-      print('Token: ${UserService.to.token}');
 
       if (!isLoggedIn) {
         showModalBottomSheet(
@@ -175,14 +169,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: const Text('Home'),
                 ),
                 SalomonBottomBarItem(
+                  icon: const Icon(Icons.trending_up_outlined),
+                  activeIcon: const Icon(Icons.trending_up),
+                  title: const Text('TopCharts'),
+                ),
+                SalomonBottomBarItem(
                   icon: const Icon(Icons.library_music_outlined),
                   activeIcon: const Icon(Icons.library_music),
                   title: const Text('Library'),
-                ),
-                SalomonBottomBarItem(
-                  icon: const Icon(Icons.favorite_outline),
-                  activeIcon: const Icon(Icons.favorite),
-                  title: const Text('Favorites'),
                 ),
               ],
             )),

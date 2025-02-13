@@ -8,6 +8,7 @@ import '../models/lyric_line.dart';
 import '../services/network_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'live_activities_service.dart';
+import 'package:flutter/services.dart';
 
 // 修改循环模式枚举
 enum RepeatMode {
@@ -21,6 +22,9 @@ class AudioService extends GetxService {
   static const String _playlistKey = 'last_playlist';
   static const String _indexKey = 'last_index';
   static const String _isFMModeKey = 'is_fm_mode';
+
+  // 修改 channel 名称以匹配实际的 Bundle ID
+  static const String channelName = 'im.coinchat.treehole/audio_control';
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final NetworkService _networkService = NetworkService.instance;
@@ -96,6 +100,54 @@ class AudioService extends GetxService {
   @override
   void onInit() {
     super.onInit();
+
+    const platform = MethodChannel(channelName);
+    platform.setMethodCallHandler((call) async {
+      if (call.method == 'controlCenterEvent') {
+        try {
+          final args = Map<String, dynamic>.from(call.arguments as Map);
+          final action = args['action'] as String;
+
+          switch (action) {
+            case 'play':
+              if (!_isPlaying.value) {
+                await togglePlayPause();
+              }
+              break;
+
+            case 'pause':
+              if (_isPlaying.value) {
+                await togglePlayPause();
+              }
+              break;
+
+            case 'next':
+              if (_currentPlaylist.value != null) {
+                if (_isFMMode.value) {
+                  await playFMTrack();
+                } else {
+                  await skipToNext();
+                }
+              }
+              break;
+
+            case 'previous':
+              if (_currentPlaylist.value != null && !_isFMMode.value) {
+                await previous();
+              }
+              break;
+
+            case 'seek':
+              final position = (args['position'] as num).toDouble();
+              await seek(Duration(seconds: position.toInt()));
+              break;
+          }
+        } catch (e, stack) {
+          print('Error executing control center event: $e');
+        }
+      }
+      return null;
+    });
 
     // 添加这些配置
     _audioPlayer.setLoopMode(LoopMode.all);
@@ -190,11 +242,13 @@ class AudioService extends GetxService {
         final nextIndex = (safeIndex + 1) % _currentPlaylist.value!.length;
         _nextTrack.value = _currentPlaylist.value![nextIndex];
       }
+      _updateNowPlaying();
     });
 
     // 监听播放状态
     _audioPlayer.playingStream.listen((isPlaying) {
       _isPlaying.value = isPlaying;
+      _updateNowPlaying();
     });
 
     // 监听缓冲状态
@@ -205,6 +259,7 @@ class AudioService extends GetxService {
     // 监听播放进度
     _audioPlayer.positionStream.listen((position) {
       _position.value = position;
+      _updateNowPlaying();
     });
 
     // 监听音频时长
@@ -381,11 +436,11 @@ class AudioService extends GetxService {
       if (_audioPlayer.playing) {
         await _audioPlayer.pause();
         // 更新灵动岛状态
-        await LiveActivitiesService.to.updateMusicActivity(isPlaying: false);
+        // await LiveActivitiesService.to.updateMusicActivity(isPlaying: false);
       } else {
         await _audioPlayer.play();
         // 更新灵动岛状态
-        await LiveActivitiesService.to.updateMusicActivity(isPlaying: true);
+        // await LiveActivitiesService.to.updateMusicActivity(isPlaying: true);
       }
     } catch (e) {
       print('Error toggling play/pause: $e');
@@ -767,10 +822,6 @@ class AudioService extends GetxService {
     if (_currentTrack.value == null) return;
 
     try {
-      print('=== Toggle Like ===');
-      print('Current track: ${_currentTrack.value}');
-      print('Track type: ${_currentTrack.value!['type']}');
-
       // 确保所有必要字段都存在
       final track = {
         'id': _currentTrack.value!['id'],
@@ -794,7 +845,6 @@ class AudioService extends GetxService {
       if (success) {
         // 更新本地状态
         _isLike.value = _isLike.value == 1 ? 0 : 1;
-        print('Like status updated: ${_isLike.value}');
       }
     } catch (e) {
       print('Error toggling like: $e');
@@ -872,8 +922,6 @@ class AudioService extends GetxService {
   Future<void> toggleShuffle() async {
     try {
       _isShuffleMode.value = !_isShuffleMode.value;
-      print('=== Toggle Shuffle ===');
-      print('Shuffle mode: ${_isShuffleMode.value}');
 
       if (_isShuffleMode.value) {
         // 启用随机播放时
@@ -885,43 +933,29 @@ class AudioService extends GetxService {
 
           // 保存当前播放的歌曲
           final currentTrack = _currentTrack.value;
-          print('Current track before shuffle: ${currentTrack!['name']} (${currentTrack['url']})');
 
           // 创建随机播放列表
           final List<Map<String, dynamic>> shuffled = List.from(_currentPlaylist.value!);
           shuffled.remove(currentTrack);
           shuffled.shuffle();
-          shuffled.insert(0, currentTrack);
+          shuffled.insert(0, currentTrack!);
 
           // 更新当前播放列表和索引
           _currentPlaylist.value = shuffled;
           _currentIndex.value = 0;
-
-          print('=== After Shuffle ===');
-          print('Current index: ${_currentIndex.value}');
-          print('Current track: ${_currentTrack.value!['name']} (${_currentTrack.value!['url']})');
-          print('First track in shuffled list: ${shuffled[0]['name']} (${shuffled[0]['url']})');
         }
       } else {
         // 关闭随机播放时，恢复原始列表
         if (_originalPlaylist.value != null) {
           // 找到当前歌曲在原始列表中的位置
           final currentTrack = _currentTrack.value;
-          print('Current track before restore: ${currentTrack!['name']} (${currentTrack['url']})');
 
           final originalIndex = _originalPlaylist.value!.indexWhere((t) => t['id'] == currentTrack!['id'] && t['nId'] == currentTrack['nId']);
-
-          print('Found original index: $originalIndex');
 
           if (originalIndex != -1) {
             // 恢复原始播放列表和正确的索引
             _currentPlaylist.value = _originalPlaylist.value;
             _currentIndex.value = originalIndex;
-
-            print('=== After Restore ===');
-            print('Current index: ${_currentIndex.value}');
-            print('Current track: ${_currentTrack.value!['name']} (${_currentTrack.value!['url']})');
-            print('Track at restored index: ${_currentPlaylist.value![originalIndex]['name']} (${_currentPlaylist.value![originalIndex]['url']})');
           }
         }
       }
@@ -989,10 +1023,7 @@ class AudioService extends GetxService {
     try {
       if (_currentTrack.value == null) return;
 
-      final success = await NetworkService.instance.updateTrackPlayCount(_currentTrack.value!);
-      if (success) {
-        print('Play count updated for: ${_currentTrack.value!['name']}');
-      }
+      await NetworkService.instance.updateTrackPlayCount(_currentTrack.value!);
     } catch (e) {
       print('Error updating play count: $e');
     }
@@ -1043,8 +1074,6 @@ class AudioService extends GetxService {
         },
       );
 
-      print('Current Track after set: ${_currentTrack.value}'); // 添加调试日志
-
       // 创建 AudioSource
       final audioSource = AudioSource.uri(
         Uri.parse(track['url']),
@@ -1078,5 +1107,36 @@ class AudioService extends GetxService {
   void exitFMMode() {
     _isFMMode.value = false;
     _saveLastState();
+  }
+
+  // 在 AudioService 类中添加更新控制中心信息的方法
+  Future<void> _updateNowPlaying() async {
+    if (_currentTrack.value == null) return;
+
+    try {
+      const platform = MethodChannel(channelName); // 使用相同的 channel 名称
+      await platform.invokeMethod('updateNowPlaying', {
+        'title': _currentTrack.value!['name'] ?? '',
+        'artist': _currentTrack.value!['artist'] ?? '',
+        'duration': _duration.value.inSeconds.toDouble(),
+        'currentTime': _position.value.inSeconds.toDouble(),
+        'isPlaying': _isPlaying.value,
+        'coverUrl': _currentTrack.value!['cover_url'] ?? '',
+      });
+    } catch (e) {
+      print('Error updating now playing info: $e');
+    }
+  }
+
+  Future<void> play() async {
+    await _audioPlayer.play();
+  }
+
+  Future<void> pause() async {
+    await _audioPlayer.pause();
+  }
+
+  Future<void> seek(Duration position) async {
+    await _audioPlayer.seek(position);
   }
 }
