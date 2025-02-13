@@ -5,57 +5,42 @@ import '../../services/audio_service.dart';
 class CurrentTrackHighlight extends StatelessWidget {
   final Map<String, dynamic> track;
   final Widget child;
-  final Color? highlightColor;
 
   const CurrentTrackHighlight({
     super.key,
     required this.track,
     required this.child,
-    this.highlightColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final audioService = Get.find<AudioService>();
-    final color = highlightColor ?? const Color(0xFFDA5597);
 
     return Obx(() {
-      final currentTrack = audioService.currentTrack;
-      final isCurrentTrack = currentTrack != null && ((currentTrack['id']?.toString() == track['id']?.toString()) || (currentTrack['nId']?.toString() == track['nId']?.toString()));
+      final isCurrentTrack = audioService.isCurrentTrack(track);
+      final isPlaying = audioService.isPlaying;
 
-      if (!isCurrentTrack) return child;
+      // 只有当前播放的歌曲且正在播放时才显示波浪线
+      final shouldShowWave = isCurrentTrack && isPlaying;
 
-      return Row(
-        mainAxisSize: MainAxisSize.min,
+      return Stack(
         children: [
-          // 动态波浪线
-          SizedBox(
-            width: 16,
-            height: 56,
-            child: _buildWaveform(color, audioService.isPlaying),
-          ),
-          const SizedBox(width: 16),
-          // 专辑封面
           child,
+          if (shouldShowWave)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.black.withOpacity(0.5),
+                ),
+                child: const Center(
+                  child: AudioWaveBar(),
+                ),
+              ),
+            ),
         ],
       );
     });
-  }
-
-  Widget _buildWaveform(Color color, bool isPlaying) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(3, (index) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 1),
-          child: _WaveformBar(
-            color: color,
-            isPlaying: isPlaying,
-            delay: index * 0.2,
-          ),
-        );
-      }),
-    );
   }
 }
 
@@ -153,6 +138,77 @@ class _WaveformBarState extends State<_WaveformBar> with SingleTickerProviderSta
           ),
         );
       },
+    );
+  }
+}
+
+// 添加 AudioWaveBar 组件
+class AudioWaveBar extends StatefulWidget {
+  const AudioWaveBar({super.key});
+
+  @override
+  State<AudioWaveBar> createState() => _AudioWaveBarState();
+}
+
+class _AudioWaveBarState extends State<AudioWaveBar> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<Animation<double>> _animations = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    // 创建3个不同的动画
+    for (int i = 0; i < 3; i++) {
+      _animations.add(
+        Tween<double>(begin: 0.3, end: 1.0).animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: Interval(
+              i * 0.2, // 错开开始时间
+              0.7 + i * 0.2,
+              curve: Curves.easeInOut,
+            ),
+          ),
+        ),
+      );
+    }
+
+    _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(3, (index) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: AnimatedBuilder(
+            animation: _animations[index],
+            builder: (context, child) {
+              return Container(
+                width: 3,
+                height: 20 * _animations[index].value,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(1.5),
+                ),
+              );
+            },
+          ),
+        );
+      }),
     );
   }
 }

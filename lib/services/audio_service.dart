@@ -621,7 +621,6 @@ class AudioService extends GetxService {
       // 更新喜欢状态
       if (response['isLike'] != null) {
         _isLike.value = response['isLike'] as int;
-        print('Updated like status from lyrics response: ${_isLike.value}');
       }
 
       // 格式化歌词
@@ -1003,7 +1002,8 @@ class AudioService extends GetxService {
     final currentTrack = _currentTrack.value;
     if (currentTrack == null) return false;
 
-    return (currentTrack['id']?.toString() == track['id']?.toString()) || (currentTrack['nId']?.toString() == track['nId']?.toString());
+    // 同时检查 id 和 nId 是否相等
+    return currentTrack['id']?.toString() == track['id']?.toString() && currentTrack['nId']?.toString() == track['nId']?.toString();
   }
 
   // 修改 playFMTrack 方法，使用公开的 playTrack 方法

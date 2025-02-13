@@ -1,22 +1,17 @@
 import 'dart:async';
 import 'dart:ui';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
-import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
 import '../../widgets/mini_player.dart';
-import '../../widgets/track_list_tile.dart';
 import '../../utils/image_cache_manager.dart';
 import '../../widgets/common/current_track_highlight.dart';
 
@@ -790,8 +785,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     final highlightColor = const Color(0xFFDA5597);
 
     return Obx(() {
-      final currentTrack = audioService.currentTrack;
-      final isCurrentTrack = currentTrack != null && ((currentTrack['id']?.toString() == track['id']?.toString()) || (currentTrack['nId']?.toString() == track['nId']?.toString()));
+      final isCurrentTrack = audioService.isCurrentTrack(track);
 
       // 创建基础文本样式
       final baseTextStyle = const TextStyle(
@@ -801,7 +795,9 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
       );
 
       // 根据是否是当前播放的歌曲获取高亮样式
-      final highlightedStyle = baseTextStyle.withHighlight(isCurrentTrack);
+      final highlightedStyle = baseTextStyle.copyWith(
+        color: isCurrentTrack ? highlightColor : Colors.white,
+      );
 
       return RepaintBoundary(
         child: Material(

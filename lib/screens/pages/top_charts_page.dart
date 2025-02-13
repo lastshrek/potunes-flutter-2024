@@ -98,7 +98,7 @@ class TopChartsPage extends GetView<TopChartsController> {
 
     return Obx(() {
       final currentTrack = audioService.currentTrack;
-      final isCurrentTrack = currentTrack != null && ((currentTrack['id']?.toString() == chart['id']?.toString()) || (currentTrack['nId']?.toString() == chart['nId']?.toString()));
+      final isCurrentTrack = currentTrack != null && ((currentTrack['id']?.toString() == chart['id']?.toString()) && (currentTrack['nId']?.toString() == chart['nId']?.toString()));
 
       // 创建基础文本样式
       final baseTextStyle = const TextStyle(

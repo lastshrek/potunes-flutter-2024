@@ -200,7 +200,7 @@ class AlbumDetailPage extends StatelessWidget {
 
     return Obx(() {
       final currentTrack = audioService.currentTrack;
-      final isCurrentTrack = currentTrack != null && ((currentTrack['id']?.toString() == song['id']?.toString()) || (currentTrack['nId']?.toString() == song['nId']?.toString()));
+      final isCurrentTrack = currentTrack != null && ((currentTrack['id']?.toString() == song['id']?.toString()) && (currentTrack['nId']?.toString() == song['nId']?.toString()));
 
       return ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
