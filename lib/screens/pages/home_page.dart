@@ -703,7 +703,7 @@ class _HomePageState extends State<HomePage> {
                       color: Colors.white,
                       size: 48,
                     ),
-                    const SizedBox(width: 16),
+                    const Spacer(),
                     ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
                         colors: [Color(0xFFDA5597), Colors.white],
