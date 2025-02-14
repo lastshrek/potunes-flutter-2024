@@ -21,14 +21,6 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.MEDIA_BUTTON" />
-                <action android:name="com.ryanheise.audioservice.NOTIFICATION_PLAY" />
-                <action android:name="com.ryanheise.audioservice.NOTIFICATION_PAUSE" />
-                <action android:name="com.ryanheise.audioservice.NOTIFICATION_NEXT" />
-                <action android:name="com.ryanheise.audioservice.NOTIFICATION_PREV" />
-                <action android:name="com.ryanheise.audioservice.NOTIFICATION_CLICK" />
-            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -44,21 +36,6 @@
             <intent-filter android:priority="1000">
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
                 <action android:name="android.media.AUDIO_BECOMING_NOISY" />
-                <action android:name="android.media.session.MediaSession" />
-                <action android:name="android.media.session.MediaController" />
-                <action android:name="android.media.session.PlaybackState" />
-                <action android:name="android.media.session.MediaSession.Token" />
-                <action android:name="android.media.session.MediaSession.Callback" />
-                <action android:name="android.media.session.MediaSession.Event" />
-                <action android:name="android.media.session.MediaSession.QueueItem" />
-                <action android:name="android.media.session.MediaSession.QueueTitle" />
-                <action android:name="android.media.session.MediaSession.RatingType" />
-                <action android:name="android.media.session.MediaSession.RepeatMode" />
-                <action android:name="android.media.session.MediaSession.ShuffleMode" />
-                <action android:name="android.media.session.MediaSession.Extras" />
-                <action android:name="android.media.session.MediaSession.MetaData" />
-                <action android:name="android.media.session.MediaSession.PlaybackState" />
-                <action android:name="android.media.session.MediaSession.Queue" />
             </intent-filter>
         </receiver>
     </application>

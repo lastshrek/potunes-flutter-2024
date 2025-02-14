@@ -14,19 +14,20 @@ class CurrentTrackHighlight extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final audioService = Get.find<AudioService>();
+    // 使用 GetX 而不是 Obx，只监听需要的状态
+    return GetX<AudioService>(
+      builder: (controller) {
+        // 提取需要的状态，避免不必要的重建
+        final isCurrentTrack = controller.isCurrentTrack(track);
+        final isPlaying = controller.isPlaying;
 
-    return Obx(() {
-      final isCurrentTrack = audioService.isCurrentTrack(track);
-      final isPlaying = audioService.isPlaying;
+        if (!isCurrentTrack || !isPlaying) {
+          return child;
+        }
 
-      // 只有当前播放的歌曲且正在播放时才显示波浪线
-      final shouldShowWave = isCurrentTrack && isPlaying;
-
-      return Stack(
-        children: [
-          child,
-          if (shouldShowWave)
+        return Stack(
+          children: [
+            child,
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
@@ -34,13 +35,14 @@ class CurrentTrackHighlight extends StatelessWidget {
                   color: Colors.black.withOpacity(0.5),
                 ),
                 child: const Center(
-                  child: AudioWaveBar(),
+                  child: AudioWaveBar(key: ValueKey('wave_bar')),
                 ),
               ),
             ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -151,7 +153,7 @@ class AudioWaveBar extends StatefulWidget {
 }
 
 class _AudioWaveBarState extends State<AudioWaveBar> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  late final AnimationController _controller;
   final List<Animation<double>> _animations = [];
 
   @override
@@ -160,25 +162,19 @@ class _AudioWaveBarState extends State<AudioWaveBar> with SingleTickerProviderSt
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
-    );
+    )..repeat(reverse: true);
 
-    // 创建3个不同的动画
+    // 预先创建动画
     for (int i = 0; i < 3; i++) {
       _animations.add(
         Tween<double>(begin: 0.3, end: 1.0).animate(
           CurvedAnimation(
             parent: _controller,
-            curve: Interval(
-              i * 0.2, // 错开开始时间
-              0.7 + i * 0.2,
-              curve: Curves.easeInOut,
-            ),
+            curve: Interval(i * 0.2, 0.7 + i * 0.2, curve: Curves.easeInOut),
           ),
         ),
       );
     }
-
-    _controller.repeat(reverse: true);
   }
 
   @override
@@ -189,26 +185,39 @@ class _AudioWaveBarState extends State<AudioWaveBar> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(3, (index) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: AnimatedBuilder(
-            animation: _animations[index],
-            builder: (context, child) {
-              return Container(
-                width: 3,
-                height: 20 * _animations[index].value,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(1.5),
-                ),
-              );
-            },
+    return RepaintBoundary(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(
+          3,
+          (index) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: _WaveBar(animation: _animations[index]),
           ),
-        );
-      }),
+        ),
+      ),
+    );
+  }
+}
+
+// 分离单个波形条
+class _WaveBar extends StatelessWidget {
+  final Animation<double> animation;
+
+  const _WaveBar({required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (_, __) => Container(
+        width: 3,
+        height: 20 * animation.value,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(1.5),
+        ),
+      ),
     );
   }
 }

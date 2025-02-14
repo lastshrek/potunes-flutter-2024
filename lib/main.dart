@@ -74,6 +74,8 @@ Future<void> main() async {
   PaintingBinding.instance.imageCache.maximumSize = 100; // 限制缓存数量
   PaintingBinding.instance.imageCache.maximumSizeBytes = 50 * 1024 * 1024; // 限制缓存大小为50MB
 
+  Get.put<RouteObserver<Route<dynamic>>>(RouteObserver<Route<dynamic>>());
+
   runApp(GetMaterialApp(
     title: '破破',
     debugShowCheckedModeBanner: false,
@@ -150,6 +152,9 @@ Future<void> main() async {
       // 在 GetMaterialApp 初始化完成后检查版本
       await versionService.initCheckVersion();
     },
+    navigatorObservers: [
+      Get.find<RouteObserver<Route<dynamic>>>(),
+    ],
   ));
   if (Platform.isAndroid) {
     //覆盖状态栏，写在渲染之前MaterialApp组件会覆盖掉这个值。

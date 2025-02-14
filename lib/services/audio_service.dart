@@ -111,12 +111,6 @@ class AudioService extends GetxService {
       debugPrint('🎵 Player state changed: ${state.playing}, ${state.processingState}');
     });
 
-    // 移除 androidPlaybackEventStream 监听，因为它不存在
-    // 改为监听普通的 playbackEventStream
-    _audioPlayer.playbackEventStream.listen((event) {
-      debugPrint('🎵 Playback event: $event');
-    });
-
     // 修改 platform 声明，移除 const
     final platform = MethodChannel(channelName);
     platform.setMethodCallHandler((call) async {

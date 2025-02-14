@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -28,11 +29,32 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
   final _error = Rx<String?>(null);
   final _playlists = <dynamic>[].obs;
 
+  // 添加预加载标记
+  bool _isPreloading = true;
+
   @override
   void initState() {
     super.initState();
+    // 初始化播放列表
     _playlists.value = widget.playlists;
-    _loadData();
+
+    // 预加载数据
+    _preloadData();
+  }
+
+  // 添加预加载方法
+  Future<void> _preloadData() async {
+    // 在后台线程加载数据
+    unawaited(_loadData());
+
+    // 等待页面转场动画完成后再显示内容
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (mounted) {
+      setState(() {
+        _isPreloading = false;
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -81,6 +103,14 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
   Widget build(BuildContext context) {
     final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     final isCollections = widget.apiPath == ApiConfig.allCollections;
+
+    // 在预加载时显示空白页面
+    if (_isPreloading) {
+      return const Material(
+        color: Colors.black,
+        child: SizedBox.shrink(),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,

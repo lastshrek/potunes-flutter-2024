@@ -8,12 +8,28 @@ import 'package:get/get.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
 import '../../widgets/mini_player.dart';
 import '../../utils/image_cache_manager.dart';
 import '../../widgets/common/current_track_highlight.dart';
+
+extension ColorExtension on Color {
+  Color darken([double amount = 0.1]) {
+    assert(amount >= 0 && amount <= 1);
+    final hsl = HSLColor.fromColor(this);
+    return hsl.withLightness((hsl.lightness - amount).clamp(0.0, 1.0)).toColor();
+  }
+
+  Color saturate([double amount = 0.1]) {
+    assert(amount >= 0 && amount <= 1);
+    final hsl = HSLColor.fromColor(this);
+    return hsl.withSaturation((hsl.saturation + amount).clamp(0.0, 1.0)).toColor();
+  }
+}
 
 class PlaylistPage extends StatefulWidget {
   final Map<String, dynamic> playlist;
@@ -41,9 +57,10 @@ class PlaylistPage extends StatefulWidget {
   State<PlaylistPage> createState() => _PlaylistPageState();
 }
 
-class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
+class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClientMixin, WidgetsBindingObserver, RouteAware {
   final NetworkService _networkService = NetworkService.instance;
-  bool _isLoading = true;
+  bool _isLoading = false;
+  bool _isRouteReady = false;
   Color? dominantColor;
   Color? secondaryColor;
   final ScrollController _scrollController = ScrollController();
@@ -54,7 +71,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   bool _isLoadingMore = false;
   bool _hasMoreData = true;
   final _colorTween = ColorTween(begin: Colors.black, end: Colors.black);
-  final _colorAnimation = ValueNotifier<Color>(Colors.black);
+  final _colorNotifier = ValueNotifier<Color>(Colors.black);
+  Timer? _colorAnimationTimer;
 
   // 缓存 MediaQuery 的值
   late final double _screenWidth = MediaQuery.of(context).size.width;
@@ -88,8 +106,23 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   final ScrollController _landscapeLeftController = ScrollController();
   final ScrollController _landscapeRightController = ScrollController();
 
+  // 添加预加载标记
+  bool _isPreloading = true;
+
+  // 修改颜色缓存的类型声明
+  static final Map<String, Color> _colorCache = {};
+  String? _lastTrackUrl;
+
   @override
   bool get wantKeepAlive => false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 使用正确的类型获取 RouteObserver
+    final RouteObserver<Route<dynamic>> routeObserver = Get.find<RouteObserver<Route<dynamic>>>();
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
 
   @override
   void initState() {
@@ -99,18 +132,14 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     _scrollController.addListener(_onScrollForPagination);
     _landscapeRightController.addListener(_onScrollForPagination);
 
-    // 等待页面转场动画完成后再加载数据
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // 等待页面转场动画完成（通常是300ms）
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (!mounted) return;
-        _initializeData();
-      });
-    });
+    // 预加载数据
+    _preloadData();
   }
 
   @override
   void dispose() {
+    // 使用正确的类型获取 RouteObserver
+    Get.find<RouteObserver<Route<dynamic>>>().unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_onScroll);
     _scrollController.removeListener(_onScrollForPagination);
@@ -124,8 +153,50 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     secondaryColor = null;
     _allTracks.clear();
     _displayedTracks.clear();
-    _colorAnimation.dispose();
+    _colorNotifier.dispose();
+    _colorAnimationTimer?.cancel();
     super.dispose();
+  }
+
+  // 监听路由动画完成
+  @override
+  void didPushNext() {
+    // 路由被覆盖
+  }
+
+  @override
+  void didPopNext() {
+    // 上层路由被移除
+  }
+
+  @override
+  void didPush() {
+    // 路由被推入
+  }
+
+  @override
+  void didPop() {
+    // 路由被弹出
+  }
+
+  // 预加载数据
+  Future<void> _preloadData() async {
+    // 在后台线程加载数据
+    unawaited(_loadTracks());
+
+    // 等待页面转场动画完成后再显示内容
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (mounted) {
+      setState(() {
+        _isPreloading = false;
+        _isRouteReady = true;
+        _isLoading = true;
+      });
+
+      // 开始提取颜色
+      _extractColors();
+    }
   }
 
   // 优化滚动监听器
@@ -184,18 +255,6 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     }
   }
 
-  Future<void> _initializeData() async {
-    // 同时启动颜色提取和数据加载
-    final colorFuture = _extractColors();
-    final tracksFuture = _loadTracks();
-
-    // 等待颜色提取完成
-    await colorFuture;
-
-    // 然后等待数据加载完成
-    await tracksFuture;
-  }
-
   Future<void> _loadTracks() async {
     try {
       // 添加小延迟，确保颜色提取有足够时间完成
@@ -229,79 +288,135 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     }
   }
 
+  // 优化颜色提取
   Future<void> _extractColors() async {
     try {
-      final imageUrl = widget.playlist['cover'] ?? '';
-      if (imageUrl.isEmpty) return;
+      // 获取所有可能的封面 URL
+      String? coverUrl = widget.coverUrl;
 
-      // 在后台加载图片数据
-      final imageData = await compute(_loadImageData, {
-        'url': imageUrl,
-        'maxSize': 100,
-      });
+      // 如果没有直接的 coverUrl，尝试从 playlist 中获取
+      if (coverUrl == null || coverUrl.isEmpty) {
+        // 尝试所有可能的封面字段
+        coverUrl = widget.playlist['cover_url'] ?? widget.playlist['cover'] ?? widget.playlist['coverUrl'] ?? widget.playlist['coverImgUrl'] ?? widget.playlist['picUrl'] ?? '';
+      }
+
+      // 检查 coverUrl 是否为空
+      if (coverUrl?.isEmpty ?? true) {
+        debugPrint('No cover URL found for playlist');
+        // 使用默认颜色
+        setState(() {
+          dominantColor = Colors.black;
+          secondaryColor = Colors.black.withOpacity(0.7);
+        });
+        return;
+      }
+
+      // 将 coverUrl 转换为非空类型
+      final String nonNullCoverUrl = coverUrl!;
+
+      // 检查是否是相同的图片
+      if (nonNullCoverUrl == _lastTrackUrl) return;
+      _lastTrackUrl = nonNullCoverUrl;
+
+      debugPrint('Extracting colors from cover: $nonNullCoverUrl');
+
+      // 检查缓存
+      if (_colorCache.containsKey(nonNullCoverUrl)) {
+        final cachedColor = _colorCache[nonNullCoverUrl]!;
+        setState(() {
+          dominantColor = cachedColor;
+          secondaryColor = cachedColor.withOpacity(0.7);
+        });
+        // 添加颜色过渡动画
+        _startColorTransition(
+          from: _colorNotifier.value,
+          to: cachedColor,
+          duration: const Duration(milliseconds: 300),
+        );
+        return;
+      }
+
+      // 使用较小的图片尺寸
+      final imageProvider = ResizeImage(
+        CachedNetworkImageProvider(nonNullCoverUrl),
+        width: 100,
+        height: 100,
+      );
+
+      final paletteGenerator = await PaletteGenerator.fromImageProvider(
+        imageProvider,
+        size: const Size(100, 100),
+        maximumColorCount: 8,
+      );
 
       if (!mounted) return;
 
-      // 在主线程中压缩图片并提取颜色
-      final codec = await instantiateImageCodec(
-        imageData,
-        targetWidth: 100,
-        targetHeight: 100,
+      final newColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.dominantColor?.color ?? Colors.black;
+
+      setState(() {
+        dominantColor = newColor;
+        secondaryColor = newColor.withOpacity(0.7);
+        _colorCache[nonNullCoverUrl] = newColor;
+      });
+
+      // 添加颜色过渡动画
+      _startColorTransition(
+        from: _colorNotifier.value,
+        to: newColor,
+        duration: const Duration(milliseconds: 300),
       );
-      final frame = await codec.getNextFrame();
-      final compressedImage = frame.image;
-
-      // 使用 PaletteGenerator 提取颜色
-      final paletteGenerator = await PaletteGenerator.fromImage(
-        compressedImage,
-        maximumColorCount: 10,
-      );
-
-      if (mounted) {
-        final Color mainColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.dominantColor?.color ?? Colors.black;
-
-        // 设置动画
-        _colorTween.begin = _colorAnimation.value;
-        _colorTween.end = mainColor;
-
-        setState(() {
-          dominantColor = mainColor;
-          secondaryColor = mainColor.withOpacity(0.95);
-        });
-
-        // 执行颜色渐变动画
-        const duration = Duration(milliseconds: 1200); // 增加动画时长
-        final startTime = DateTime.now();
-
-        void updateColor() {
-          final elapsedTime = DateTime.now().difference(startTime);
-          if (elapsedTime >= duration) {
-            _colorAnimation.value = mainColor;
-            return;
-          }
-
-          // 使用 easeInOut 曲线
-          final t = Curves.easeInOut.transform((elapsedTime.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0));
-          _colorAnimation.value = Color.lerp(_colorTween.begin!, _colorTween.end!, t)!;
-
-          if (mounted) {
-            Timer(const Duration(milliseconds: 16), updateColor); // 使用 Timer 代替 microtask
-          }
-        }
-
-        updateColor();
-      }
     } catch (e) {
-      print('Error extracting colors: $e');
+      debugPrint('Error extracting colors: $e');
+      // 使用默认颜色
+      setState(() {
+        dominantColor = Colors.black;
+        secondaryColor = Colors.black.withOpacity(0.7);
+      });
     }
   }
 
-  // 添加 _loadImageData 静态方法
-  static Future<Uint8List> _loadImageData(Map<String, dynamic> params) async {
+  void _startColorTransition({
+    required Color from,
+    required Color to,
+    required Duration duration,
+  }) {
+    if (!mounted) return;
+
+    final startTime = DateTime.now();
+    _colorTween.begin = from;
+    _colorTween.end = to;
+
+    void updateColor() {
+      if (!mounted) {
+        _colorAnimationTimer?.cancel();
+        return;
+      }
+
+      final elapsedTime = DateTime.now().difference(startTime);
+      if (elapsedTime >= duration) {
+        _colorNotifier.value = to;
+        _colorAnimationTimer?.cancel();
+        return;
+      }
+
+      final t = (elapsedTime.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
+      _colorNotifier.value = Color.lerp(_colorTween.begin!, _colorTween.end!, t)!;
+
+      _colorAnimationTimer = Timer(const Duration(milliseconds: 16), updateColor);
+    }
+
+    _colorAnimationTimer?.cancel();
+    _colorAnimationTimer = Timer(Duration.zero, updateColor);
+  }
+
+  // 修改图片加载方法
+  static Future<Uint8List> _loadImageData(String url) async {
     try {
-      final url = params['url'] as String;
       final response = await http.get(Uri.parse(url));
-      return response.bodyBytes;
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      }
+      throw Exception('Failed to load image');
     } catch (e) {
       print('Error loading image data: $e');
       rethrow;
@@ -310,6 +425,16 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
+    // 在预加载时显示空白页面
+    if (_isPreloading) {
+      return const Material(
+        color: Colors.black,
+        child: SizedBox.shrink(),
+      );
+    }
+
     final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
     if (isLandscape) {
@@ -321,7 +446,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
         child: Scaffold(
           backgroundColor: Colors.transparent,
           body: ValueListenableBuilder<Color>(
-            valueListenable: _colorAnimation,
+            valueListenable: _colorNotifier,
             builder: (context, color, child) {
               return Container(
                 decoration: BoxDecoration(
@@ -517,7 +642,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
         child: Scaffold(
           backgroundColor: Colors.transparent,
           body: ValueListenableBuilder<Color>(
-            valueListenable: _colorAnimation,
+            valueListenable: _colorNotifier,
             builder: (context, color, child) {
               return Container(
                 decoration: BoxDecoration(
@@ -732,7 +857,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
         ),
         const SizedBox(width: 8),
         PlayButton(
-          backgroundColor: dominantColor?.withOpacity(0.8),
+          backgroundColor: dominantColor?.darken(0.15).withOpacity(0.8),
           tracks: List<Map<String, dynamic>>.from(_allTracks),
         ),
       ],
@@ -740,6 +865,10 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   }
 
   Widget _buildTrackList() {
+    if (!_isRouteReady || _isPreloading) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
     if (_isLoading) {
       return const SliverFillRemaining(
         child: Center(
@@ -863,29 +992,6 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   void _handlePopBack() {
     Navigator.of(context).pop();
-
-    // 在返回过程中执行颜色渐变，目标颜色改为纯黑色
-    _colorTween.begin = _colorAnimation.value;
-    _colorTween.end = Colors.black;
-
-    const duration = Duration(milliseconds: 150);
-    final startTime = DateTime.now();
-
-    void updateColor() {
-      final elapsedTime = DateTime.now().difference(startTime);
-      if (elapsedTime >= duration) {
-        _colorAnimation.value = Colors.black;
-        return;
-      }
-
-      final t = (elapsedTime.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
-      _colorAnimation.value = Color.lerp(_colorTween.begin!, _colorTween.end!, t)!;
-      if (mounted) {
-        Future.microtask(updateColor);
-      }
-    }
-
-    updateColor();
   }
 }
 
