@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../services/network_service.dart';
 import '../../widgets/mini_player.dart';
 import '../../services/audio_service.dart';
@@ -498,7 +499,7 @@ class _FavouritesPageState extends State<FavouritesPage> {
       final networkService = NetworkService.instance;
       return await networkService.getFavourites();
     } catch (e) {
-      print('Error loading favourites: $e');
+      ErrorReporter.showError(e);
       return [];
     }
   }

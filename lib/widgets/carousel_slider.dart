@@ -13,11 +13,6 @@ class CarouselSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 添加组件级别的调试信息
-    print('=== CarouselSlider Debug ===');
-    print('Total items: ${items.length}');
-    print('All items: $items');
-
     return SizedBox(
       height: 180,
       child: PageView.builder(
@@ -25,11 +20,6 @@ class CarouselSlider extends StatelessWidget {
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
-          // 添加详细的单项调试信息
-          print('Building carousel item $index:');
-          print('- Full item: $item');
-          print('- Title: ${item['title']}');
-          print('- Cover URL: ${item['cover_url']}');
 
           return Container(
             margin: const EdgeInsets.symmetric(horizontal: 5),

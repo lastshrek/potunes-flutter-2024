@@ -9,6 +9,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 import '../controllers/app_controller.dart';
+import '../utils/error_reporter.dart';
 
 class NetworkService {
   static const platform = MethodChannel('pink.poche.potunes/network');
@@ -36,10 +37,10 @@ class NetworkService {
 
       throw ApiException(
         statusCode: 500,
-        message: '无效的响应格式',
+        message: 'Invalid response format',
       );
     } catch (e) {
-      print('=== Error getting collections: $e ===');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -60,7 +61,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('=== Error getting final: $e ===');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -95,8 +96,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e, stackTrace) {
-      print('=== Error getting home data: $e ===');
-      print('Stack trace: $stackTrace');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -131,7 +131,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('=== Error getting playlist: $e ===');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -162,7 +162,7 @@ class NetworkService {
 
       throw Exception('Invalid response format');
     } catch (e) {
-      print('Error getting lyrics: $e');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -202,8 +202,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e, stackTrace) {
-      print('Network error in GET request to $path: $e');
-      print('Stack trace: $stackTrace');
+      ErrorReporter.showError(e);
       if (e is ApiException) {
         rethrow;
       }
@@ -240,7 +239,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('Error in POST request: $e'); // 添加错误日志
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -274,7 +273,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('=== Error getting top charts: $e ===');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -295,7 +294,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('=== Error getting all collections: $e ===');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -316,7 +315,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('=== Error getting all finals: $e ===');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -337,7 +336,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('=== Error getting all albums: $e ===');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -355,18 +354,20 @@ class NetworkService {
       );
 
       if (response is Map && (response['statusCode'] == 200 || response['statusCode'] == 201)) {
+        ErrorReporter.showSuccess('Verification code sent successfully');
         return;
       }
 
       throw ApiException(
         statusCode: 500,
-        message: response['message'] ?? '发送验证码失败',
+        message: response['message'] ?? 'Failed to send verification code',
       );
     } catch (e) {
       if (e is DioException && e.response?.statusCode == 201) {
+        ErrorReporter.showSuccess('Verification code sent successfully');
         return;
       }
-      print('=== Error sending captcha: $e ===');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -395,7 +396,7 @@ class NetworkService {
         message: response['message'] ?? '验证失败',
       );
     } catch (e) {
-      print('=== Error verifying captcha: $e ===');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -446,7 +447,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('=== Error getting favourites: $e ===');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -489,12 +490,13 @@ class NetworkService {
       );
 
       if (response is Map && response['statusCode'] == 200) {
+        ErrorReporter.showSuccess('Added to favorites');
         return true;
       }
+      ErrorReporter.showBusinessError(message: 'Failed to add to favorites');
       return false;
     } catch (e) {
-      print('Error liking track: $e');
-      print('Error details: ${e.toString()}');
+      ErrorReporter.showError(e);
       return false;
     }
   }
@@ -548,7 +550,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('Error getting toplist detail: $e');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -590,6 +592,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -618,9 +621,10 @@ class NetworkService {
         // 如果本地没有权限记录，检查网络连接
         final connectivityResult = await Connectivity().checkConnectivity();
         if (connectivityResult == ConnectivityResult.none) {
+          ErrorReporter.showNetworkError();
           throw ApiException(
             statusCode: -1,
-            message: '请检查网络连接',
+            message: 'Please check your network connection',
           );
         }
 
@@ -635,11 +639,15 @@ class NetworkService {
           return true;
         } catch (e) {
           if (e is DioException && (e.type == DioExceptionType.connectionError || e.error.toString().contains('network'))) {
+            ErrorReporter.showPermissionError(
+              message: 'Network permission is required to use the app',
+            );
             throw ApiException(
               statusCode: -2,
-              message: '需要网络权限才能使用应用',
+              message: 'Network permission required',
             );
           }
+          ErrorReporter.showError(e);
           rethrow;
         }
       }
@@ -649,6 +657,7 @@ class NetworkService {
       Get.find<AppController>().updateNetworkStatus(true);
       return true;
     } catch (e) {
+      ErrorReporter.showError(e);
       rethrow;
     }
   }
@@ -665,7 +674,7 @@ class NetworkService {
       final response = await get('/like/check/${track['id']}');
       return response['isLiked'] == true;
     } catch (e) {
-      print('Error checking like status: $e');
+      ErrorReporter.showError(e);
       return false;
     }
   }
@@ -713,7 +722,7 @@ class NetworkService {
       }
       return false;
     } catch (e) {
-      print('Error updating play count: $e');
+      ErrorReporter.showError(e);
       return false;
     }
   }
@@ -737,11 +746,13 @@ class NetworkService {
       );
 
       if (response is Map && response['statusCode'] == 200) {
+        ErrorReporter.showSuccess('Avatar updated successfully');
         return true;
       }
+      ErrorReporter.showBusinessError(message: 'Failed to update avatar');
       return false;
     } catch (e) {
-      print('Error updating avatar: $e');
+      ErrorReporter.showError(e);
       return false;
     }
   }
@@ -775,7 +786,7 @@ class NetworkService {
       }
       return false;
     } catch (e) {
-      print('Error updating profile: $e');
+      ErrorReporter.showError(e);
       return false;
     }
   }
@@ -797,7 +808,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      print('=== Error getting radio track: $e ===');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }

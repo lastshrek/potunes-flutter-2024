@@ -6,6 +6,7 @@ import '../services/user_service.dart';
 import 'package:get/get.dart';
 import '../screens/pages/now_playing_page.dart';
 import 'package:palette_generator/palette_generator.dart';
+import '../utils/error_reporter.dart';
 
 class MiniPlayer extends StatefulWidget {
   final bool isAboveBottomBar;
@@ -118,7 +119,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
 
       _backgroundColor.value = selectedColor;
     } catch (e) {
-      print('Error generating palette: $e');
+      ErrorReporter.showError(e);
       _backgroundColor.value = Colors.black;
     }
   }

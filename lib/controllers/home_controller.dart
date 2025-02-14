@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../services/network_service.dart';
@@ -72,8 +73,7 @@ class HomeController extends BaseController {
 
       await _saveToCache();
     } catch (e, stackTrace) {
-      print('Error refreshing data: $e');
-      print('Stack trace: $stackTrace');
+      ErrorReporter.showError(e);
     } finally {
       _isRefreshing.value = false;
     }
@@ -112,7 +112,7 @@ class HomeController extends BaseController {
         _neteaseToplist.assignAll(decoded.map((item) => Map<String, dynamic>.from(item)).toList());
       }
     } catch (e) {
-      print('Error loading cached data: $e');
+      ErrorReporter.showError(e);
     }
   }
 
@@ -139,7 +139,7 @@ class HomeController extends BaseController {
         _neteaseNewAlbums.assignAll(mappedAlbums);
       }
     } catch (e, stackTrace) {
-      print('Error loading new albums: $e');
+      ErrorReporter.showError(e);
       print('Stack trace: $stackTrace');
     }
   }
@@ -154,7 +154,7 @@ class HomeController extends BaseController {
       await prefs.setString(_neteaseKey, jsonEncode(_neteaseToplist));
       await prefs.setInt(_lastUpdateKey, DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
-      print('Error saving to cache: $e');
+      ErrorReporter.showError(e);
     }
   }
 }

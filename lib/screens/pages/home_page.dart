@@ -636,7 +636,7 @@ class _HomePageState extends State<HomePage> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text(
-                        '正在加载歌曲...',
+                        'Loading Track...',
                         style: TextStyle(
                           color: Colors.black,
                           fontSize: 14,

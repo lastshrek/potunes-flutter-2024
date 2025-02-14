@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../services/network_service.dart';
 import '../services/audio_service.dart';
 import '../controllers/base_controller.dart';
+import '../utils/error_reporter.dart';
 
 class TopChartsController extends BaseController {
   static TopChartsController get to => Get.find();
@@ -41,7 +42,7 @@ class TopChartsController extends BaseController {
         _charts.assignAll(decoded.map((item) => Map<String, dynamic>.from(item)).toList());
       }
     } catch (e) {
-      print('Error loading cached data: $e');
+      ErrorReporter.showError(e);
     }
   }
 
@@ -52,7 +53,7 @@ class TopChartsController extends BaseController {
       await prefs.setString(_chartsKey, jsonEncode(data));
       await prefs.setInt(_lastUpdateKey, DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
-      print('Error saving to cache: $e');
+      ErrorReporter.showError(e);
     }
   }
 
@@ -72,10 +73,10 @@ class TopChartsController extends BaseController {
         _charts.assignAll(newCharts);
         await _saveToCache(newCharts);
       } else {
-        print('Invalid data format');
+        ErrorReporter.showError('Invalid data format');
       }
     } catch (e) {
-      print('Error refreshing data: $e');
+      ErrorReporter.showError(e);
     } finally {
       _isRefreshing.value = false;
     }
@@ -101,7 +102,7 @@ class TopChartsController extends BaseController {
         }
       }
     } catch (e) {
-      print('Error playing track: $e');
+      ErrorReporter.showError('Error playing track: $e');
     }
   }
 }

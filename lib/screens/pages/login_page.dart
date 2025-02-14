@@ -109,8 +109,6 @@ class _LoginPageState extends State<LoginPage> {
         _captchaController.text.trim(),
       );
 
-      print('Login response: $response');
-
       // 保存登录数据
       await UserService.to.saveLoginData(response);
 

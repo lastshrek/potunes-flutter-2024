@@ -20,9 +20,6 @@ class TopChartsPage extends GetView<TopChartsController> {
         slivers: [
           const AppHeader(title: 'Top Charts'),
           Obx(() {
-            print('Building TopChartsPage with ${controller.charts.length} items');
-            print('isNetworkReady: ${controller.isNetworkReady}');
-
             // 显示加载动画
             if (controller.isRefreshing) {
               return _buildSkeletonList();

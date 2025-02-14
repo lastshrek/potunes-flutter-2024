@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:dio/dio.dart' as dio;
+import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../config/api_config.dart';
 import 'api_exception.dart';
 
@@ -41,7 +42,7 @@ class ResponseHandler {
         try {
           return innerData as T;
         } catch (e) {
-          debugPrint('Error converting inner data to $T: $e');
+          ErrorReporter.showError(e);
           throw ApiException(
             statusCode: code,
             message: 'Inner data type mismatch',
@@ -59,7 +60,7 @@ class ResponseHandler {
       try {
         return response as T;
       } catch (e) {
-        debugPrint('Error converting response to $T: $e');
+        ErrorReporter.showError(e);
         throw ApiException(
           statusCode: code,
           message: 'Response type mismatch',

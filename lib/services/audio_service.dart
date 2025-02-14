@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:just_audio/just_audio.dart';
 import 'package:get/get.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -108,19 +109,15 @@ class AudioService extends GetxService {
     _audioPlayer.playerStateStream.listen((state) {
       _isPlaying.value = state.playing;
       _isBuffering.value = state.processingState == ProcessingState.buffering;
-      debugPrint('🎵 Player state changed: ${state.playing}, ${state.processingState}');
     });
 
     // 修改 platform 声明，移除 const
     final platform = MethodChannel(channelName);
     platform.setMethodCallHandler((call) async {
-      debugPrint('🎵 Method call received: ${call.method}');
-
       if (call.method == 'controlCenterEvent') {
         try {
           final args = Map<String, dynamic>.from(call.arguments as Map);
           final action = args['action'] as String;
-          debugPrint('🎵 Control Center Event: $action');
 
           switch (action) {
             case 'play':
@@ -152,7 +149,7 @@ class AudioService extends GetxService {
               break;
           }
         } catch (e, stack) {
-          debugPrint('❌ Error executing control center event: $e\n$stack');
+          ErrorReporter.showError('❌ Error executing control center event: $e\n$stack');
         }
       }
       return null;
@@ -161,7 +158,6 @@ class AudioService extends GetxService {
     // 设置音频会话
     AudioSession.instance.then((session) async {
       await session.configure(const AudioSessionConfiguration.music());
-      debugPrint('🎵 Audio session configured');
     });
 
     // 添加这些配置
@@ -362,7 +358,7 @@ class AudioService extends GetxService {
       // 保存状态
       await _saveLastState();
     } catch (e) {
-      print('Error playing playlist: $e');
+      ErrorReporter.showError('Error playing playlist: $e');
     }
   }
 
@@ -427,13 +423,13 @@ class AudioService extends GetxService {
         }
       } catch (e) {
         // 忽略 LiveActivitiesService 相关错误
-        print('LiveActivitiesService error (non-critical): $e');
+        ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
       }
 
       // 保存状态
       await _saveLastState();
     } catch (e) {
-      print('Error playing track: $e');
+      ErrorReporter.showError('Error playing track: $e');
       rethrow;
     }
   }
@@ -450,7 +446,7 @@ class AudioService extends GetxService {
         // await LiveActivitiesService.to.updateMusicActivity(isPlaying: true);
       }
     } catch (e) {
-      print('Error toggling play/pause: $e');
+      ErrorReporter.showError('Error toggling play/pause: $e');
     }
   }
 
@@ -481,7 +477,7 @@ class AudioService extends GetxService {
         }
       }
     } catch (e) {
-      print('Error playing previous track: $e');
+      ErrorReporter.showError('Error playing previous track: $e');
     }
   }
 
@@ -501,7 +497,7 @@ class AudioService extends GetxService {
       final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
       await skipToQueueItem(nextIndex);
     } catch (e) {
-      print('Error in next: $e');
+      ErrorReporter.showError('Error in next: $e');
     }
   }
 
@@ -526,7 +522,7 @@ class AudioService extends GetxService {
         await prefs.setBool('shuffle_mode', _isShuffleMode.value);
       }
     } catch (e) {
-      print('Error saving last state: $e');
+      ErrorReporter.showError('Error saving last state: $e');
     }
   }
 
@@ -655,7 +651,7 @@ class AudioService extends GetxService {
         await playTrack(_currentTrack.value!, autoPlay: false);
       }
     } catch (e) {
-      print('Error loading last state: $e');
+      ErrorReporter.showError('Error loading last state: $e');
       _currentPlaylist.value = null;
       _currentTrack.value = null;
       _currentIndex.value = 0;
@@ -688,7 +684,7 @@ class AudioService extends GetxService {
       // 格式化歌词
       _parsedLyrics.value = _formatLyrics(response);
     } catch (e) {
-      print('Error loading lyrics: $e');
+      ErrorReporter.showError('Error loading lyrics: $e');
       _parsedLyrics.value = null;
     } finally {
       _isLoadingLyrics.value = false;
@@ -780,7 +776,7 @@ class AudioService extends GetxService {
 
       return filteredLyrics.isNotEmpty ? filteredLyrics : null;
     } catch (e) {
-      print('Error formatting lyrics: $e');
+      ErrorReporter.showError('Error formatting lyrics: $e');
       return null;
     }
   }
@@ -854,7 +850,7 @@ class AudioService extends GetxService {
         _isLike.value = _isLike.value == 1 ? 0 : 1;
       }
     } catch (e) {
-      print('Error toggling like: $e');
+      ErrorReporter.showError('Error toggling like: $e');
     }
   }
 
@@ -921,7 +917,7 @@ class AudioService extends GetxService {
       // 保存状态
       await _saveLastState();
     } catch (e) {
-      print('Error in skipToQueueItem: $e');
+      ErrorReporter.showError('Error in skipToQueueItem: $e');
     }
   }
 
@@ -968,7 +964,7 @@ class AudioService extends GetxService {
       // 保存状态
       await _saveLastState();
     } catch (e) {
-      print('Error toggling shuffle: $e');
+      ErrorReporter.showError('Error toggling shuffle: $e');
     }
   }
 
@@ -982,7 +978,7 @@ class AudioService extends GetxService {
       // 停止灵动岛显示
       await LiveActivitiesService.to.stopMusicActivity();
     } catch (e) {
-      print('Error stopping playback: $e');
+      ErrorReporter.showError('Error stopping playback: $e');
     }
   }
 
@@ -1001,7 +997,7 @@ class AudioService extends GetxService {
       final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
       await skipToQueueItem(nextIndex);
     } catch (e) {
-      debugPrint('AudioService: Error skipping to next: $e');
+      ErrorReporter.showError('AudioService: Error skipping to next: $e');
     }
   }
 
@@ -1012,7 +1008,7 @@ class AudioService extends GetxService {
 
       await NetworkService.instance.updateTrackPlayCount(_currentTrack.value!);
     } catch (e) {
-      print('Error updating play count: $e');
+      ErrorReporter.showError('Error updating play count: $e');
     }
   }
 
@@ -1031,7 +1027,7 @@ class AudioService extends GetxService {
       final track = await NetworkService.instance.getRadioTrack();
 
       // 确保 track 包含所有必要的字段
-      print('FM Track: $track'); // 添加调试日志
+      ErrorReporter.showError('FM Track: $track'); // 添加调试日志
 
       // 清除当前播放列表并设置当前歌曲
       _currentPlaylist.value = [track];
@@ -1079,13 +1075,13 @@ class AudioService extends GetxService {
           coverUrl: track['cover_url'] ?? '',
         );
       } catch (e) {
-        print('LiveActivitiesService error (non-critical): $e');
+        ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
       }
 
       // 保存状态
       await _saveLastState();
     } catch (e) {
-      print('Error playing FM track: $e');
+      ErrorReporter.showError('Error playing FM track: $e');
       rethrow;
     }
   }
@@ -1111,7 +1107,7 @@ class AudioService extends GetxService {
         'coverUrl': _currentTrack.value!['cover_url'] ?? '',
       });
     } catch (e) {
-      print('Error updating now playing info: $e');
+      ErrorReporter.showError('Error updating now playing info: $e');
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../services/user_service.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -115,7 +116,6 @@ class _LibraryPageState extends State<LibraryPage> {
 
       // 检查压缩后的大小
       final int sizeInKB = compressedBytes.length ~/ 1024;
-      print('Compressed image size: $sizeInKB KB');
 
       // 如果还是太大，进一步压缩
       if (sizeInKB > 100) {
@@ -128,7 +128,6 @@ class _LibraryPageState extends State<LibraryPage> {
             [];
 
         if (furtherCompressedBytes.isNotEmpty) {
-          print('Further compressed image size: ${furtherCompressedBytes.length ~/ 1024} KB');
           compressedBytes.clear();
           compressedBytes.addAll(furtherCompressedBytes);
         }
@@ -142,26 +141,8 @@ class _LibraryPageState extends State<LibraryPage> {
       });
 
       await UserService.to.updateAvatar(base64Image);
-
-      // 添加成功提示
-      Get.snackbar(
-        'Success',
-        'Avatar updated successfully',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-      );
     } catch (e) {
-      print('Error processing image: $e');
-      Get.snackbar(
-        'Error',
-        'Failed to update avatar',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-      );
+      ErrorReporter.showError(e);
     }
   }
 

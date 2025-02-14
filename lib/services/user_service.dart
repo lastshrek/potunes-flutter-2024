@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../services/network_service.dart';
+import '../utils/error_reporter.dart';
 
 class UserService extends GetxService {
   static UserService get to => Get.find();
@@ -83,7 +84,7 @@ class UserService extends GetxService {
       _userId.value = 0;
       _isLoggedIn.value = false;
     } catch (e) {
-      print('Error clearing user data: $e');
+      ErrorReporter.showError(e);
     }
   }
 
@@ -110,7 +111,7 @@ class UserService extends GetxService {
         throw '更新头像失败';
       }
     } catch (e) {
-      print('Error updating avatar: $e');
+      ErrorReporter.showError(e);
       rethrow;
     }
   }

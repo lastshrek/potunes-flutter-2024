@@ -17,7 +17,6 @@ abstract class BaseController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    print('${runtimeType.toString()} onInit');
     // 加载缓存数据
     loadCachedData();
     // 初始化网络状态监听

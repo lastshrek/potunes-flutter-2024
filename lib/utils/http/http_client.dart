@@ -3,6 +3,7 @@ import '../../config/api_config.dart';
 import 'api_exception.dart';
 import 'package:get/get.dart';
 import '../../services/user_service.dart';
+import '../../utils/error_reporter.dart';
 
 class HttpClient {
   static final HttpClient instance = HttpClient._internal();
@@ -69,7 +70,7 @@ class HttpClient {
         data: response.data,
       );
     } catch (e) {
-      print('Error in request: $e');
+      ErrorReporter.showError(e);
       _handleError(e);
       rethrow;
     }

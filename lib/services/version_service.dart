@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/api_config.dart';
+import '../utils/error_reporter.dart';
 
 class VersionService extends GetxService {
   final Dio _dio;
@@ -51,7 +52,7 @@ class VersionService extends GetxService {
             return;
           }
         } catch (e) {
-          print('Error parsing URL: $e');
+          ErrorReporter.showError(e);
           return;
         }
 
@@ -63,9 +64,9 @@ class VersionService extends GetxService {
           );
         }
       }
-    } catch (err) {
+    } catch (e) {
       // 版本检查失败不影响应用使用
-      print('Version check failed: $err');
+      ErrorReporter.showError(e);
     }
   }
 
@@ -86,9 +87,7 @@ class VersionService extends GetxService {
       }
       return false; // 版本相同，不需要更新
     } catch (e) {
-      print('Version comparison error: $e');
-      print('Current version: $currentVersion');
-      print('New version: $newVersion');
+      ErrorReporter.showError(e);
       return false; // 出错时保守处理，返回不需要更新
     }
   }
@@ -164,7 +163,6 @@ class VersionService extends GetxService {
                   onPressed: () async {
                     try {
                       Get.back();
-                      print('Attempting to launch URL: $url');
 
                       if (Platform.isAndroid) {
                         final Uri uri = Uri.parse(url);
@@ -181,7 +179,7 @@ class VersionService extends GetxService {
                         });
                       }
                     } catch (e) {
-                      print('Error launching URL: $e');
+                      ErrorReporter.showError(e);
                       if (Get.context != null) {
                         Get.snackbar(
                           '错误',
@@ -220,10 +218,10 @@ class VersionService extends GetxService {
           barrierColor: Colors.black.withOpacity(0.5),
         );
       } else {
-        print('Dialog cannot be shown: no valid context or dialog already open');
+        ErrorReporter.showError('Dialog cannot be shown: no valid context or dialog already open');
       }
     } catch (e) {
-      print('Error showing dialog: $e');
+      ErrorReporter.showError(e);
     }
   }
 }

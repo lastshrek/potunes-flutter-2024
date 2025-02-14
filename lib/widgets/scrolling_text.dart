@@ -60,7 +60,6 @@ class _ScrollingTextState extends State<ScrollingText> with SingleTickerProvider
         setState(() {
           _titleNeedsScroll = titleWidth > widget.width;
         });
-        print('Title width: $titleWidth, Container width: ${widget.width}, Needs scroll: $_titleNeedsScroll');
       }
 
       // 检查副标题是否需要滚动
@@ -71,7 +70,6 @@ class _ScrollingTextState extends State<ScrollingText> with SingleTickerProvider
         setState(() {
           _subtitleNeedsScroll = subtitleWidth > widget.width;
         });
-        print('Subtitle width: $subtitleWidth, Container width: ${widget.width}, Needs scroll: $_subtitleNeedsScroll');
       }
 
       // 如果需要滚动，启动滚动
