@@ -37,19 +37,6 @@ Future<void> main() async {
   // 初始化服务
   await initServices();
 
-  // 修改日志处理逻辑
-  if (kDebugMode) {
-    // 在调试模式下启用所有日志
-    FlutterError.onError = (FlutterErrorDetails details) {
-      FlutterError.dumpErrorToConsole(details);
-    };
-  } else {
-    // 在发布模式下只显示关键错误
-    FlutterError.onError = (FlutterErrorDetails details) {
-      FlutterError.presentError(details);
-    };
-  }
-
   // 只在 Android 上应用特定的系统 UI 配置
   if (Platform.isAndroid) {
     SystemChrome.setSystemUIOverlayStyle(
@@ -63,51 +50,14 @@ Future<void> main() async {
       ),
     );
 
-    // 只在 Android 调试模式下禁用日志
-    if (!kDebugMode) {
-      debugPrint = (String? message, {int? wrapWidth}) {};
-    }
-
-    // 设置沉浸式状态栏
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent, // 状态栏透明
-        statusBarIconBrightness: Brightness.light, // 状态栏图标为亮色
-        systemNavigationBarColor: Colors.transparent, // 导航栏透明
-        systemNavigationBarIconBrightness: Brightness.light, // 导航栏图标为亮色
-        systemNavigationBarDividerColor: Colors.transparent, // 导航栏分割线透明
-      ),
-    );
-
     // 设置沉浸式导航栏
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.edgeToEdge, // 启用边缘到边缘模式
-      overlays: [SystemUiOverlay.top], // 只显示顶部状态栏
     );
-  }
-
-  // 完全禁用调试打印
-  if (!kReleaseMode) {
-    debugPrint = (String? message, {int? wrapWidth}) {
-      if (message == null) return;
-
-      // 只打印特定前缀的日志，比如你自己添加的标记
-      if (message.startsWith('[APP]')) {
-        print(message);
-      }
-    };
   }
 
   if (Platform.isAndroid) {
     setOptimalDisplayMode();
-  }
-  // await setupServiceLocator();
-  if (kDebugMode) {
-    debugPrint = (String? message, {int? wrapWidth}) {
-      if (message == null) return;
-      // 强制输出日志，不受 iOS 限制
-      developer.log(message);
-    };
   }
 
   // 初始化版本检查服务
@@ -140,14 +90,6 @@ Future<void> main() async {
       cardColor: Colors.black87,
       iconTheme: const IconThemeData(
         color: Color(0xFFDA5597), // Custom Pink
-      ),
-      fontFamily: 'bahnschrift',
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(fontFamily: 'bahnschrift'),
-        bodyMedium: TextStyle(fontFamily: 'bahnschrift'),
-        titleLarge: TextStyle(fontFamily: 'bahnschrift'),
-        titleMedium: TextStyle(fontFamily: 'bahnschrift'),
-        titleSmall: TextStyle(fontFamily: 'bahnschrift'),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: Color(0xFFDA5597), // Custom Pink
