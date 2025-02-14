@@ -95,20 +95,10 @@ class TopChartsPage extends GetView<TopChartsController> {
   Widget _buildTrackItem(Map<String, dynamic> chart, int index) {
     final audioService = Get.find<AudioService>();
     final highlightColor = const Color(0xFFDA5597);
+    final isTop3 = index < 3;
 
     return Obx(() {
-      final currentTrack = audioService.currentTrack;
-      final isCurrentTrack = currentTrack != null && ((currentTrack['id']?.toString() == chart['id']?.toString()) && (currentTrack['nId']?.toString() == chart['nId']?.toString()));
-
-      // 创建基础文本样式
-      final baseTextStyle = const TextStyle(
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: FontWeight.w500,
-      );
-
-      // 根据是否是当前播放的歌曲获取高亮样式
-      final highlightedStyle = baseTextStyle.withHighlight(isCurrentTrack);
+      final isCurrentTrack = audioService.isCurrentTrack(chart);
 
       return ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
@@ -131,14 +121,18 @@ class TopChartsPage extends GetView<TopChartsController> {
               TextSpan(
                 text: '${index + 1}. ',
                 style: TextStyle(
-                  color: isCurrentTrack ? highlightColor : (index < 3 ? Colors.white : Colors.grey[400]),
-                  fontSize: index < 3 ? 18 : 14,
-                  fontWeight: index < 3 ? FontWeight.bold : FontWeight.normal,
+                  color: isCurrentTrack ? highlightColor : (isTop3 ? Colors.white : Colors.grey[400]),
+                  fontSize: isTop3 ? 18 : 14,
+                  fontWeight: isTop3 ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
               TextSpan(
                 text: chart['name'] ?? '',
-                style: highlightedStyle,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isTop3 ? 16 : 15,
+                  fontWeight: isTop3 ? FontWeight.w600 : FontWeight.w500,
+                ).withHighlight(isCurrentTrack),
               ),
             ],
           ),
@@ -147,7 +141,7 @@ class TopChartsPage extends GetView<TopChartsController> {
           chart['artist'] ?? '',
           style: TextStyle(
             color: Colors.grey[400],
-            fontSize: 14,
+            fontSize: isTop3 ? 14 : 13,
           ).withSubtleHighlight(isCurrentTrack),
         ),
       );
@@ -172,15 +166,9 @@ class TopChartsPage extends GetView<TopChartsController> {
 
   Widget _buildSkeletonItem() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Container(
-            width: 30,
-            height: 20,
-            color: Colors.grey[800],
-          ),
-          const SizedBox(width: 8),
           Container(
             width: 56,
             height: 56,
@@ -197,13 +185,19 @@ class TopChartsPage extends GetView<TopChartsController> {
                 Container(
                   width: double.infinity,
                   height: 16,
-                  color: Colors.grey[800],
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Container(
                   width: 100,
                   height: 14,
-                  color: Colors.grey[800],
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
               ],
             ),

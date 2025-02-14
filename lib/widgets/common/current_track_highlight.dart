@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../services/audio_service.dart';
+import 'dart:math' as math;
 
 class CurrentTrackHighlight extends StatelessWidget {
   final Map<String, dynamic> track;
@@ -46,7 +47,7 @@ class CurrentTrackHighlight extends StatelessWidget {
   }
 }
 
-// 添加扩展方法
+// 修改扩展方法
 extension HighlightTextStyle on TextStyle {
   TextStyle withHighlight(bool isCurrentTrack, [Color? highlightColor]) {
     final color = highlightColor ?? const Color(0xFFDA5597);
@@ -56,10 +57,11 @@ extension HighlightTextStyle on TextStyle {
     );
   }
 
+  // 修改 withSubtleHighlight，不再改变颜色
   TextStyle withSubtleHighlight(bool isCurrentTrack, [Color? highlightColor]) {
-    final color = highlightColor ?? const Color(0xFFDA5597);
     return copyWith(
-      color: isCurrentTrack ? color.withOpacity(0.7) : null,
+      // 移除颜色变化，保持原有颜色
+      fontWeight: isCurrentTrack ? FontWeight.w500 : null, // 可以稍微加粗一点
     );
   }
 }
@@ -164,13 +166,17 @@ class _AudioWaveBarState extends State<AudioWaveBar> with SingleTickerProviderSt
       vsync: this,
     )..repeat(reverse: true);
 
-    // 预先创建动画
+    // 修改动画区间，确保不超过 1.0
     for (int i = 0; i < 3; i++) {
       _animations.add(
         Tween<double>(begin: 0.3, end: 1.0).animate(
           CurvedAnimation(
             parent: _controller,
-            curve: Interval(i * 0.2, 0.7 + i * 0.2, curve: Curves.easeInOut),
+            curve: Interval(
+              i * 0.2, // start: 0.0, 0.2, 0.4
+              math.min(0.6 + i * 0.2, 1.0), // end: 0.6, 0.8, 1.0
+              curve: Curves.easeInOut,
+            ),
           ),
         ),
       );

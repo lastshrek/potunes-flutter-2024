@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../services/network_service.dart';
@@ -17,6 +19,9 @@ class FavouritesPage extends StatefulWidget {
 class _FavouritesPageState extends State<FavouritesPage> {
   Future<List<dynamic>>? _favouritesFuture;
   final selectedIndex = 0.obs; // 添加分段选择器的状态
+
+  // 添加预加载标记
+  bool _isPreloading = true;
 
   static const _appBarTitle = Text(
     'Favourites',
@@ -43,19 +48,29 @@ class _FavouritesPageState extends State<FavouritesPage> {
   @override
   void initState() {
     super.initState();
+    // 预加载数据
+    _preloadData();
+  }
 
-    // 立即构建界面框架，延迟加载数据
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  // 添加预加载方法
+  Future<void> _preloadData() async {
+    // 在后台线程加载数据
+    unawaited(_loadFavourites().then((data) {
       if (mounted) {
-        // 先显示加载动画
         setState(() {
-          _favouritesFuture = Future.delayed(
-            const Duration(milliseconds: 1000), // 延迟 500ms
-            () => _loadFavourites(),
-          ).then((value) => value);
+          _favouritesFuture = Future.value(data);
         });
       }
-    });
+    }));
+
+    // 等待页面转场动画完成后再显示内容
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (mounted) {
+      setState(() {
+        _isPreloading = false;
+      });
+    }
   }
 
   @override
@@ -78,29 +93,27 @@ class _FavouritesPageState extends State<FavouritesPage> {
   void _playSong(Map<String, dynamic> song, List<dynamic> playlist, int index) {
     final audioService = Get.find<AudioService>();
 
-    // 转换歌曲数据为播放列表格式，保持 id 和 nId 为数字类型
+    // 转换歌曲数据为播放列表格式
     final tracks = playlist
         .map((item) => {
-              'id': item['id'], // 不转换为字符串
-              'nId': item['nId'], // 不转换为字符串
+              'id': item['id'],
+              'nId': item['nId'],
               'name': item['name'],
               'artist': item['artist'],
               'album': item['album'] ?? '',
+              'album_id': item['album_id'] ?? 0,
               'duration': item['duration'],
               'cover_url': item['cover_url'],
               'url': item['url'],
               'source': 'favourites',
-              'ar': item['ar'] ?? [], // 保持其他必要字段
+              'ar': item['ar'] ?? [],
               'original_album': item['original_album'] ?? '',
               'original_album_id': item['original_album_id'] ?? 0,
               'mv': item['mv'] ?? 0,
               'playlist_id': item['playlist_id'],
+              'type': item['type'] ?? ((item['id'] == 0) ? 'netease' : 'potunes'),
             })
         .toList();
-
-    // 打印转换后的数据
-    print('=== Converted Track Data ===');
-    print('First track: ${tracks[0]}');
 
     // 使用 AudioService 播放
     audioService.playPlaylist(
@@ -124,6 +137,14 @@ class _FavouritesPageState extends State<FavouritesPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 在预加载时显示空白页面
+    if (_isPreloading) {
+      return const Material(
+        color: Colors.black,
+        child: SizedBox.shrink(),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -280,49 +301,11 @@ class _FavouritesPageState extends State<FavouritesPage> {
                                 final audioService = Get.find<AudioService>();
                                 final highlightColor = const Color(0xFFDA5597);
 
-                                return ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                                  leading: CurrentTrackHighlight(
-                                    track: song,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        song['cover_url'] ?? '',
-                                        width: 56,
-                                        height: 56,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  ),
-                                  title: RichText(
-                                    text: TextSpan(
-                                      children: [
-                                        TextSpan(
-                                          text: '${index + 1}. ',
-                                          style: TextStyle(
-                                            color: audioService.isCurrentTrack(song) ? highlightColor : Colors.grey[400],
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        TextSpan(
-                                          text: song['name'] ?? '',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w500,
-                                          ).withHighlight(audioService.isCurrentTrack(song)),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    song['artist'] ?? '',
-                                    style: TextStyle(
-                                      color: Colors.grey[400],
-                                      fontSize: 14,
-                                    ).withSubtleHighlight(audioService.isCurrentTrack(song)),
-                                  ),
-                                  onTap: () => _playSong(song, favourites, index),
+                                return _buildTrackItem(
+                                  song: song,
+                                  index: index,
+                                  audioService: audioService,
+                                  playlist: favourites,
                                 );
                               },
                             )
@@ -441,6 +424,77 @@ class _FavouritesPageState extends State<FavouritesPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildTrackItem({
+    required Map<String, dynamic> song,
+    required int index,
+    required AudioService audioService,
+    required List<dynamic> playlist,
+  }) {
+    final highlightColor = const Color(0xFFDA5597);
+
+    return Obx(() {
+      final isCurrentTrack = audioService.isCurrentTrack(song);
+
+      return ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        leading: CurrentTrackHighlight(
+          track: song,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              song['cover_url'] ?? '',
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        title: RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: '${index + 1}. ',
+                style: TextStyle(
+                  color: isCurrentTrack ? highlightColor : Colors.grey[400],
+                  fontSize: 14,
+                ),
+              ),
+              TextSpan(
+                text: song['name'] ?? '',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ).withHighlight(isCurrentTrack),
+              ),
+            ],
+          ),
+        ),
+        subtitle: Row(
+          children: [
+            Expanded(
+              child: Text(
+                song['artist'] ?? '',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 14,
+                ).withSubtleHighlight(isCurrentTrack),
+              ),
+            ),
+            Text(
+              _formatDuration(song['duration']),
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        onTap: () => _playSong(song, playlist, index),
+      );
+    });
   }
 
   Future<List<dynamic>> _loadFavourites() async {

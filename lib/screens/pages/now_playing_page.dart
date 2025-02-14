@@ -20,10 +20,14 @@ class NowPlayingPage extends StatefulWidget {
 }
 
 class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProviderStateMixin {
-  Color? dominantColor;
-  Color? secondaryColor;
+  // 添加颜色状态管理
+  final _dominantColor = Rx<Color>(Colors.black);
+  final _secondaryColor = Rx<Color>(Colors.black.withOpacity(0.7));
+
+  // 添加颜色缓存
   static final Map<String, Color> _colorCache = {};
   String? _lastTrackUrl;
+
   late final PageController _pageController;
 
   final ScrollController _lyricsScrollController = ScrollController();
@@ -55,20 +59,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
       parent: _animationController,
       curve: Curves.easeOut,
     ));
-
-    // 先使用缓存的颜色（如果有）
-    final track = AudioService.to.currentTrack;
-    if (track != null) {
-      final coverUrl = track['cover_url'] ?? '';
-      if (_colorCache.containsKey(coverUrl)) {
-        dominantColor = _colorCache[coverUrl];
-        secondaryColor = dominantColor?.withOpacity(0.7);
-      } else {
-        // 默认颜色
-        dominantColor = Colors.black;
-        secondaryColor = Colors.black.withOpacity(0.7);
-      }
-    }
 
     // 自动开始动画
     _animationController.forward();
@@ -133,22 +123,25 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
   }
 
   Future<void> _extractColors() async {
-    final track = AudioService.to.currentTrack;
-    if (track == null) return;
-
-    final String coverUrl = track['cover_url'] ?? '';
-    if (coverUrl == _lastTrackUrl) return;
-    _lastTrackUrl = coverUrl;
-
-    if (_colorCache.containsKey(coverUrl)) {
-      setState(() {
-        dominantColor = _colorCache[coverUrl];
-        secondaryColor = dominantColor?.withOpacity(0.7);
-      });
-      return;
-    }
-
     try {
+      final track = AudioService.to.currentTrack;
+      if (track == null) return;
+
+      final coverUrl = track['cover_url'] ?? '';
+      if (coverUrl.isEmpty) return;
+
+      // 检查是否是相同的图片
+      if (coverUrl == _lastTrackUrl) return;
+      _lastTrackUrl = coverUrl;
+
+      // 检查缓存
+      if (_colorCache.containsKey(coverUrl)) {
+        final cachedColor = _colorCache[coverUrl]!;
+        _dominantColor.value = cachedColor;
+        _secondaryColor.value = cachedColor.withOpacity(0.7);
+        return;
+      }
+
       // 使用较小的图片尺寸
       final imageProvider = ResizeImage(
         CachedNetworkImageProvider(coverUrl),
@@ -164,11 +157,11 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
 
       if (!mounted) return;
 
-      setState(() {
-        dominantColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.dominantColor?.color ?? Colors.black;
-        secondaryColor = dominantColor?.withOpacity(0.7);
-        _colorCache[coverUrl] = dominantColor!;
-      });
+      final newColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.dominantColor?.color ?? Colors.black;
+
+      _dominantColor.value = newColor;
+      _secondaryColor.value = newColor.withOpacity(0.7);
+      _colorCache[coverUrl] = newColor;
     } catch (e) {
       debugPrint('Error extracting colors: $e');
     }
@@ -283,11 +276,11 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  dominantColor?.withOpacity(0.8) ?? Colors.black,
-                  secondaryColor?.withOpacity(0.5) ?? Colors.black87,
+                  _dominantColor.value.withOpacity(0.95),
+                  _secondaryColor.value,
                   Colors.black,
                 ],
-                stops: const [0.0, 0.5, 0.9],
+                stops: const [0.0, 0.5, 1.0],
               ),
             ),
             child: PageView(
@@ -1186,7 +1179,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
           height: 64,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: (dominantColor ?? Theme.of(context).colorScheme.secondary).withOpacity(0.2),
+            color: (_dominantColor.value ?? Theme.of(context).colorScheme.secondary).withOpacity(0.2),
             border: Border.all(
               color: Colors.white.withOpacity(0.2),
               width: 1,
