@@ -102,4 +102,8 @@ flutter {
 dependencies {
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation 'androidx.media:media:1.6.0'
+    implementation "androidx.localbroadcastmanager:localbroadcastmanager:1.1.0"
+    implementation "androidx.mediarouter:mediarouter:1.4.0"
+    implementation "androidx.media2:media2-session:1.2.1"
+    implementation "androidx.media2:media2-player:1.2.1"
 }

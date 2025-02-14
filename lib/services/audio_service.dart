@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:just_audio/just_audio.dart';
 import 'package:get/get.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -25,7 +27,7 @@ class AudioService extends GetxService {
   static const String _isFMModeKey = 'is_fm_mode';
 
   // 修改 channel 名称以匹配实际的 Bundle ID
-  static const String channelName = 'im.coinchat.treehole/audio_control';
+  static String channelName = !Platform.isAndroid ? 'im.coinchat.treehole/audio_control' : 'pink.poche.potunes/audio_control';
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final NetworkService _networkService = NetworkService.instance;
@@ -102,28 +104,29 @@ class AudioService extends GetxService {
   void onInit() {
     super.onInit();
 
-    // 添加测试代码
-    const platform = MethodChannel('pink.poche.potunes/test');
-    // 延迟调用以确保 Android 端已准备好
-    Future.delayed(const Duration(milliseconds: 500), () {
-      try {
-        debugPrint('Calling Android method...');
-        platform.invokeMethod<String>('getTestMessage').then((value) {
-          debugPrint('Received from Android: $value');
-        }).catchError((error) {
-          debugPrint('Error calling Android: $error');
-        });
-      } catch (e) {
-        debugPrint('Exception while calling Android: $e');
-      }
+    // 监听播放器状态
+    _audioPlayer.playerStateStream.listen((state) {
+      _isPlaying.value = state.playing;
+      _isBuffering.value = state.processingState == ProcessingState.buffering;
+      debugPrint('🎵 Player state changed: ${state.playing}, ${state.processingState}');
     });
 
-    const platform2 = MethodChannel(channelName);
-    platform2.setMethodCallHandler((call) async {
+    // 移除 androidPlaybackEventStream 监听，因为它不存在
+    // 改为监听普通的 playbackEventStream
+    _audioPlayer.playbackEventStream.listen((event) {
+      debugPrint('🎵 Playback event: $event');
+    });
+
+    // 修改 platform 声明，移除 const
+    final platform = MethodChannel(channelName);
+    platform.setMethodCallHandler((call) async {
+      debugPrint('🎵 Method call received: ${call.method}');
+
       if (call.method == 'controlCenterEvent') {
         try {
           final args = Map<String, dynamic>.from(call.arguments as Map);
           final action = args['action'] as String;
+          debugPrint('🎵 Control Center Event: $action');
 
           switch (action) {
             case 'play':
@@ -153,36 +156,29 @@ class AudioService extends GetxService {
                 await previous();
               }
               break;
-
-            case 'seek':
-              final position = (args['position'] as num).toDouble();
-              await seek(Duration(seconds: position.toInt()));
-              break;
           }
         } catch (e, stack) {
-          print('Error executing control center event: $e');
+          debugPrint('❌ Error executing control center event: $e\n$stack');
         }
       }
       return null;
+    });
+
+    // 设置音频会话
+    AudioSession.instance.then((session) async {
+      await session.configure(const AudioSessionConfiguration.music());
+      debugPrint('🎵 Audio session configured');
     });
 
     // 添加这些配置
     _audioPlayer.setLoopMode(LoopMode.all);
     _audioPlayer.setShuffleModeEnabled(false);
 
-    // 修改音频会话配置
-    _setupAudioSession();
-
     _setupPlayerListeners();
     _loadLastState();
 
     // 添加播放器状态监听
     _audioPlayer.playbackEventStream.listen((event) {});
-
-    // 添加播放器错误监听
-    _audioPlayer.playerStateStream.listen((state) {
-      _isPlaying.value = state.playing;
-    });
 
     // 修改位置监听部分
     _audioPlayer.positionStream.listen((position) {
@@ -1018,20 +1014,24 @@ class AudioService extends GetxService {
 
   // 修改 skipToNext 方法
   Future<void> skipToNext() async {
+    debugPrint('AudioService: skipToNext called');
     if (_isFMMode.value) {
-      await playFMTrack(); // FM 模式下直接播放新歌
+      debugPrint('AudioService: FM mode - playing next track');
+      await playFMTrack();
       return;
     }
 
     try {
+      debugPrint('AudioService: Normal mode - skipping to next track');
       if (_currentPlaylist.value == null || _currentPlaylist.value!.isEmpty) {
         return;
       }
 
       final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
+      debugPrint('AudioService: Skipping to index $nextIndex');
       await skipToQueueItem(nextIndex);
     } catch (e) {
-      print('Error skipping to next: $e');
+      debugPrint('AudioService: Error skipping to next: $e');
     }
   }
 
@@ -1131,7 +1131,7 @@ class AudioService extends GetxService {
     if (_currentTrack.value == null) return;
 
     try {
-      const platform = MethodChannel(channelName); // 使用相同的 channel 名称
+      var platform = MethodChannel(channelName); // 使用相同的 channel 名称
       await platform.invokeMethod('updateNowPlaying', {
         'title': _currentTrack.value!['name'] ?? '',
         'artist': _currentTrack.value!['artist'] ?? '',

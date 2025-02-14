@@ -23,15 +23,16 @@ Future<void> main() async {
 
   // 初始化 just_audio_background
   await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
+    androidNotificationChannelId: !Platform.isAndroid ? 'im.coinchat.treehole/audio_control' : 'pink.poche.potunes/audio_control',
     androidNotificationChannelName: 'Audio playback',
     androidNotificationOngoing: true,
     androidShowNotificationBadge: true,
-    // iOS 配置
     androidStopForegroundOnPause: true,
     fastForwardInterval: const Duration(seconds: 10),
     rewindInterval: const Duration(seconds: 10),
     preloadArtwork: true,
+    androidNotificationClickStartsActivity: true,
+    androidNotificationIcon: 'mipmap/ic_launcher',
   );
 
   // 初始化服务
