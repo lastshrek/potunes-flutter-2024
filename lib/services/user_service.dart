@@ -1,8 +1,6 @@
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 import '../services/network_service.dart';
 
 class UserService extends GetxService {
@@ -20,8 +18,6 @@ class UserService extends GetxService {
   String get token => _token.value;
   int get userId => _userId.value;
   Map<String, dynamic>? get userData => _userData.value;
-
-  final _dio = Dio();
 
   Future<UserService> init() async {
     await _loadUserData();

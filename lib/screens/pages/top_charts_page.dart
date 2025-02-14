@@ -6,6 +6,7 @@ import '../../widgets/common/app_header.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../services/audio_service.dart';
 import '../../widgets/common/current_track_highlight.dart';
+import '../../widgets/common/cached_image.dart';
 
 class TopChartsPage extends GetView<TopChartsController> {
   const TopChartsPage({super.key});
@@ -74,16 +75,13 @@ class TopChartsPage extends GetView<TopChartsController> {
             }
 
             // 显示数据列表
-            return SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final chart = controller.charts[index];
-                    return _buildTrackItem(chart, index);
-                  },
-                  childCount: controller.charts.length,
-                ),
+            return SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final chart = controller.charts[index];
+                  return _buildTrackItem(chart, index);
+                },
+                childCount: controller.charts.length,
               ),
             );
           }),
@@ -105,14 +103,10 @@ class TopChartsPage extends GetView<TopChartsController> {
         onTap: () => controller.openChart(chart),
         leading: CurrentTrackHighlight(
           track: chart,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              chart['cover_url'] ?? '',
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
-            ),
+          child: CachedImage(
+            url: chart['cover_url'] ?? '',
+            width: 56,
+            height: 56,
           ),
         ),
         title: RichText(
@@ -149,24 +143,21 @@ class TopChartsPage extends GetView<TopChartsController> {
   }
 
   Widget _buildSkeletonList() {
-    return SliverPadding(
-      padding: const EdgeInsets.all(16),
-      sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) => Shimmer.fromColors(
-            baseColor: Colors.grey[900]!,
-            highlightColor: Colors.grey[800]!,
-            child: _buildSkeletonItem(),
-          ),
-          childCount: 10,
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => Shimmer.fromColors(
+          baseColor: Colors.grey[900]!,
+          highlightColor: Colors.grey[800]!,
+          child: _buildSkeletonItem(),
         ),
+        childCount: 10,
       ),
     );
   }
 
   Widget _buildSkeletonItem() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           Container(

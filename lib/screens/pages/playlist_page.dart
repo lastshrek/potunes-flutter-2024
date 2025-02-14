@@ -10,6 +10,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/common/cached_image.dart';
 
 import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
@@ -547,23 +548,12 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                                 ),
                                                 child: ClipRRect(
                                                   borderRadius: BorderRadius.circular(8.0),
-                                                  child: Container(
-                                                    color: const Color(0xff161616),
-                                                    child: Center(
-                                                      child: ImageCacheManager.instance.buildImage(
-                                                        url: widget.playlist['cover'] ?? '',
-                                                        width: constraints.maxWidth * 0.9,
-                                                        height: widget.isFromCollections ? (constraints.maxWidth * 0.9 * 15 / 32) : constraints.maxWidth * 0.9,
-                                                        fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
-                                                        placeholder: Container(
-                                                          color: const Color(0xff161616),
-                                                          child: const Icon(Icons.music_note, color: Colors.white54),
-                                                        ),
-                                                        errorWidget: Container(
-                                                          color: const Color(0xff161616),
-                                                          child: const Icon(Icons.music_note, color: Colors.white54),
-                                                        ),
-                                                      ),
+                                                  child: Center(
+                                                    child: CachedImage(
+                                                      url: widget.playlist['cover'] ?? '',
+                                                      width: constraints.maxWidth * 0.9,
+                                                      height: widget.isFromCollections ? (constraints.maxWidth * 0.9 * 15 / 32) : constraints.maxWidth * 0.9,
+                                                      fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
                                                     ),
                                                   ),
                                                 ),
@@ -766,19 +756,11 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8.0),
-                            child: ImageCacheManager.instance.buildImage(
+                            child: CachedImage(
                               url: widget.playlist['cover'] ?? '',
                               width: imageSize,
                               height: widget.isFromCollections ? (screenWidth * 0.7 * 15 / 32) : imageSize,
                               fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
-                              placeholder: Container(
-                                color: const Color(0xff161616),
-                                child: const Icon(Icons.music_note, color: Colors.white54),
-                              ),
-                              errorWidget: Container(
-                                color: const Color(0xff161616),
-                                child: const Icon(Icons.music_note, color: Colors.white54),
-                              ),
                             ),
                           ),
                         ),
@@ -942,11 +924,11 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
               track: track,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  track['cover_url'] ?? '',
+                child: CachedImage(
+                  url: track['cover_url'] ?? '',
                   width: 56,
                   height: 56,
-                  fit: BoxFit.cover,
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ),

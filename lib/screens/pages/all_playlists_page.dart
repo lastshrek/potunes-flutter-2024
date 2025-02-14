@@ -7,6 +7,7 @@ import '../../config/api_config.dart';
 import '../../utils/http/api_exception.dart';
 import 'playlist_page.dart';
 import '../../widgets/mini_player.dart';
+import '../../widgets/common/cached_image.dart';
 
 class AllPlaylistsPage extends StatefulWidget {
   final String title;
@@ -225,30 +226,10 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: playlist['cover'] ?? '',
-                fit: BoxFit.cover,
+              child: CachedImage(
+                url: playlist['cover'] ?? '',
                 width: double.infinity,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[800],
-                  child: const Center(
-                    child: Icon(
-                      Icons.music_note,
-                      color: Colors.white54,
-                      size: 32,
-                    ),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[800],
-                  child: const Center(
-                    child: Icon(
-                      Icons.error_outline,
-                      color: Colors.white54,
-                      size: 32,
-                    ),
-                  ),
-                ),
+                height: double.infinity,
               ),
             ),
           ),
@@ -297,30 +278,10 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: playlist['cover'] ?? '',
-                fit: BoxFit.cover,
+              child: CachedImage(
+                url: playlist['cover'] ?? '',
                 width: double.infinity,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[800],
-                  child: const Center(
-                    child: Icon(
-                      Icons.music_note,
-                      color: Colors.white54,
-                      size: 32,
-                    ),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[800],
-                  child: const Center(
-                    child: Icon(
-                      Icons.error_outline,
-                      color: Colors.white54,
-                      size: 32,
-                    ),
-                  ),
-                ),
+                height: double.infinity,
               ),
             ),
           ),

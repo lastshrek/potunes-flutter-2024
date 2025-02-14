@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:card_swiper/card_swiper.dart';
+import '../../widgets/common/cached_image.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../../widgets/horizontal_playlist_list.dart';
 import '../../screens/pages/playlist_page.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/api_config.dart';
 import 'package:get/get.dart';
 import '../../controllers/home_controller.dart';
@@ -420,98 +420,7 @@ class _HomePageState extends State<HomePage> {
                       );
                     }
                     final item = collections[index];
-                    return GestureDetector(
-                      onTap: () => _onCollectionPlaylistTap(item),
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 298,
-                            margin: const EdgeInsets.only(right: 12),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: CachedNetworkImage(
-                                imageUrl: item['cover'] ?? '',
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  color: Colors.grey[800],
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.music_note,
-                                      color: Colors.white54,
-                                      size: 32,
-                                    ),
-                                  ),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  color: Colors.grey[800],
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.error_outline,
-                                      color: Colors.white54,
-                                      size: 32,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          // 渐变遮罩
-                          Positioned(
-                            left: 0,
-                            right: 12,
-                            bottom: 0,
-                            top: 0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black.withOpacity(0.7),
-                                  ],
-                                  stops: const [0.5, 1.0],
-                                ),
-                              ),
-                            ),
-                          ),
-                          // 标题
-                          Positioned(
-                            left: 24,
-                            right: 36,
-                            bottom: 16,
-                            child: Text(
-                              item['title']?.toString() ?? '',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                shadows: [
-                                  Shadow(
-                                    offset: Offset(1, 1),
-                                    blurRadius: 3,
-                                    color: Colors.black,
-                                  ),
-                                ],
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
+                    return _buildLandscapeCollectionItem(item);
                   },
                 ),
               );
@@ -526,91 +435,7 @@ class _HomePageState extends State<HomePage> {
                       : Swiper(
                           itemBuilder: (context, index) {
                             final item = collections[index];
-                            return GestureDetector(
-                              onTap: () => _onCollectionPlaylistTap(item),
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.2),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: CachedNetworkImage(
-                                        imageUrl: item['cover'] ?? '',
-                                        fit: BoxFit.cover,
-                                        placeholder: (context, url) => Container(
-                                          color: Colors.grey[800],
-                                          child: const Center(
-                                            child: Icon(
-                                              Icons.music_note,
-                                              color: Colors.white54,
-                                              size: 32,
-                                            ),
-                                          ),
-                                        ),
-                                        errorWidget: (context, url, error) => Container(
-                                          color: Colors.grey[800],
-                                          child: const Center(
-                                            child: Icon(
-                                              Icons.error_outline,
-                                              color: Colors.white54,
-                                              size: 32,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  // 渐变遮罩
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.transparent,
-                                          Colors.black.withOpacity(0.7),
-                                        ],
-                                        stops: const [0.6, 1.0],
-                                      ),
-                                    ),
-                                  ),
-                                  // 标题
-                                  Positioned(
-                                    left: 12,
-                                    right: 12,
-                                    bottom: 12,
-                                    child: Text(
-                                      item['title']?.toString() ?? '',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        shadows: [
-                                          Shadow(
-                                            offset: Offset(1, 1),
-                                            blurRadius: 3,
-                                            color: Colors.black,
-                                          ),
-                                        ],
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
+                            return _buildCollectionItem(item);
                           },
                           itemCount: collections.length,
                           autoplay: true,
@@ -624,6 +449,145 @@ class _HomePageState extends State<HomePage> {
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildLandscapeCollectionItem(Map<String, dynamic> item) {
+    return GestureDetector(
+      onTap: () => _onCollectionPlaylistTap(item),
+      child: Stack(
+        children: [
+          Container(
+            width: 298,
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: CachedImage(
+              url: item['cover'] ?? '',
+              width: 298,
+              height: 140,
+            ),
+          ),
+          // 渐变遮罩
+          Positioned(
+            left: 0,
+            right: 12,
+            bottom: 0,
+            top: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.7),
+                  ],
+                  stops: const [0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
+          // 标题
+          Positioned(
+            left: 24,
+            right: 36,
+            bottom: 16,
+            child: Text(
+              item['title']?.toString() ?? '',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  Shadow(
+                    offset: Offset(1, 1),
+                    blurRadius: 3,
+                    color: Colors.black,
+                  ),
+                ],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCollectionItem(Map<String, dynamic> item) {
+    return GestureDetector(
+      onTap: () => _onCollectionPlaylistTap(item),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: CachedImage(
+              url: item['cover'] ?? '',
+              width: MediaQuery.of(context).size.width - 32,
+              height: (MediaQuery.of(context).size.width - 32) * 15 / 32,
+            ),
+          ),
+          // 渐变遮罩
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.7),
+                ],
+                stops: const [0.6, 1.0],
+              ),
+            ),
+          ),
+          // 标题
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12,
+            child: Text(
+              item['title']?.toString() ?? '',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  Shadow(
+                    offset: Offset(1, 1),
+                    blurRadius: 3,
+                    color: Colors.black,
+                  ),
+                ],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

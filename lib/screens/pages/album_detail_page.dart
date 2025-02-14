@@ -5,6 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../services/audio_service.dart';
 import '../../widgets/mini_player.dart';
 import '../../widgets/common/current_track_highlight.dart';
+import '../../widgets/common/cached_image.dart';
 
 class AlbumDetailPage extends StatelessWidget {
   final String albumName;
@@ -206,14 +207,10 @@ class AlbumDetailPage extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
         leading: CurrentTrackHighlight(
           track: song,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              song['cover_url'] ?? '',
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
-            ),
+          child: CachedImage(
+            url: song['cover_url'] ?? '',
+            width: 56,
+            height: 56,
           ),
         ),
         title: RichText(

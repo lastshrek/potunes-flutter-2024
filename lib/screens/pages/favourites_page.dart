@@ -8,6 +8,7 @@ import '../../services/audio_service.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../screens/pages/album_detail_page.dart';
 import '../../widgets/common/current_track_highlight.dart';
+import '../../widgets/common/cached_image.dart';
 
 class FavouritesPage extends StatefulWidget {
   const FavouritesPage({super.key});
@@ -441,14 +442,10 @@ class _FavouritesPageState extends State<FavouritesPage> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
         leading: CurrentTrackHighlight(
           track: song,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              song['cover_url'] ?? '',
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
-            ),
+          child: CachedImage(
+            url: song['cover_url'] ?? '',
+            width: 56,
+            height: 56,
           ),
         ),
         title: RichText(
