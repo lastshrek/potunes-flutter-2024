@@ -9,6 +9,7 @@ import '../services/network_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'live_activities_service.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 // 修改循环模式枚举
 enum RepeatMode {
@@ -101,8 +102,24 @@ class AudioService extends GetxService {
   void onInit() {
     super.onInit();
 
-    const platform = MethodChannel(channelName);
-    platform.setMethodCallHandler((call) async {
+    // 添加测试代码
+    const platform = MethodChannel('pink.poche.potunes/test');
+    // 延迟调用以确保 Android 端已准备好
+    Future.delayed(const Duration(milliseconds: 500), () {
+      try {
+        debugPrint('Calling Android method...');
+        platform.invokeMethod<String>('getTestMessage').then((value) {
+          debugPrint('Received from Android: $value');
+        }).catchError((error) {
+          debugPrint('Error calling Android: $error');
+        });
+      } catch (e) {
+        debugPrint('Exception while calling Android: $e');
+      }
+    });
+
+    const platform2 = MethodChannel(channelName);
+    platform2.setMethodCallHandler((call) async {
       if (call.method == 'controlCenterEvent') {
         try {
           final args = Map<String, dynamic>.from(call.arguments as Map);
