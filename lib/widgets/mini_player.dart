@@ -4,10 +4,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../services/audio_service.dart';
 import '../services/user_service.dart';
 import 'package:get/get.dart';
-import 'package:just_audio/just_audio.dart';
 import '../screens/pages/now_playing_page.dart';
 import 'package:palette_generator/palette_generator.dart';
-import 'package:flutter/rendering.dart';
 
 class MiniPlayer extends StatefulWidget {
   final bool isAboveBottomBar;
@@ -68,37 +66,6 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
     _slideController.dispose();
     _backgroundColor.dispose();
     super.dispose();
-  }
-
-  void _handleDragEnd(DragEndDetails details) async {
-    if (details.primaryVelocity == null) return;
-
-    final controller = Get.find<AudioService>();
-    if (details.primaryVelocity! > 0) {
-      // 向右滑动，暂停播放
-      _slideAnimation = Tween<Offset>(
-        begin: Offset.zero,
-        end: const Offset(1.0, 0.0),
-      ).animate(CurvedAnimation(
-        parent: _slideController,
-        curve: Curves.easeInOut,
-      ));
-      await _slideController.forward();
-      controller.togglePlayPause();
-      _slideController.reverse();
-    } else if (details.primaryVelocity! < 0) {
-      // 向左滑动，播放下一首
-      _slideAnimation = Tween<Offset>(
-        begin: Offset.zero,
-        end: const Offset(-1.0, 0.0),
-      ).animate(CurvedAnimation(
-        parent: _slideController,
-        curve: Curves.easeInOut,
-      ));
-      await _slideController.forward();
-      controller.skipToNext();
-      _slideController.reverse();
-    }
   }
 
   Future<void> _updateBackgroundColor(String imageUrl) async {

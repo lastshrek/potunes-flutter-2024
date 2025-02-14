@@ -349,8 +349,6 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildCollectionsSection(BuildContext context) {
     final collections = controller.collections;
-    final finalPlaylists = controller.finals;
-    final neteaseToplist = controller.neteaseToplist;
 
     return Column(
       children: [

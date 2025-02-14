@@ -8,14 +8,11 @@ import 'package:get/get.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../widgets/common/cached_image.dart';
-
 import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
 import '../../widgets/mini_player.dart';
-import '../../utils/image_cache_manager.dart';
 import '../../widgets/common/current_track_highlight.dart';
 
 extension ColorExtension on Color {

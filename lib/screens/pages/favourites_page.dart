@@ -300,7 +300,6 @@ class _FavouritesPageState extends State<FavouritesPage> {
                               itemBuilder: (context, index) {
                                 final song = favourites[index];
                                 final audioService = Get.find<AudioService>();
-                                final highlightColor = const Color(0xFFDA5597);
 
                                 return _buildTrackItem(
                                   song: song,

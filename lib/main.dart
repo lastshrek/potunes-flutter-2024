@@ -1,15 +1,12 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:flutter/foundation.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'screens/home_screen.dart';
-import 'services/audio_service.dart';
+
 import 'routes/app_pages.dart';
 import 'bindings/initial_binding.dart';
 import 'services/user_service.dart';

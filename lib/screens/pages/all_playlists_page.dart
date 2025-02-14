@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/network_service.dart';
 import '../../config/api_config.dart';
 import '../../utils/http/api_exception.dart';

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../services/user_service.dart';
-import 'login_page.dart';
-import '../../controllers/navigation_controller.dart';
 import 'dart:convert';
 import '../../services/network_service.dart';
 

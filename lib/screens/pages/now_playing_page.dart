@@ -1179,7 +1179,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
           height: 64,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: (_dominantColor.value ?? Theme.of(context).colorScheme.secondary).withOpacity(0.2),
+            color: (_dominantColor.value).withOpacity(0.2),
             border: Border.all(
               color: Colors.white.withOpacity(0.2),
               width: 1,

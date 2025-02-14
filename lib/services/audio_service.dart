@@ -934,9 +934,7 @@ class AudioService extends GetxService {
         // 启用随机播放时
         if (_currentPlaylist.value != null) {
           // 保存原始播放列表
-          if (_originalPlaylist.value == null) {
-            _originalPlaylist.value = List.from(_currentPlaylist.value!);
-          }
+          _originalPlaylist.value ??= List.from(_currentPlaylist.value!);
 
           // 保存当前播放的歌曲
           final currentTrack = _currentTrack.value;
@@ -974,24 +972,6 @@ class AudioService extends GetxService {
     }
   }
 
-  // 修改音频会话设置方法
-  Future<void> _setupAudioSession() async {
-    try {
-      final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration(
-        avAudioSessionCategory: AVAudioSessionCategory.playback,
-        avAudioSessionMode: AVAudioSessionMode.defaultMode,
-        androidAudioAttributes: AndroidAudioAttributes(
-          contentType: AndroidAudioContentType.music,
-          usage: AndroidAudioUsage.media,
-        ),
-        androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
-      ));
-    } catch (e) {
-      print('Error setting up audio session: $e');
-    }
-  }
-
   // 停止播放
   Future<void> stop() async {
     try {
@@ -1008,21 +988,17 @@ class AudioService extends GetxService {
 
   // 修改 skipToNext 方法
   Future<void> skipToNext() async {
-    debugPrint('AudioService: skipToNext called');
     if (_isFMMode.value) {
-      debugPrint('AudioService: FM mode - playing next track');
       await playFMTrack();
       return;
     }
 
     try {
-      debugPrint('AudioService: Normal mode - skipping to next track');
       if (_currentPlaylist.value == null || _currentPlaylist.value!.isEmpty) {
         return;
       }
 
       final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
-      debugPrint('AudioService: Skipping to index $nextIndex');
       await skipToQueueItem(nextIndex);
     } catch (e) {
       debugPrint('AudioService: Error skipping to next: $e');
