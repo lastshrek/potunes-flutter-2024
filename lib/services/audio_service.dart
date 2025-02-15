@@ -968,7 +968,9 @@ class AudioService extends GetxService {
       _isPlaying.value = false;
 
       // 停止灵动岛显示
-      await LiveActivitiesService.to.stopMusicActivity();
+      if (Platform.isIOS) {
+        await LiveActivitiesService.to.stopMusicActivity();
+      }
     } catch (e) {
       ErrorReporter.showError('Error stopping playback: $e');
     }
@@ -1016,10 +1018,7 @@ class AudioService extends GetxService {
   Future<void> playFMTrack() async {
     try {
       _isFMMode.value = true;
-      final track = await NetworkService.instance.getRadioTrack();
-
-      // 确保 track 包含所有必要的字段
-      ErrorReporter.showError('FM Track: $track'); // 添加调试日志
+      final track = await NetworkService.instance.getRadioTrack(); // 添加调试日志
 
       // 清除当前播放列表并设置当前歌曲
       _currentPlaylist.value = [track];
@@ -1059,17 +1058,18 @@ class AudioService extends GetxService {
       await _audioPlayer.setAudioSource(audioSource);
       await _audioPlayer.play();
 
-      // 更新灵动岛
-      try {
-        await LiveActivitiesService.to.startMusicActivity(
-          title: track['name'] ?? '',
-          artist: track['artist'] ?? '',
-          coverUrl: track['cover_url'] ?? '',
-        );
-      } catch (e) {
-        ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
+      if (Platform.isIOS) {
+        // 更新灵动岛
+        try {
+          await LiveActivitiesService.to.startMusicActivity(
+            title: track['name'] ?? '',
+            artist: track['artist'] ?? '',
+            coverUrl: track['cover_url'] ?? '',
+          );
+        } catch (e) {
+          ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
+        }
       }
-
       // 保存状态
       await _saveLastState();
     } catch (e) {
