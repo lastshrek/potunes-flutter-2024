@@ -490,7 +490,6 @@ class NetworkService {
       );
 
       if (response is Map && response['statusCode'] == 200) {
-        ErrorReporter.showSuccess('Added to favorites');
         return true;
       }
       ErrorReporter.showBusinessError(message: 'Failed to add to favorites');
