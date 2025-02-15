@@ -10,9 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/lyric_line.dart';
 import '../services/network_service.dart';
 import 'package:audio_session/audio_session.dart';
-import 'live_activities_service.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 
 // 修改循环模式枚举
 enum RepeatMode {
@@ -407,17 +405,17 @@ class AudioService extends GetxService {
       await _updateNowPlaying();
 
       // 更新灵动岛（仅 iOS）
-      if (Platform.isIOS) {
-        try {
-          await LiveActivitiesService.to.startMusicActivity(
-            title: track['name'] ?? '',
-            artist: track['artist'] ?? '',
-            coverUrl: track['cover_url'] ?? '',
-          );
-        } catch (e) {
-          ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
-        }
-      }
+      // if (Platform.isIOS) {
+      //   try {
+      //     await LiveActivitiesService.to.startMusicActivity(
+      //       title: track['name'] ?? '',
+      //       artist: track['artist'] ?? '',
+      //       coverUrl: track['cover_url'] ?? '',
+      //     );
+      //   } catch (e) {
+      //     ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
+      //   }
+      // }
 
       await _saveLastState();
     } catch (e) {
@@ -967,10 +965,10 @@ class AudioService extends GetxService {
       await _audioPlayer.stop();
       _isPlaying.value = false;
 
-      // 停止灵动岛显示
-      if (Platform.isIOS) {
-        await LiveActivitiesService.to.stopMusicActivity();
-      }
+      // // 停止灵动岛显示
+      // if (Platform.isIOS) {
+      //   await LiveActivitiesService.to.stopMusicActivity();
+      // }
     } catch (e) {
       ErrorReporter.showError('Error stopping playback: $e');
     }
@@ -1058,18 +1056,18 @@ class AudioService extends GetxService {
       await _audioPlayer.setAudioSource(audioSource);
       await _audioPlayer.play();
 
-      if (Platform.isIOS) {
-        // 更新灵动岛
-        try {
-          await LiveActivitiesService.to.startMusicActivity(
-            title: track['name'] ?? '',
-            artist: track['artist'] ?? '',
-            coverUrl: track['cover_url'] ?? '',
-          );
-        } catch (e) {
-          ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
-        }
-      }
+      // if (Platform.isIOS) {
+      //   // 更新灵动岛
+      //   try {
+      //     await LiveActivitiesService.to.startMusicActivity(
+      //       title: track['name'] ?? '',
+      //       artist: track['artist'] ?? '',
+      //       coverUrl: track['cover_url'] ?? '',
+      //     );
+      //   } catch (e) {
+      //     ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
+      //   }
+      // }
       // 保存状态
       await _saveLastState();
     } catch (e) {
