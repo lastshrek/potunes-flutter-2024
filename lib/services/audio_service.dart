@@ -121,17 +121,11 @@ class AudioService extends GetxService {
 
           switch (action) {
             case 'play':
-              if (!_isPlaying.value) {
-                await togglePlayPause();
-              }
+              await _audioPlayer.play();
               break;
-
             case 'pause':
-              if (_isPlaying.value) {
-                await togglePlayPause();
-              }
+              await _audioPlayer.pause();
               break;
-
             case 'next':
               if (_currentPlaylist.value != null) {
                 if (_isFMMode.value) {
@@ -141,13 +135,19 @@ class AudioService extends GetxService {
                 }
               }
               break;
-
             case 'previous':
               if (_currentPlaylist.value != null && !_isFMMode.value) {
                 await previous();
               }
               break;
+            case 'seek':
+              final position = args['position'] as double;
+              await _audioPlayer.seek(Duration(milliseconds: (position * 1000).round()));
+              break;
           }
+
+          // 更新通知中心状态
+          await _updateNowPlaying();
         } catch (e, stack) {
           ErrorReporter.showError('❌ Error executing control center event: $e\n$stack');
         }
@@ -364,69 +364,61 @@ class AudioService extends GetxService {
 
   Future<void> playTrack(Map<String, dynamic> track, {bool autoPlay = true}) async {
     try {
-      if (track['url'] == null) {
-        throw '无效的音乐地址';
-      }
-
-      // 退出 FM 模式
-      _isFMMode.value = false;
-
       _currentTrack.value = track;
 
-      if (_currentPlaylist.value != null) {
-        final currentIndex = _currentPlaylist.value!.indexWhere((item) => item['id'] == track['id']);
-        if (currentIndex >= 0 && currentIndex < _currentPlaylist.value!.length - 1) {
-          _nextTrack.value = _currentPlaylist.value![currentIndex + 1];
-        } else {
-          _nextTrack.value = null;
-        }
+      // 声明 audioSource 变量
+      late final AudioSource audioSource;
+
+      if (Platform.isIOS) {
+        // iOS 使用 MediaItem
+        final mediaItem = MediaItem(
+          id: '${track['id']}_${track['nId']}',
+          title: track['name']?.toString() ?? '',
+          artist: track['artist']?.toString() ?? '',
+          album: track['album']?.toString() ?? '',
+          duration: Duration(milliseconds: int.parse(track['duration'].toString())),
+          artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
+          playable: true,
+          displayTitle: track['name']?.toString() ?? '',
+          displaySubtitle: track['artist']?.toString() ?? '',
+          extras: {
+            'type': track['type'] ?? 'potunes',
+            'url': track['url'],
+            'isLive': false,
+            'hasLyrics': true,
+          },
+        );
+
+        audioSource = AudioSource.uri(
+          Uri.parse(track['url']),
+          tag: mediaItem,
+        );
+      } else {
+        // Android 使用普通 AudioSource
+        audioSource = AudioSource.uri(Uri.parse(track['url']));
       }
-
-      // 创建 MediaItem
-      final mediaItem = MediaItem(
-        id: '${track['id']}_${track['nId']}',
-        title: track['name']?.toString() ?? '',
-        artist: track['artist']?.toString() ?? '',
-        album: track['album']?.toString() ?? '',
-        duration: Duration(milliseconds: int.parse(track['duration'].toString())),
-        artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
-        playable: true,
-        displayTitle: track['name']?.toString() ?? '',
-        displaySubtitle: track['artist']?.toString() ?? '',
-        extras: {
-          'type': track['type'] ?? 'potunes',
-          'url': track['url'],
-          'isLive': false,
-          'hasLyrics': true,
-        },
-      );
-
-      // 创建带有 MediaItem 的 AudioSource
-      final audioSource = AudioSource.uri(
-        Uri.parse(track['url']),
-        tag: mediaItem,
-      );
 
       await _audioPlayer.setAudioSource(audioSource);
       if (autoPlay) {
         await _audioPlayer.play();
       }
 
-      // 添加错误处理
-      try {
-        if (currentTrack != null) {
+      // 更新控制中心信息
+      await _updateNowPlaying();
+
+      // 更新灵动岛（仅 iOS）
+      if (Platform.isIOS) {
+        try {
           await LiveActivitiesService.to.startMusicActivity(
-            title: currentTrack?['name'] ?? '',
-            artist: currentTrack?['artist'] ?? '',
-            coverUrl: currentTrack?['cover_url'] ?? '',
+            title: track['name'] ?? '',
+            artist: track['artist'] ?? '',
+            coverUrl: track['cover_url'] ?? '',
           );
+        } catch (e) {
+          ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
         }
-      } catch (e) {
-        // 忽略 LiveActivitiesService 相关错误
-        ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
       }
 
-      // 保存状态
       await _saveLastState();
     } catch (e) {
       ErrorReporter.showError('Error playing track: $e');
@@ -1092,20 +1084,33 @@ class AudioService extends GetxService {
     _saveLastState();
   }
 
-  // 在 AudioService 类中添加更新控制中心信息的方法
+  // 更新控制中心信息
   Future<void> _updateNowPlaying() async {
     if (_currentTrack.value == null) return;
 
     try {
-      var platform = MethodChannel(channelName); // 使用相同的 channel 名称
-      await platform.invokeMethod('updateNowPlaying', {
-        'title': _currentTrack.value!['name'] ?? '',
-        'artist': _currentTrack.value!['artist'] ?? '',
-        'duration': _duration.value.inSeconds.toDouble(),
-        'currentTime': _position.value.inSeconds.toDouble(),
-        'isPlaying': _isPlaying.value,
-        'coverUrl': _currentTrack.value!['cover_url'] ?? '',
-      });
+      var platform = MethodChannel(channelName);
+      if (Platform.isAndroid) {
+        // Android 发送完整信息
+        await platform.invokeMethod('updateNowPlaying', {
+          'title': _currentTrack.value!['name'] ?? '',
+          'artist': _currentTrack.value!['artist'] ?? '',
+          'duration': _duration.value.inSeconds.toDouble(),
+          'currentTime': _position.value.inSeconds.toDouble(),
+          'isPlaying': _isPlaying.value,
+          'coverUrl': _currentTrack.value!['cover_url'] ?? '',
+        });
+      } else {
+        // iOS 发送完整信息
+        await platform.invokeMethod('updateNowPlaying', {
+          'title': _currentTrack.value!['name'] ?? '',
+          'artist': _currentTrack.value!['artist'] ?? '',
+          'duration': _duration.value.inSeconds.toDouble(),
+          'currentTime': _position.value.inSeconds.toDouble(),
+          'isPlaying': _isPlaying.value,
+          'coverUrl': _currentTrack.value!['cover_url'] ?? '',
+        });
+      }
     } catch (e) {
       ErrorReporter.showError('Error updating now playing info: $e');
     }

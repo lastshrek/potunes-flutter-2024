@@ -18,19 +18,21 @@ import '../config/api_config.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 初始化 just_audio_background
-  await JustAudioBackground.init(
-    androidNotificationChannelId: !Platform.isAndroid ? 'im.coinchat.treehole/audio_control' : 'pink.poche.potunes/audio_control',
-    androidNotificationChannelName: 'Audio playback',
-    androidNotificationOngoing: true,
-    androidShowNotificationBadge: true,
-    androidStopForegroundOnPause: true,
-    fastForwardInterval: const Duration(seconds: 10),
-    rewindInterval: const Duration(seconds: 10),
-    preloadArtwork: true,
-    androidNotificationClickStartsActivity: true,
-    androidNotificationIcon: 'mipmap/ic_launcher',
-  );
+  // 只在 iOS 上使用 just_audio_background
+  if (Platform.isIOS) {
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'im.coinchat.treehole/audio_control',
+      androidNotificationChannelName: 'Audio playback',
+      androidNotificationOngoing: true,
+      androidShowNotificationBadge: true,
+      androidStopForegroundOnPause: true,
+      fastForwardInterval: const Duration(seconds: 10),
+      rewindInterval: const Duration(seconds: 10),
+      preloadArtwork: true,
+      androidNotificationClickStartsActivity: true,
+      androidNotificationIcon: 'mipmap/ic_launcher',
+    );
+  }
 
   // 初始化服务
   await initServices();
