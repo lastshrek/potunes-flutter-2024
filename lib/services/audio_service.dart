@@ -1018,7 +1018,6 @@ class AudioService extends GetxService {
       _isFMMode.value = true;
       _audioPlayer.pause();
       final track = await NetworkService.instance.getRadioTrack(); // 添加调试日志
-      print('playFMTrack: $track');
       // 清除当前播放列表并设置当前歌曲
       _currentPlaylist.value = [track];
       _currentIndex.value = 0;
