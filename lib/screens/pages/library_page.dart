@@ -181,101 +181,161 @@ class _LibraryPageState extends State<LibraryPage> {
 
           // 用户信息区域
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  // 头像
-                  Stack(
-                    children: [
-                      // 给头像添加点击事件
-                      GestureDetector(
-                        onTap: () => _pickImage(context),
-                        child: _avatarBase64 != null
-                            ? CircleAvatar(
-                                radius: 50,
-                                backgroundImage: MemoryImage(
-                                  base64Decode(_avatarBase64!.contains(',') ? _avatarBase64!.split(',').last : _avatarBase64!),
-                                ),
-                              )
-                            : const CircleAvatar(
-                                radius: 50,
-                                backgroundColor: Color(0xFF1E1E1E),
-                                child: Icon(
-                                  Icons.person,
-                                  size: 50,
-                                  color: Colors.white,
-                                ),
-                              ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16.0, 50.0, 16.0, 16.0), // 上边距增加，为头像留出空间
+                  padding: const EdgeInsets.fromLTRB(20.0, 70.0, 20.0, 20.0), // 上内边距增加，为头像留出空间
+                  decoration: BoxDecoration(
+                    color: Colors.grey[900]?.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                      // 编辑图标
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // 用户名/手机号
+                      Text(
+                        (userData?['nickname']?.toString().isNotEmpty == true ? userData!['nickname'] : _formatPhone(phone)),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // 个人简介
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          userData?['intro']?.toString().isNotEmpty == true ? userData!['intro'] : 'This user is too lazy to leave a signature',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: userData?['intro']?.toString().isNotEmpty == true ? Colors.grey[300] : Colors.grey[600],
+                            fontStyle: userData?['intro']?.toString().isNotEmpty == true ? FontStyle.normal : FontStyle.italic,
+                            height: 1.4,
                           ),
-                          child: GestureDetector(
-                            onTap: () => _pickImage(context),
-                            child: const Icon(
-                              Icons.edit,
-                              size: 20,
-                              color: Color(0xFFDA5597),
-                            ),
-                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  // 用户名/手机号
-                  Text(
-                    // 如果 nickname 为空字符串或 null，则显示手机号
-                    (userData?['nickname']?.toString().isNotEmpty == true ? userData!['nickname'] : _formatPhone(phone)),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                ),
+                // 头像放在 Stack 中，使其位于卡片上方
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Stack(
+                      children: [
+                        GestureDetector(
+                          onTap: () => _pickImage(context),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.3),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: _avatarBase64 != null
+                                ? CircleAvatar(
+                                    radius: 50,
+                                    backgroundImage: MemoryImage(
+                                      base64Decode(_avatarBase64!.contains(',') ? _avatarBase64!.split(',').last : _avatarBase64!),
+                                    ),
+                                  )
+                                : const CircleAvatar(
+                                    radius: 50,
+                                    backgroundColor: Color(0xFF1E1E1E),
+                                    child: Icon(
+                                      Icons.person,
+                                      size: 50,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        // 编辑图标
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: GestureDetector(
+                              onTap: () => _pickImage(context),
+                              child: const Icon(
+                                Icons.edit,
+                                size: 16,
+                                color: Color(0xFFDA5597),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  // 个人简介
-                  Text(
-                    userData?['intro']?.toString().isNotEmpty == true ? userData!['intro'] : 'This user is too lazy to leave a signature',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: userData?['intro']?.toString().isNotEmpty == true ? Colors.grey : Colors.grey[700],
-                      fontStyle: userData?['intro']?.toString().isNotEmpty == true ? FontStyle.normal : FontStyle.italic,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 
           // 功能列表
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0),
+              decoration: BoxDecoration(
+                color: Colors.grey[900]?.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Column(
                 children: [
                   // 收藏夹
                   ListTile(
                     leading: const Icon(
                       Icons.favorite,
-                      color: Colors.white,
+                      color: Color(0xFFDA5597),
                     ),
                     title: const Text(
                       'Favourites',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
+                        color: Colors.white,
                       ),
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: Colors.grey,
                     ),
                     onTap: () => _navigateToPage(const FavouritesPage()),
                   ),
@@ -290,7 +350,12 @@ class _LibraryPageState extends State<LibraryPage> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
+                        color: Colors.white,
                       ),
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: Colors.grey,
                     ),
                     onTap: () => _navigateToPage(const ProfilePage()),
                   ),
