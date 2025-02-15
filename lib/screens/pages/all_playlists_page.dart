@@ -60,6 +60,8 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
   Future<void> _loadData() async {
     try {
       _isLoading.value = true;
+      _error.value = null; // 重置错误状态
+
       final networkService = NetworkService.instance;
       List<dynamic> data;
 
@@ -80,11 +82,21 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
           );
       }
 
-      _playlists.value = data;
+      if (mounted) {
+        _playlists.value = data;
+      }
     } catch (e) {
-      _error.value = e.toString();
+      if (mounted) {
+        if (e is ApiException) {
+          _error.value = e.message;
+        } else {
+          _error.value = e.toString();
+        }
+      }
     } finally {
-      _isLoading.value = false;
+      if (mounted) {
+        _isLoading.value = false;
+      }
     }
   }
 

@@ -21,6 +21,10 @@ class CachedImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 计算缓存尺寸，确保值有效且不为无穷大
+    final int? cacheWidth = width.isFinite ? (width * 2).toInt() : null;
+    final int? cacheHeight = height.isFinite ? (height * 2).toInt() : null;
+
     return ClipRRect(
       borderRadius: borderRadius ?? BorderRadius.circular(8),
       child: CachedNetworkImage(
@@ -28,15 +32,15 @@ class CachedImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
-        memCacheWidth: (width * 2).toInt(),
-        memCacheHeight: (height * 2).toInt(),
+        memCacheWidth: cacheWidth,
+        memCacheHeight: cacheHeight,
         placeholder: (context, url) => Container(
           color: Colors.grey[800],
           child: Center(
             child: Icon(
               Icons.music_note,
               color: Colors.white54,
-              size: iconSize?.toDouble(),
+              size: iconSize,
             ),
           ),
         ),
@@ -46,7 +50,7 @@ class CachedImage extends StatelessWidget {
             child: Icon(
               Icons.error_outline,
               color: Colors.white54,
-              size: iconSize?.toDouble(),
+              size: iconSize,
             ),
           ),
         ),
