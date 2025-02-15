@@ -360,63 +360,56 @@ class AudioService extends GetxService {
     }
   }
 
-  Future<void> playTrack(Map<String, dynamic> track, {bool autoPlay = true}) async {
+  Future<void> playTrack(Map<String, dynamic> track, {List<Map<String, dynamic>>? playlist, int? index}) async {
     try {
+      // 立即停止当前播放
+      await _audioPlayer.stop();
+
+      // 重置播放记录标记
+      _hasRecordedPlay = false;
+
+      // 如果提供了播放列表，更新当前播放列表
+      if (playlist != null) {
+        _currentPlaylist.value = playlist;
+        _currentIndex.value = index ?? 0;
+      }
+
+      // 更新当前歌曲信息
       _currentTrack.value = track;
 
-      // 声明 audioSource 变量
-      late final AudioSource audioSource;
+      // 立即加载歌词
+      _loadLyrics(track);
 
-      if (Platform.isIOS) {
-        // iOS 使用 MediaItem
-        final mediaItem = MediaItem(
-          id: '${track['id']}_${track['nId']}',
-          title: track['name']?.toString() ?? '',
-          artist: track['artist']?.toString() ?? '',
-          album: track['album']?.toString() ?? '',
-          duration: Duration(milliseconds: int.parse(track['duration'].toString())),
-          artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
-          playable: true,
-          displayTitle: track['name']?.toString() ?? '',
-          displaySubtitle: track['artist']?.toString() ?? '',
-          extras: {
-            'type': track['type'] ?? 'potunes',
-            'url': track['url'],
-            'isLive': false,
-            'hasLyrics': true,
-          },
-        );
+      // 创建 MediaItem
+      final mediaItem = MediaItem(
+        id: '${track['id']}_${track['nId']}',
+        title: track['name']?.toString() ?? '',
+        artist: track['artist']?.toString() ?? '',
+        album: track['album']?.toString() ?? '',
+        duration: Duration(milliseconds: int.parse(track['duration'].toString())),
+        artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
+        playable: true,
+        displayTitle: track['name']?.toString() ?? '',
+        displaySubtitle: track['artist']?.toString() ?? '',
+        extras: {
+          'type': track['type'] ?? 'potunes',
+          'url': track['url'],
+          'isLive': false,
+          'hasLyrics': true,
+        },
+      );
 
-        audioSource = AudioSource.uri(
-          Uri.parse(track['url']),
-          tag: mediaItem,
-        );
-      } else {
-        // Android 使用普通 AudioSource
-        audioSource = AudioSource.uri(Uri.parse(track['url']));
-      }
+      // 创建 AudioSource
+      final audioSource = AudioSource.uri(
+        Uri.parse(track['url']),
+        tag: mediaItem,
+      );
 
+      // 设置音频源并开始播放
       await _audioPlayer.setAudioSource(audioSource);
-      if (autoPlay) {
-        await _audioPlayer.play();
-      }
+      await _audioPlayer.play();
 
-      // 更新控制中心信息
-      await _updateNowPlaying();
-
-      // 更新灵动岛（仅 iOS）
-      // if (Platform.isIOS) {
-      //   try {
-      //     await LiveActivitiesService.to.startMusicActivity(
-      //       title: track['name'] ?? '',
-      //       artist: track['artist'] ?? '',
-      //       coverUrl: track['cover_url'] ?? '',
-      //     );
-      //   } catch (e) {
-      //     ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
-      //   }
-      // }
-
+      // 保存播放状态
       await _saveLastState();
     } catch (e) {
       ErrorReporter.showError('Error playing track: $e');
@@ -519,133 +512,27 @@ class AudioService extends GetxService {
   Future<void> _loadLastState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-
-      // 加载 FM 模式状态
-      _isFMMode.value = prefs.getBool(_isFMModeKey) ?? false;
-
-      // 加载当前歌曲
-      final currentTrackJson = prefs.getString('current_track');
-      if (currentTrackJson != null) {
-        _currentTrack.value = Map<String, dynamic>.from(jsonDecode(currentTrackJson));
-      }
-
-      // 如果是 FM 模式，只加载当前歌曲并开始播放
-      if (_isFMMode.value && _currentTrack.value != null) {
-        // 设置播放列表为单曲
-        _currentPlaylist.value = [_currentTrack.value!];
-        _currentIndex.value = 0;
-        _nextTrack.value = null;
-
-        // 创建 MediaItem
-        final mediaItem = MediaItem(
-          id: '${_currentTrack.value!['id']}_${_currentTrack.value!['nId']}',
-          title: _currentTrack.value!['name']?.toString() ?? '',
-          artist: _currentTrack.value!['artist']?.toString() ?? '',
-          album: _currentTrack.value!['album']?.toString() ?? '',
-          duration: Duration(milliseconds: int.parse(_currentTrack.value!['duration'].toString())),
-          artUri: Uri.parse(_currentTrack.value!['cover_url']?.toString() ?? ''),
-          playable: true,
-          displayTitle: _currentTrack.value!['name']?.toString() ?? '',
-          displaySubtitle: _currentTrack.value!['artist']?.toString() ?? '',
-          extras: {
-            'type': _currentTrack.value!['type'] ?? 'potunes',
-            'url': _currentTrack.value!['url'],
-            'isLive': false,
-            'hasLyrics': true,
-          },
-        );
-
-        // 创建 AudioSource
-        final audioSource = AudioSource.uri(
-          Uri.parse(_currentTrack.value!['url']),
-          tag: mediaItem,
-        );
-
-        // 设置音频源
-        await _audioPlayer.setAudioSource(audioSource);
-
-        // 加载歌词
-        await _loadLyrics(_currentTrack.value!);
-        return;
-      }
-
-      // 非 FM 模式的正常加载逻辑
       final playlistJson = prefs.getString(_playlistKey);
-      final originalPlaylistJson = prefs.getString('original_playlist');
-      final index = prefs.getInt(_indexKey);
-      final isShuffleMode = prefs.getBool('shuffle_mode') ?? false;
+      final lastIndex = prefs.getInt(_indexKey);
+      final isFMMode = prefs.getBool(_isFMModeKey) ?? false;
 
-      if (playlistJson != null && index != null) {
-        final playlist = List<Map<String, dynamic>>.from(jsonDecode(playlistJson).map((x) => Map<String, dynamic>.from(x)));
+      _isFMMode.value = isFMMode;
 
-        if (playlist.isNotEmpty && index < playlist.length) {
-          // 设置随机播放状态
-          _isShuffleMode.value = isShuffleMode;
+      if (playlistJson != null && lastIndex != null) {
+        final List<dynamic> playlistData = jsonDecode(playlistJson);
+        final List<Map<String, dynamic>> playlist = List<Map<String, dynamic>>.from(playlistData);
 
-          // 加载播放列表
-          _currentPlaylist.value = playlist;
-          if (isShuffleMode && originalPlaylistJson != null) {
-            _originalPlaylist.value = List<Map<String, dynamic>>.from(jsonDecode(originalPlaylistJson).map((x) => Map<String, dynamic>.from(x)));
-          }
+        _currentPlaylist.value = playlist;
+        _currentIndex.value = lastIndex;
+        _currentTrack.value = playlist[lastIndex];
 
-          // 设置当前索引和曲目
-          _currentIndex.value = index;
-          _currentTrack.value = playlist[index];
-
-          // 加载歌词
-          await _loadLyrics(playlist[index]);
-
-          // 创建音频源
-          final audioSources = playlist.map((track) {
-            return AudioSource.uri(
-              Uri.parse(track['url']),
-              tag: MediaItem(
-                id: '${track['id']}_${track['nId']}', // 使用组合 ID
-                title: track['name']?.toString() ?? '',
-                artist: track['artist']?.toString() ?? '',
-                album: track['album']?.toString() ?? '',
-                duration: Duration(milliseconds: int.parse(track['duration'].toString())),
-                artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
-                playable: true,
-                displayTitle: track['name']?.toString() ?? '',
-                displaySubtitle: track['artist']?.toString() ?? '',
-                genre: track['genre']?.toString(),
-                artHeaders: const {},
-                extras: {
-                  'type': track['type'],
-                  'url': track['url'],
-                  'isLive': false,
-                  'hasLyrics': true,
-                },
-              ),
-            );
-          }).toList();
-
-          final playlistSource = ConcatenatingAudioSource(
-            useLazyPreparation: true,
-            shuffleOrder: DefaultShuffleOrder(),
-            children: audioSources,
-          );
-
-          // 设置音频源
-          await _audioPlayer.setAudioSource(
-            playlistSource,
-            initialIndex: index,
-            preload: true,
-          );
+        // 如果是 FM 模式，直接播放当前歌曲
+        if (_isFMMode.value && _currentTrack.value != null) {
+          await playTrack(_currentTrack.value!); // 移除 autoPlay 参数
         }
-      }
-
-      // 如果是 FM 模式，直接播放当前歌曲
-      if (_isFMMode.value && _currentTrack.value != null) {
-        await playTrack(_currentTrack.value!, autoPlay: false);
       }
     } catch (e) {
       ErrorReporter.showError('Error loading last state: $e');
-      _currentPlaylist.value = null;
-      _currentTrack.value = null;
-      _currentIndex.value = 0;
-      _isFMMode.value = false; // 重置 FM 模式
     }
   }
 
@@ -1015,8 +902,11 @@ class AudioService extends GetxService {
   // 修改 playFMTrack 方法，使用公开的 playTrack 方法
   Future<void> playFMTrack() async {
     try {
+      // 立即停止当前播放
+      await _audioPlayer.stop();
+
       _isFMMode.value = true;
-      final track = await NetworkService.instance.getRadioTrack(); // 添加调试日志
+      final track = await NetworkService.instance.getRadioTrack();
 
       // 清除当前播放列表并设置当前歌曲
       _currentPlaylist.value = [track];
@@ -1024,7 +914,7 @@ class AudioService extends GetxService {
       _currentTrack.value = track;
       _nextTrack.value = null;
 
-      // 加载歌词
+      // 立即加载歌词
       await _loadLyrics(track);
 
       // 创建 MediaItem
@@ -1052,22 +942,10 @@ class AudioService extends GetxService {
         tag: mediaItem,
       );
 
-      // 设置并播放音频
+      // 设置音频源并开始播放
       await _audioPlayer.setAudioSource(audioSource);
       await _audioPlayer.play();
 
-      // if (Platform.isIOS) {
-      //   // 更新灵动岛
-      //   try {
-      //     await LiveActivitiesService.to.startMusicActivity(
-      //       title: track['name'] ?? '',
-      //       artist: track['artist'] ?? '',
-      //       coverUrl: track['cover_url'] ?? '',
-      //     );
-      //   } catch (e) {
-      //     ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
-      //   }
-      // }
       // 保存状态
       await _saveLastState();
     } catch (e) {

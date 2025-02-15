@@ -16,73 +16,82 @@ class TopChartsPage extends GetView<TopChartsController> {
     return Scaffold(
       backgroundColor: Colors.black,
       drawer: const AppDrawer(),
-      body: CustomScrollView(
-        slivers: [
-          const AppHeader(title: 'Top Charts'),
-          Obx(() {
-            // 显示加载动画
-            if (controller.isRefreshing) {
-              return _buildSkeletonList();
-            }
+      body: RefreshIndicator(
+        onRefresh: controller.refreshData,
+        backgroundColor: Colors.black,
+        color: Colors.white,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            const AppHeader(title: 'Top Charts'),
+            Obx(() {
+              // 显示加载动画
+              if (controller.isRefreshing) {
+                return _buildSkeletonList();
+              }
 
-            // 显示错误信息
-            if (controller.error.value != null) {
-              return SliverFillRemaining(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      controller.error.value!,
-                      style: const TextStyle(color: Colors.white),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: controller.retryConnection,
-                      child: const Text(
-                        '重试',
+              // 显示错误信息
+              if (controller.error.value != null) {
+                return SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        controller.error.value!,
+                        style: const TextStyle(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: controller.retryConnection,
+                        child: const Text(
+                          '重试',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              // 显示空状态
+              if (controller.charts.isEmpty) {
+                if (!controller.isNetworkReady) {
+                  return SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: const Center(
+                      child: Text(
+                        '等待网络连接...',
                         style: TextStyle(color: Colors.white),
                       ),
                     ),
-                  ],
-                ),
-              );
-            }
-
-            // 显示空状态
-            if (controller.charts.isEmpty) {
-              if (!controller.isNetworkReady) {
-                return const SliverFillRemaining(
-                  child: Center(
+                  );
+                }
+                return SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: const Center(
                     child: Text(
-                      '等待网络连接...',
+                      '暂无数据',
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
                 );
               }
-              return const SliverFillRemaining(
-                child: Center(
-                  child: Text(
-                    '暂无数据',
-                    style: TextStyle(color: Colors.white),
-                  ),
+
+              // 显示数据列表
+              return SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final chart = controller.charts[index];
+                    return _buildTrackItem(chart, index);
+                  },
+                  childCount: controller.charts.length,
                 ),
               );
-            }
-
-            // 显示数据列表
-            return SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final chart = controller.charts[index];
-                  return _buildTrackItem(chart, index);
-                },
-                childCount: controller.charts.length,
-              ),
-            );
-          }),
-        ],
+            }),
+          ],
+        ),
       ),
     );
   }

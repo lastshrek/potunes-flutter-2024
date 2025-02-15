@@ -166,9 +166,7 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 24),
                     _buildRadioSection(),
                     const SizedBox(height: 24),
-                    _buildAlbumsSection(),
-                    const SizedBox(height: 24),
-                    // Final 部分
+                    // Finals 部分
                     HorizontalPlaylistList(
                       title: 'Finals',
                       playlists: controller.finals,
@@ -176,7 +174,7 @@ class _HomePageState extends State<HomePage> {
                       onTitleTap: () {
                         _navigateToPage(
                           AllPlaylistsPage(
-                            title: 'Final',
+                            title: 'Finals',
                             playlists: controller.finals,
                             apiPath: ApiConfig.allFinals,
                           ),
@@ -184,6 +182,9 @@ class _HomePageState extends State<HomePage> {
                       },
                       onPlaylistTap: _onPlaylistTap,
                     ),
+                    const SizedBox(height: 24),
+                    // Albums 部分
+                    _buildAlbumsSection(),
                     const SizedBox(height: 8),
                     // Netease Toplist 部分
                     HorizontalPlaylistList(
