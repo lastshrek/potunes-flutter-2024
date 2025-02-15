@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../services/user_service.dart';
 import 'dart:convert';
 import '../../services/network_service.dart';
@@ -102,25 +103,10 @@ class _ProfilePageState extends State<ProfilePage> {
         });
 
         // 然后显示成功提示
-        Get.snackbar(
-          'Success',
-          'Profile updated successfully',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 2),
-        );
+
+        ErrorReporter.showSuccess('Profile updated successfully');
       } else {
-        Get.snackbar(
-          'Error',
-          'Failed to update profile',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 2),
-        );
+        ErrorReporter.showBusinessError(message: 'Failed to update profile');
       }
     } catch (e) {
       // 确保加载对话框被关闭

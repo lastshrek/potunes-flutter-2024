@@ -10,34 +10,23 @@ class ErrorReporter {
     // 获取调用栈信息
     final stackTrace = StackTrace.current;
     final caller = _getCallerInfo(stackTrace);
-
-    // 如果已经有 snackbar 在显示，先关闭它
-    if (Get.isSnackbarOpen) {
-      Get.closeCurrentSnackbar();
-    }
-    // 显示错误
-    // ErrorReporter.showError('Failed to load data');
-
-    // 显示网络错误
-    // ErrorReporter.showNetworkError(message: 'No internet connection');
-
-    // 显示成功提示
-    // ErrorReporter.showSuccess('Track added to playlist');
     String errorMessage = _formatErrorMessage(error);
-    // 添加调用者信息
-    String fullMessage = '$errorMessage\nCalled from: $caller';
 
-    // 添加控制台打印
-    debugPrint('🔴 ERROR: $fullMessage');
+    // 在控制台打印详细信息
+    debugPrint('🔴 ERROR: $errorMessage');
+    debugPrint('Called from: $caller');
     debugPrint('Stack trace:\n$stackTrace');
 
+    // 显示简化的错误消息
     _showSnackbar(
       title: title ?? 'Error',
-      message: fullMessage,
+      message: errorMessage,
       duration: duration ?? const Duration(seconds: 2),
-      icon: Icon(
+      backgroundColor: const Color(0xFFDA5597), // 粉色背景
+      textColor: Colors.white, // 白色文字
+      icon: const Icon(
         Icons.error_outline,
-        color: Colors.red[400],
+        color: Colors.white,
         size: 24,
       ),
     );
@@ -93,15 +82,30 @@ class ErrorReporter {
     required String message,
     required Duration duration,
     required Widget icon,
+    required Color backgroundColor,
+    required Color textColor,
   }) {
-    // 如果已经在显示，等待一下再显示新的
     if (_isShowingSnackbar) {
       Future.delayed(const Duration(milliseconds: 300), () {
         Get.closeAllSnackbars();
-        _showSnackbarInternal(title: title, message: message, duration: duration, icon: icon);
+        _showSnackbarInternal(
+          title: title,
+          message: message,
+          duration: duration,
+          icon: icon,
+          backgroundColor: backgroundColor,
+          textColor: textColor,
+        );
       });
     } else {
-      _showSnackbarInternal(title: title, message: message, duration: duration, icon: icon);
+      _showSnackbarInternal(
+        title: title,
+        message: message,
+        duration: duration,
+        icon: icon,
+        backgroundColor: backgroundColor,
+        textColor: textColor,
+      );
     }
   }
 
@@ -110,6 +114,8 @@ class ErrorReporter {
     required String message,
     required Duration duration,
     required Widget icon,
+    required Color backgroundColor,
+    required Color textColor,
   }) {
     _isShowingSnackbar = true;
 
@@ -118,7 +124,7 @@ class ErrorReporter {
         title: title,
         message: message,
         duration: duration,
-        backgroundColor: Colors.white,
+        backgroundColor: backgroundColor,
         borderRadius: 8,
         margin: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -133,8 +139,8 @@ class ErrorReporter {
         dismissDirection: DismissDirection.horizontal,
         titleText: Text(
           title,
-          style: const TextStyle(
-            color: Colors.black,
+          style: TextStyle(
+            color: textColor,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -142,7 +148,7 @@ class ErrorReporter {
         messageText: Text(
           message,
           style: TextStyle(
-            color: Colors.grey[600],
+            color: textColor.withOpacity(0.8),
             fontSize: 14,
           ),
         ),
@@ -160,7 +166,6 @@ class ErrorReporter {
           Get.closeAllSnackbars();
         },
         overlayBlur: 0,
-        // 添加回调以更新状态
         snackbarStatus: (status) {
           if (status == SnackbarStatus.CLOSED) {
             _isShowingSnackbar = false;
@@ -173,19 +178,22 @@ class ErrorReporter {
   // 用于网络错误的特殊处理
   static void showNetworkError({String? message}) {
     final caller = _getCallerInfo(StackTrace.current);
-    final fullMessage = '${message ?? 'Network connection failed. Please check your network settings.'}\nCalled from: $caller';
+    final errorMessage = message ?? 'Network connection failed. Please check your network settings.';
 
-    // 添加控制台打印
-    debugPrint('🌐 NETWORK ERROR: $fullMessage');
+    // 在控制台打印详细信息
+    debugPrint('🌐 NETWORK ERROR: $errorMessage');
+    debugPrint('Called from: $caller');
     debugPrint('Stack trace:\n${StackTrace.current}');
 
     _showSnackbar(
       title: 'Network Error',
-      message: fullMessage,
+      message: errorMessage,
       duration: const Duration(seconds: 3),
-      icon: Icon(
+      backgroundColor: const Color(0xFFDA5597), // 粉色背景
+      textColor: Colors.white,
+      icon: const Icon(
         Icons.wifi_off,
-        color: Colors.orange[400],
+        color: Colors.white,
         size: 24,
       ),
     );
@@ -194,14 +202,15 @@ class ErrorReporter {
   // 用于权限错误的特殊处理
   static void showPermissionError({String? message}) {
     final caller = _getCallerInfo(StackTrace.current);
-    final fullMessage = '${message ?? 'Insufficient permissions to perform this operation.'}\nCalled from: $caller';
+    final errorMessage = message ?? 'Insufficient permissions to perform this operation.';
 
-    // 添加控制台打印
-    debugPrint('🔒 PERMISSION ERROR: $fullMessage');
+    // 在控制台打印详细信息
+    debugPrint('🔒 PERMISSION ERROR: $errorMessage');
+    debugPrint('Called from: $caller');
     debugPrint('Stack trace:\n${StackTrace.current}');
 
     showError(
-      fullMessage,
+      errorMessage, // 只显示错误消息
       title: 'Permission Error',
       duration: const Duration(seconds: 3),
     );
@@ -210,14 +219,15 @@ class ErrorReporter {
   // 用于业务逻辑错误的特殊处理
   static void showBusinessError({String? message}) {
     final caller = _getCallerInfo(StackTrace.current);
-    final fullMessage = '${message ?? 'Operation failed. Please try again later.'}\nCalled from: $caller';
+    final errorMessage = message ?? 'Operation failed. Please try again later.';
 
-    // 添加控制台打印
-    debugPrint('💼 BUSINESS ERROR: $fullMessage');
+    // 在控制台打印详细信息
+    debugPrint('💼 BUSINESS ERROR: $errorMessage');
+    debugPrint('Called from: $caller');
     debugPrint('Stack trace:\n${StackTrace.current}');
 
     showError(
-      fullMessage,
+      errorMessage, // 只显示错误消息
       title: 'Notice',
       duration: const Duration(seconds: 2),
     );
@@ -226,20 +236,18 @@ class ErrorReporter {
   // 用于成功提示
   static void showSuccess(String message, {String? title, Duration? duration}) {
     final caller = _getCallerInfo(StackTrace.current);
-    final fullMessage = '$message\nCalled from: $caller';
 
-    // 添加控制台打印
-    debugPrint('✅ SUCCESS: $fullMessage');
+    // 在控制台打印详细信息
+    debugPrint('✅ SUCCESS: $message');
+    debugPrint('Called from: $caller');
     debugPrint('Stack trace:\n${StackTrace.current}');
-
-    if (Get.isSnackbarOpen) {
-      Get.closeCurrentSnackbar();
-    }
 
     _showSnackbar(
       title: title ?? 'Success',
-      message: fullMessage,
+      message: message,
       duration: duration ?? const Duration(seconds: 2),
+      backgroundColor: Colors.white, // 白色背景
+      textColor: Colors.black, // 黑色文字
       icon: Icon(
         Icons.check_circle_outline,
         color: Colors.green[400],

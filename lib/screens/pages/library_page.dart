@@ -21,11 +21,20 @@ class LibraryPage extends StatefulWidget {
 
 class _LibraryPageState extends State<LibraryPage> {
   String? _avatarBase64;
+  final _userData = Rx<Map<String, dynamic>?>(null);
 
   @override
   void initState() {
     super.initState();
     _avatarBase64 = UserService.to.userData?['avatar'];
+    _userData.value = UserService.to.userData;
+  }
+
+  void _refreshUserData() {
+    setState(() {
+      _userData.value = UserService.to.userData;
+      _avatarBase64 = _userData.value?['avatar'];
+    });
   }
 
   String _formatPhone(String phone) {
@@ -146,17 +155,21 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
-  void _navigateToPage(Widget page) {
-    Get.to(
+  void _navigateToPage(Widget page) async {
+    final result = await Get.to(
       () => page,
       transition: Transition.rightToLeft,
       duration: const Duration(milliseconds: 300),
     );
+
+    if (result != null && result is Map<String, dynamic>) {
+      _refreshUserData();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final userData = UserService.to.userData;
+    final userData = _userData.value;
     final phone = userData?['phone']?.toString() ?? '';
 
     return Scaffold(
