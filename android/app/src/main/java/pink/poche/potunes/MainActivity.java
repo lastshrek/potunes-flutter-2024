@@ -89,12 +89,6 @@ public class MainActivity extends FlutterFragmentActivity {
               .putLong(MediaMetadataCompat.METADATA_KEY_DURATION,
                   duration != null ? duration.longValue() * 1000 : 0L);
 
-          // 如果有当前的专辑封面，立即添加到元数据中
-          if (currentBitmap != null) {
-            currentMetadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, currentBitmap)
-                .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentBitmap);
-          }
-
           // 更新播放状态
           boolean isPlaying = (isPlayingArg != null && isPlayingArg);
           PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
@@ -113,29 +107,38 @@ public class MainActivity extends FlutterFragmentActivity {
           PlaybackStateCompat playbackState = stateBuilder.build();
           mediaSession.setPlaybackState(playbackState);
 
-          // 只有当封面 URL 改变时才更新封面
-          if (coverUrl != null && !coverUrl.isEmpty() && !coverUrl.equals(currentCoverUrl)) {
-            currentCoverUrl = coverUrl;
+          // 更新封面逻辑
+          if (coverUrl != null && !coverUrl.isEmpty()) {
+            // 如果 URL 改变或强制更新
+            if (!coverUrl.equals(currentCoverUrl) || currentBitmap == null) {
+              currentCoverUrl = coverUrl;
 
-            if (currentTask != null) {
-              currentTask.cancel(true);
-            }
+              if (currentTask != null) {
+                currentTask.cancel(true);
+              }
 
-            Bitmap cachedBitmap = bitmapCache.get(coverUrl);
-            if (cachedBitmap != null) {
-              currentBitmap = cachedBitmap;
-              updateMetadataWithBitmap(currentMetadataBuilder, cachedBitmap, coverUrl);
-            } else {
-              currentTask = new AlbumArtLoader(coverUrl, currentMetadataBuilder);
-              currentTask.execute(coverUrl);
+              Bitmap cachedBitmap = bitmapCache.get(coverUrl);
+              if (cachedBitmap != null) {
+                currentBitmap = cachedBitmap;
+                updateMetadataWithBitmap(currentMetadataBuilder, cachedBitmap, coverUrl);
+              } else {
+                currentTask = new AlbumArtLoader(coverUrl, currentMetadataBuilder);
+                currentTask.execute(coverUrl);
+              }
+            } else if (currentBitmap != null) {
+              // URL 相同但需要更新元数据
+              currentMetadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, currentBitmap)
+                  .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentBitmap);
+              mediaSession.setMetadata(currentMetadataBuilder.build());
+              updateNotification(currentMetadataBuilder.build(), playbackState);
             }
+          } else {
+            // 如果没有封面 URL，清除当前封面
+            currentBitmap = null;
+            currentCoverUrl = null;
+            mediaSession.setMetadata(currentMetadataBuilder.build());
+            updateNotification(currentMetadataBuilder.build(), playbackState);
           }
-
-          // 更新元数据
-          mediaSession.setMetadata(currentMetadataBuilder.build());
-
-          // 更新通知
-          updateNotification(currentMetadataBuilder.build(), playbackState);
 
           result.success(null);
         } catch (Exception e) {
@@ -285,12 +288,14 @@ public class MainActivity extends FlutterFragmentActivity {
       public void onPlay() {
         Log.d(TAG, "onPlay called");
         sendControlEvent("play");
+        updatePlaybackState(true);
       }
 
       @Override
       public void onPause() {
         Log.d(TAG, "onPause called");
         sendControlEvent("pause");
+        updatePlaybackState(false);
       }
 
       @Override
@@ -469,5 +474,27 @@ public class MainActivity extends FlutterFragmentActivity {
     }
     mediaController = null;
     super.onDestroy();
+  }
+
+  // 添加更新播放状态的辅助方法
+  private void updatePlaybackState(boolean isPlaying) {
+    PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
+        .setActions(
+            PlaybackStateCompat.ACTION_PLAY |
+                PlaybackStateCompat.ACTION_PAUSE |
+                PlaybackStateCompat.ACTION_PLAY_PAUSE |
+                PlaybackStateCompat.ACTION_SKIP_TO_NEXT |
+                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
+                PlaybackStateCompat.ACTION_SEEK_TO)
+        .setState(
+            isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED,
+            mediaSession.getController().getPlaybackState().getPosition(),
+            1.0f);
+    mediaSession.setPlaybackState(stateBuilder.build());
+
+    // 更新通知
+    if (currentMetadataBuilder != null) {
+      updateNotification(currentMetadataBuilder.build(), stateBuilder.build());
+    }
   }
 }

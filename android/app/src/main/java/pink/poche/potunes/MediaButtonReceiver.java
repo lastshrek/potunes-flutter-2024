@@ -6,21 +6,50 @@ import android.content.Intent;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
-import io.flutter.plugin.common.MethodChannel;
 
 public class MediaButtonReceiver extends BroadcastReceiver {
   private static final String TAG = "MediaButtonReceiver";
-  private static final String CHANNEL = "pink.poche.potunes/audio_control";
 
   @Override
   public void onReceive(Context context, Intent intent) {
     String action = intent.getAction();
     Log.d(TAG, "Received action: " + action);
 
-    // 直接发送事件到 MainActivity
-    Intent mainActivityIntent = new Intent(context, MainActivity.class);
-    mainActivityIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-    mainActivityIntent.setAction(action);
-    context.startActivity(mainActivityIntent);
+    // 获取 MediaController
+    MediaControllerCompat controller = MainActivity.getAppMediaController();
+    if (controller == null) {
+      Log.e(TAG, "MediaController is null");
+      return;
+    }
+
+    // 直接使用 MediaController 发送命令
+    MediaControllerCompat.TransportControls controls = controller.getTransportControls();
+    if (controls != null) {
+      switch (action) {
+        case "ACTION_PLAY":
+          controls.play();
+          break;
+        case "ACTION_PAUSE":
+          controls.pause();
+          break;
+        case "ACTION_NEXT":
+          controls.skipToNext();
+          break;
+        case "ACTION_PREVIOUS":
+          controls.skipToPrevious();
+          break;
+        default:
+          Log.d(TAG, "Unknown action: " + action);
+          break;
+      }
+    } else {
+      Log.e(TAG, "TransportControls is null");
+
+      // 如果 TransportControls 不可用，回退到通过 Activity 发送
+      Intent mainActivityIntent = new Intent(context, MainActivity.class);
+      mainActivityIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+      mainActivityIntent.setAction(action);
+      context.startActivity(mainActivityIntent);
+    }
   }
 }
