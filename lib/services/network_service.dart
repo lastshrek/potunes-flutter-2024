@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 import '../controllers/app_controller.dart';
 import '../utils/error_reporter.dart';
+import 'package:flutter/foundation.dart';
 
 class NetworkService {
   static const platform = MethodChannel('pink.poche.potunes/network');
@@ -107,6 +108,7 @@ class NetworkService {
     }
     try {
       final response = await _client.get<dynamic>('${ApiConfig.playlist}/$id');
+      print('getPlaylistById response: $response');
 
       if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
         final data = response['data'] as Map<String, dynamic>;
@@ -805,6 +807,155 @@ class NetworkService {
       throw ApiException(
         statusCode: 500,
         message: '无效的响应格式',
+      );
+    } catch (e) {
+      ErrorReporter.showError(e);
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> createPlaylist(String title) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.post<dynamic>(
+        ApiConfig.userPlaylistAdd,
+        data: {
+          "title": title,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+          contentType: 'application/json',
+        ),
+      );
+
+      if (response is Map && (response['statusCode'] == 200 || response['statusCode'] == 201)) {
+        return response['data'] as Map<String, dynamic>;
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: response['message'] ?? '创建歌单失败',
+      );
+    } catch (e) {
+      if (e is DioException && e.response?.statusCode == 201) {
+        return (e.response?.data['data'] as Map<String, dynamic>?) ?? {};
+      }
+      ErrorReporter.showError(e);
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getUserPlaylists() async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.get<dynamic>(
+        ApiConfig.userPlaylist,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+        ),
+      );
+
+      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+        final List<dynamic> rawPlaylists = response['data'];
+        return rawPlaylists.map((item) => item as Map<String, dynamic>).toList();
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: '获取歌单失败',
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('getUserPlaylists error: $e');
+      }
+      ErrorReporter.showError(e);
+      rethrow;
+    }
+  }
+
+  Future<bool> addTrackToPlaylist(int playlistId, Map<String, dynamic> track) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      if (kDebugMode) {
+        print('addTrackToPlaylist request data: $track');
+      }
+
+      final response = await _client.post<dynamic>(
+        ApiConfig.userPlaylistAddTrack.replaceAll(':id', playlistId.toString()),
+        data: track,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+          contentType: 'application/json',
+        ),
+      );
+
+      // 成功时返回的是正常的 statusCode
+      if (response is Map && (response['statusCode'] == 200 || response['statusCode'] == 201)) {
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      if (kDebugMode) {
+        print('addTrackToPlaylist error: $e');
+        if (e is DioException) {
+          print('DioException response data: ${e.response?.data}');
+          // 错误时返回的是 code 和 message
+          final responseData = e.response?.data;
+          if (responseData is Map) {
+            print('Error code: ${responseData['code']}');
+            print('Error message: ${responseData['message']}');
+          }
+        }
+      }
+      if (e is DioException && e.response?.data != null) {
+        final responseData = e.response?.data;
+        if (responseData is Map) {
+          final message = responseData['message'] ?? '添加失败';
+          ErrorReporter.showBusinessError(message: message);
+          return false;
+        }
+      }
+      ErrorReporter.showError(e);
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> getPlaylistDetail(int playlistId) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.get<dynamic>(
+        '${ApiConfig.userPlaylistDetail}/$playlistId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+        ),
+      );
+      if (kDebugMode) {
+        print('getPlaylistDetail response: $response');
+      }
+      if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
+        return response['data'] as Map<String, dynamic>;
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: '获取歌单详情失败',
       );
     } catch (e) {
       ErrorReporter.showError(e);

@@ -1,22 +1,32 @@
-import 'package:dio/dio.dart';
+import 'package:dio/dio.dart' hide Response;
+import 'package:dio/dio.dart' as dio show Response;
 import '../../config/api_config.dart';
 import 'api_exception.dart';
 import 'package:get/get.dart';
 import '../../services/user_service.dart';
 import '../../utils/error_reporter.dart';
+import 'package:flutter/foundation.dart';
 
 class HttpClient {
   static final HttpClient instance = HttpClient._internal();
-  late final Dio _dio;
+  final Dio _dio = Dio();
 
   HttpClient._internal() {
-    final options = BaseOptions(
-      baseUrl: ApiConfig.baseUrl,
-      connectTimeout: const Duration(milliseconds: ApiConfig.connectTimeout),
-      receiveTimeout: const Duration(milliseconds: ApiConfig.receiveTimeout),
-    );
+    _dio.options.baseUrl = ApiConfig.baseUrl;
+    _dio.options.connectTimeout = const Duration(milliseconds: ApiConfig.connectTimeout);
+    _dio.options.receiveTimeout = const Duration(milliseconds: ApiConfig.receiveTimeout);
 
-    _dio = Dio(options);
+    // 添加拦截器来打印请求和响应
+    if (kDebugMode) {
+      _dio.interceptors.add(LogInterceptor(
+        request: true,
+        requestHeader: true,
+        requestBody: true,
+        responseHeader: true,
+        responseBody: true,
+        error: true,
+      ));
+    }
 
     // 添加拦截器处理 token
     _dio.interceptors.add(InterceptorsWrapper(
@@ -29,93 +39,51 @@ class HttpClient {
         return handler.next(options);
       },
     ));
-
-    // _dio.interceptors.add(LogInterceptor(
-    //   request: true,
-    //   requestHeader: true,
-    //   requestBody: true,
-    //   responseHeader: true,
-    //   responseBody: true,
-    //   error: true,
-    // ));
   }
 
-  Future<T> get<T>(
+  Future<dynamic> get<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
+    ProgressCallback? onReceiveProgress,
   }) async {
     try {
-      final response = await _dio.get(
+      final dio.Response<T> response = await _dio.get(
         path,
         queryParameters: queryParameters,
-        options: options ??
-            Options(
-              headers: {
-                'Accept': 'application/json',
-              },
-              validateStatus: (status) => status! < 500,
-            ),
+        options: options,
         cancelToken: cancelToken,
+        onReceiveProgress: onReceiveProgress,
       );
-
-      if (response.data is T) {
-        return response.data;
-      }
-
-      throw ApiException(
-        statusCode: response.statusCode ?? 500,
-        message: 'Response type mismatch',
-        data: response.data,
-      );
+      return response.data;
     } catch (e) {
-      ErrorReporter.showError(e);
       _handleError(e);
-      rethrow;
     }
   }
 
-  Future<T> post<T>(
+  Future<dynamic> post<T>(
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
   }) async {
     try {
-      final response = await _dio.post<T>(
+      final dio.Response<T> response = await _dio.post(
         path,
         data: data,
         queryParameters: queryParameters,
         options: options,
         cancelToken: cancelToken,
+        onSendProgress: onSendProgress,
+        onReceiveProgress: onReceiveProgress,
       );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (response.data != null) {
-          return response.data as T;
-        }
-        throw ApiException(
-          statusCode: response.statusCode ?? 500,
-          message: '响应数据为空',
-        );
-      }
-
-      throw ApiException(
-        statusCode: response.statusCode ?? 500,
-        message: '请求失败',
-      );
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 201 && e.response?.data != null) {
-        return e.response!.data as T;
-      }
-      throw ApiException.fromDioError(e);
+      return response.data;
     } catch (e) {
-      throw ApiException(
-        statusCode: 500,
-        message: e.toString(),
-      );
+      _handleError(e);
     }
   }
 
@@ -140,15 +108,9 @@ class HttpClient {
 
   void _handleError(dynamic error) {
     if (error is DioException) {
-      throw ApiException.fromDioError(error);
-    } else if (error is ApiException) {
       throw error;
-    } else {
-      throw ApiException(
-        statusCode: 500,
-        message: error.toString(),
-      );
     }
+    throw error;
   }
 
   void _handleDioError(DioException e) {

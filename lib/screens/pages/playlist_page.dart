@@ -14,6 +14,8 @@ import '../../services/network_service.dart';
 import '../../services/audio_service.dart';
 import '../../widgets/mini_player.dart';
 import '../../widgets/common/current_track_highlight.dart';
+import '../../widgets/song_options_sheet.dart';
+import '../../screens/pages/add_to_playlist_page.dart';
 
 extension ColorExtension on Color {
   Color darken([double amount = 0.1]) {
@@ -57,7 +59,7 @@ class PlaylistPage extends StatefulWidget {
 
 class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClientMixin, WidgetsBindingObserver, RouteAware {
   final NetworkService _networkService = NetworkService.instance;
-  bool _isLoading = false;
+  bool _isLoading = true;
   bool _isRouteReady = false;
   Color? dominantColor;
   Color? secondaryColor;
@@ -130,6 +132,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     _scrollController.addListener(_onScrollForPagination);
     _landscapeRightController.addListener(_onScrollForPagination);
 
+    _isLoading = true; // 确保初始状态为加载中
+
     // 预加载数据
     _preloadData();
   }
@@ -189,11 +193,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
       setState(() {
         _isPreloading = false;
         _isRouteReady = true;
-        _isLoading = true;
       });
-
-      // 开始提取颜色
-      _extractColors();
     }
   }
 
@@ -255,8 +255,9 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   Future<void> _loadTracks() async {
     try {
-      // 添加小延迟，确保颜色提取有足够时间完成
-      await Future.delayed(const Duration(milliseconds: 100));
+      if (kDebugMode) {
+        print('开始加载歌曲列表...');
+      }
 
       final response = widget.isFromTopList
           ? await _networkService.getTopListDetail(widget.playlistId)
@@ -266,22 +267,57 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
       if (!mounted) return;
 
-      if (response['tracks'] != null) {
-        _allTracks = response['tracks'] as List<dynamic>;
+      if (kDebugMode) {
+        print('获取到响应数据：');
+        print('Response: $response');
+      }
 
-        setState(() {
-          _displayedTracks = _allTracks.take(_pageSize).toList();
-          _isLoading = false;
-          _hasMoreData = _allTracks.length > _pageSize;
-        });
+      // 从正确的路径获取 tracks
+      final tracks = response['tracks'] as List<dynamic>?;
+
+      if (tracks != null && tracks.isNotEmpty) {
+        if (kDebugMode) {
+          print('成功获取到 ${tracks.length} 首歌曲');
+        }
+
+        if (mounted) {
+          setState(() {
+            _allTracks = tracks;
+            _displayedTracks = _allTracks.take(_pageSize).toList();
+            _isLoading = false; // 确保加载状态更新
+            _hasMoreData = _allTracks.length > _pageSize;
+          });
+
+          // 在数据加载完成后提取颜色
+          _extractColors();
+        }
+
+        if (kDebugMode) {
+          print('已更新状态：');
+          print('All tracks count: ${_allTracks.length}');
+          print('Displayed tracks count: ${_displayedTracks.length}');
+          print('Has more data: $_hasMoreData');
+        }
+      } else {
+        if (kDebugMode) {
+          print('未找到歌曲数据');
+          print('Response structure: $response');
+        }
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _hasMoreData = false;
+          });
+        }
       }
     } catch (e) {
       if (!mounted) return;
       if (kDebugMode) {
-        print('Error loading playlist tracks: $e');
+        print('加载歌曲列表时出错: $e');
       }
       setState(() {
         _isLoading = false;
+        _hasMoreData = false;
       });
     }
   }
@@ -895,14 +931,13 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     return Obx(() {
       final isCurrentTrack = audioService.isCurrentTrack(track);
 
-      // 创建基础文本样式
+      // 缩小字号
       final baseTextStyle = const TextStyle(
         color: Colors.white,
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: FontWeight.w500,
       );
 
-      // 根据是否是当前播放的歌曲获取高亮样式
       final highlightedStyle = baseTextStyle.copyWith(
         color: isCurrentTrack ? highlightColor : Colors.white,
       );
@@ -923,8 +958,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                 borderRadius: BorderRadius.circular(8),
                 child: CachedImage(
                   url: track['cover_url'] ?? '',
-                  width: 56,
-                  height: 56,
+                  width: 48,
+                  height: 48,
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
@@ -936,7 +971,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                     text: '${index + 1}. ',
                     style: TextStyle(
                       color: isCurrentTrack ? highlightColor : Colors.grey[400],
-                      fontSize: 14,
+                      fontSize: 12,
                     ),
                   ),
                   TextSpan(
@@ -950,8 +985,18 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
               track['artist'] ?? '',
               style: TextStyle(
                 color: Colors.grey[400],
-                fontSize: 14,
+                fontSize: 12,
               ).withSubtleHighlight(isCurrentTrack),
+            ),
+            trailing: IconButton(
+              icon: const Icon(
+                Icons.more_vert,
+                color: Colors.white54,
+                size: 20,
+              ),
+              onPressed: () {
+                _showTrackOptions(context, track);
+              },
             ),
             onTap: () {
               _playTrack(track, _displayedTracks, index);
@@ -971,6 +1016,21 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   void _handlePopBack() {
     Navigator.of(context).pop();
+  }
+
+  // 添加新方法来显示歌曲选项菜单
+  void _showTrackOptions(BuildContext context, dynamic track) {
+    SongOptionsSheet.show(
+      context: context,
+      track: track as Map<String, dynamic>, // 确保 track 是 Map<String, dynamic> 类型
+      onAddToPlaylist: () {
+        // 调用 AddToPlaylistPage.show 并传递 track
+        AddToPlaylistPage.show(
+          context: context,
+          track: track as Map<String, dynamic>,
+        );
+      },
+    );
   }
 }
 

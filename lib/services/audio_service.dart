@@ -997,7 +997,7 @@ class AudioService extends GetxService {
   Future<void> _updatePlayCount() async {
     try {
       if (_currentTrack.value == null) return;
-
+      print('updatePlayCount: ${_currentTrack.value}');
       await NetworkService.instance.updateTrackPlayCount(_currentTrack.value!);
     } catch (e) {
       ErrorReporter.showError('Error updating play count: $e');

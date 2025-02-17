@@ -11,6 +11,8 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../../screens/pages/profile_page.dart';
 import '../../widgets/common/app_header.dart';
 import '../../widgets/common/app_drawer.dart';
+import '../../services/network_service.dart';
+import '../../screens/pages/playlist_detail_page.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -22,12 +24,40 @@ class LibraryPage extends StatefulWidget {
 class _LibraryPageState extends State<LibraryPage> {
   String? _avatarBase64;
   final _userData = Rx<Map<String, dynamic>?>(null);
+  final NetworkService _networkService = NetworkService.instance;
+  final List<Map<String, dynamic>> _playlists = [];
+  bool _isLoadingPlaylists = false;
 
   @override
   void initState() {
     super.initState();
     _avatarBase64 = UserService.to.userData?['avatar'];
     _userData.value = UserService.to.userData;
+    _loadPlaylists();
+  }
+
+  Future<void> _loadPlaylists() async {
+    try {
+      setState(() {
+        _isLoadingPlaylists = true;
+      });
+
+      final playlists = await _networkService.getUserPlaylists();
+
+      if (mounted) {
+        setState(() {
+          _playlists.clear();
+          _playlists.addAll(playlists);
+          _isLoadingPlaylists = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingPlaylists = false;
+        });
+      }
+    }
   }
 
   void _refreshUserData() {
@@ -167,6 +197,271 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
+  // 用户信息区域
+  Widget _buildProfileSection(String phone, Map<String, dynamic>? userData) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+      decoration: BoxDecoration(
+        color: Colors.grey[900]?.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // 头像和基本信息
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20.0, 20.0, 20.0, 20.0),
+            child: Row(
+              children: [
+                _buildAvatarWidget(),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        (userData?['nickname']?.toString().isNotEmpty == true ? userData!['nickname'] : _formatPhone(phone)),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        userData?['intro']?.toString().isNotEmpty == true ? userData!['intro'] : 'This user is too lazy to leave a signature',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: userData?['intro']?.toString().isNotEmpty == true ? Colors.grey[300] : Colors.grey[600],
+                          fontStyle: userData?['intro']?.toString().isNotEmpty == true ? FontStyle.normal : FontStyle.italic,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 功能按钮
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12.0, 0, 12.0, 12.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    icon: Icons.favorite,
+                    iconColor: const Color(0xFFDA5597),
+                    label: 'Favourites',
+                    onTap: () => _navigateToPage(const FavouritesPage()),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildActionButton(
+                    icon: Icons.edit,
+                    iconColor: Colors.white,
+                    label: 'Edit Profile',
+                    onTap: () => _navigateToPage(const ProfilePage()),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: iconColor,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarWidget() {
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: () => _pickImage(context),
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: _avatarBase64 != null
+                ? CircleAvatar(
+                    radius: 40, // 减小头像尺寸
+                    backgroundImage: MemoryImage(
+                      base64Decode(_avatarBase64!.contains(',') ? _avatarBase64!.split(',').last : _avatarBase64!),
+                    ),
+                  )
+                : const CircleAvatar(
+                    radius: 40, // 减小头像尺寸
+                    backgroundColor: Color(0xFF1E1E1E),
+                    child: Icon(
+                      Icons.person,
+                      size: 40, // 减小图标尺寸
+                      color: Colors.white70,
+                    ),
+                  ),
+          ),
+        ),
+        // 编辑图标
+        Positioned(
+          right: 0,
+          bottom: 0,
+          child: Container(
+            padding: const EdgeInsets.all(6), // 减小编辑按钮尺寸
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: GestureDetector(
+              onTap: () => _pickImage(context),
+              child: const Icon(
+                Icons.edit,
+                size: 14, // 减小图标尺寸
+                color: Color(0xFFDA5597),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _deletePlaylist(Map<String, dynamic> playlist) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: const Text(
+            'Delete Playlist',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to delete "${playlist['title']}"?',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.red[400],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Delete',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      try {
+        // TODO: 实现删除歌单的网络请求
+        // await _networkService.deletePlaylist(playlist['id']);
+        setState(() {
+          _playlists.removeWhere((item) => item['id'] == playlist['id']);
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Playlist deleted')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete playlist')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final userData = _userData.value;
@@ -179,130 +474,12 @@ class _LibraryPageState extends State<LibraryPage> {
         slivers: [
           const AppHeader(title: 'Library'),
 
-          // 用户信息区域
+          // 个人资料区域（包含 Favourites 和 Edit Profile）
           SliverToBoxAdapter(
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  margin: const EdgeInsets.fromLTRB(16.0, 50.0, 16.0, 16.0), // 上边距增加，为头像留出空间
-                  padding: const EdgeInsets.fromLTRB(20.0, 70.0, 20.0, 20.0), // 上内边距增加，为头像留出空间
-                  decoration: BoxDecoration(
-                    color: Colors.grey[900]?.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      // 用户名/手机号
-                      Text(
-                        (userData?['nickname']?.toString().isNotEmpty == true ? userData!['nickname'] : _formatPhone(phone)),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // 个人简介
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Text(
-                          userData?['intro']?.toString().isNotEmpty == true ? userData!['intro'] : 'This user is too lazy to leave a signature',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: userData?['intro']?.toString().isNotEmpty == true ? Colors.grey[300] : Colors.grey[600],
-                            fontStyle: userData?['intro']?.toString().isNotEmpty == true ? FontStyle.normal : FontStyle.italic,
-                            height: 1.4,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // 头像放在 Stack 中，使其位于卡片上方
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Stack(
-                      children: [
-                        GestureDetector(
-                          onTap: () => _pickImage(context),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
-                                  blurRadius: 15,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
-                            ),
-                            child: _avatarBase64 != null
-                                ? CircleAvatar(
-                                    radius: 50,
-                                    backgroundImage: MemoryImage(
-                                      base64Decode(_avatarBase64!.contains(',') ? _avatarBase64!.split(',').last : _avatarBase64!),
-                                    ),
-                                  )
-                                : const CircleAvatar(
-                                    radius: 50,
-                                    backgroundColor: Color(0xFF1E1E1E),
-                                    child: Icon(
-                                      Icons.person,
-                                      size: 50,
-                                      color: Colors.white70,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        // 编辑图标
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: GestureDetector(
-                              onTap: () => _pickImage(context),
-                              child: const Icon(
-                                Icons.edit,
-                                size: 16,
-                                color: Color(0xFFDA5597),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            child: _buildProfileSection(phone, userData),
           ),
 
-          // 功能列表
+          // 歌单列表
           SliverToBoxAdapter(
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -318,58 +495,134 @@ class _LibraryPageState extends State<LibraryPage> {
                 ],
               ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 收藏夹
-                  ListTile(
-                    leading: const Icon(
-                      Icons.favorite,
-                      color: Color(0xFFDA5597),
-                    ),
-                    title: const Text(
-                      'Favourites',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                      color: Colors.grey,
-                    ),
-                    onTap: () => _navigateToPage(const FavouritesPage()),
-                  ),
-                  // 编辑资料
-                  ListTile(
-                    leading: const Icon(
-                      Icons.edit,
+                  const ListTile(
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16.0),
+                    leading: Icon(
+                      Icons.playlist_play,
                       color: Colors.white,
                     ),
-                    title: const Text(
-                      'Edit Profile',
+                    title: Text(
+                      'My Playlists',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: Colors.white,
                       ),
                     ),
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                      color: Colors.grey,
-                    ),
-                    onTap: () => _navigateToPage(const ProfilePage()),
                   ),
+                  if (_isLoadingPlaylists)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else if (_playlists.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Center(
+                        child: Text(
+                          'No playlists yet',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      itemCount: _playlists.length,
+                      itemBuilder: (context, index) {
+                        final playlist = _playlists[index];
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[850],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.queue_music,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            playlist['title'] ?? '',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.more_vert,
+                                  color: Colors.grey,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    backgroundColor: Colors.grey[900],
+                                    builder: (context) => SafeArea(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          ListTile(
+                                            leading: const Icon(
+                                              Icons.delete_outline,
+                                              color: Colors.red,
+                                            ),
+                                            title: const Text(
+                                              'Delete Playlist',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            onTap: () {
+                                              Navigator.pop(context);
+                                              _deletePlaylist(playlist);
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            Get.to(
+                              () => PlaylistDetailPage(
+                                playlistId: playlist['id'],
+                                title: playlist['title'] ?? '',
+                              ),
+                              transition: Transition.rightToLeft,
+                            );
+                          },
+                        );
+                      },
+                    ),
                 ],
               ),
             ),
           ),
 
-          // 底部空间，防止被 MiniPlayer 遮挡
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 80),
-          ),
-
-          // 退出登录按钮
+          // 底部空间和退出登录按钮
           SliverFillRemaining(
             hasScrollBody: false,
             child: Container(

@@ -67,27 +67,6 @@ class _LoginPageState extends State<LoginPage> {
       _showCaptchaInput.value = true;
       _error.value = null;
       _startCountdown();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '验证码已发送',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.only(
-            bottom: 20.0,
-            left: 16.0,
-            right: 16.0,
-          ),
-          duration: Duration(seconds: 2),
-        ),
-      );
     } catch (e) {
       _error.value = e.toString();
     } finally {

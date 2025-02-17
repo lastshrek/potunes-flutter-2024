@@ -1,6 +1,7 @@
 class ApiConfig {
   static String get baseUrl {
-    return 'https://api.poche.pink';
+    // return 'https://api.poche.pink';
+    return 'http://localhost:3000';
   }
 
   // 歌单相关
@@ -24,6 +25,10 @@ class ApiConfig {
   static const String verifyCaptcha = '/users/verify';
   static const String fav = '/v1/users/favs';
   static const String like = '/v1/tracks/like';
+  static const String userPlaylist = '/v1/playlists/custom/user';
+  static const String userPlaylistDetail = '/v1/playlists/custom';
+  static const String userPlaylistAdd = '/v1/playlists/custom';
+  static const String userPlaylistAddTrack = '/v1/playlists/custom/:id/track';
   // 版本相关
   static const String version = '/v1/versions';
   // HTTP 状态码
