@@ -10,6 +10,9 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../screens/pages/album_detail_page.dart';
 import '../../widgets/common/current_track_highlight.dart';
 import '../../widgets/common/cached_image.dart';
+import '../../widgets/common/track_list_item.dart';
+import '../../widgets/song_options_sheet.dart';
+import '../../screens/pages/add_to_playlist_page.dart';
 
 class FavouritesPage extends StatefulWidget {
   const FavouritesPage({super.key});
@@ -79,17 +82,6 @@ class _FavouritesPageState extends State<FavouritesPage> {
   void dispose() {
     selectedIndex.close(); // 记得在 dispose 中关闭
     super.dispose();
-  }
-
-  String _formatDuration(dynamic milliseconds) {
-    try {
-      final duration = Duration(milliseconds: int.parse(milliseconds.toString()));
-      final minutes = duration.inMinutes;
-      final seconds = duration.inSeconds % 60;
-      return '$minutes:${seconds.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return '--:--';
-    }
   }
 
   void _playSong(Map<String, dynamic> song, List<dynamic> playlist, int index) {
@@ -300,13 +292,41 @@ class _FavouritesPageState extends State<FavouritesPage> {
                               itemCount: favourites.length,
                               itemBuilder: (context, index) {
                                 final song = favourites[index];
-                                final audioService = Get.find<AudioService>();
-
-                                return _buildTrackItem(
-                                  song: song,
-                                  index: index,
-                                  audioService: audioService,
-                                  playlist: favourites,
+                                return RepaintBoundary(
+                                  child: Material(
+                                    type: MaterialType.transparency,
+                                    child: TrackListItem(
+                                      track: song,
+                                      index: index,
+                                      playlist: List<Map<String, dynamic>>.from(favourites),
+                                      titleStyle: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      indexStyle: TextStyle(
+                                        color: Colors.grey[400],
+                                        fontSize: 14,
+                                      ),
+                                      subtitleStyle: TextStyle(
+                                        color: Colors.grey[400],
+                                        fontSize: 14,
+                                      ),
+                                      durationStyle: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                      trailing: IconButton(
+                                        icon: const Icon(
+                                          Icons.more_vert,
+                                          color: Colors.white54,
+                                          size: 20,
+                                        ),
+                                        onPressed: () => _showTrackOptions(context, song),
+                                      ),
+                                      onTap: () => _playSong(song, favourites, index),
+                                    ),
+                                  ),
                                 );
                               },
                             )
@@ -433,65 +453,29 @@ class _FavouritesPageState extends State<FavouritesPage> {
     required AudioService audioService,
     required List<dynamic> playlist,
   }) {
-    final highlightColor = const Color(0xFFDA5597);
-
-    return Obx(() {
-      final isCurrentTrack = audioService.isCurrentTrack(song);
-
-      return ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-        leading: CurrentTrackHighlight(
-          track: song,
-          child: CachedImage(
-            url: song['cover_url'] ?? '',
-            width: 56,
-            height: 56,
-          ),
-        ),
-        title: RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: '${index + 1}. ',
-                style: TextStyle(
-                  color: isCurrentTrack ? highlightColor : Colors.grey[400],
-                  fontSize: 14,
-                ),
-              ),
-              TextSpan(
-                text: song['name'] ?? '',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ).withHighlight(isCurrentTrack),
-              ),
-            ],
-          ),
-        ),
-        subtitle: Row(
-          children: [
-            Expanded(
-              child: Text(
-                song['artist'] ?? '',
-                style: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 14,
-                ).withSubtleHighlight(isCurrentTrack),
-              ),
-            ),
-            Text(
-              _formatDuration(song['duration']),
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        onTap: () => _playSong(song, playlist, index),
-      );
-    });
+    return TrackListItem(
+      track: song,
+      index: index,
+      playlist: List<Map<String, dynamic>>.from(playlist),
+      titleStyle: const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+      ),
+      indexStyle: TextStyle(
+        color: Colors.grey[400],
+        fontSize: 14,
+      ),
+      subtitleStyle: TextStyle(
+        color: Colors.grey[400],
+        fontSize: 14,
+      ),
+      durationStyle: TextStyle(
+        color: Colors.grey[600],
+        fontSize: 12,
+      ),
+      onTap: () => _playSong(song, playlist, index),
+    );
   }
 
   Future<List<dynamic>> _loadFavourites() async {
@@ -502,6 +486,19 @@ class _FavouritesPageState extends State<FavouritesPage> {
       ErrorReporter.showError(e);
       return [];
     }
+  }
+
+  void _showTrackOptions(BuildContext context, Map<String, dynamic> track) {
+    SongOptionsSheet.show(
+      context: context,
+      track: track,
+      onAddToPlaylist: () {
+        AddToPlaylistPage.show(
+          context: context,
+          track: track,
+        );
+      },
+    );
   }
 }
 

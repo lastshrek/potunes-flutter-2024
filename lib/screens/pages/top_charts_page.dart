@@ -4,9 +4,9 @@ import 'package:shimmer/shimmer.dart';
 import '../../controllers/top_charts_controller.dart';
 import '../../widgets/common/app_header.dart';
 import '../../widgets/common/app_drawer.dart';
-import '../../services/audio_service.dart';
-import '../../widgets/common/current_track_highlight.dart';
-import '../../widgets/common/cached_image.dart';
+import '../../widgets/common/track_list_item.dart';
+import '../../widgets/song_options_sheet.dart';
+import '../../screens/pages/add_to_playlist_page.dart';
 
 class TopChartsPage extends GetView<TopChartsController> {
   const TopChartsPage({super.key});
@@ -58,9 +58,9 @@ class TopChartsPage extends GetView<TopChartsController> {
               // 显示空状态
               if (controller.charts.isEmpty) {
                 if (!controller.isNetworkReady) {
-                  return SliverFillRemaining(
+                  return const SliverFillRemaining(
                     hasScrollBody: false,
-                    child: const Center(
+                    child: Center(
                       child: Text(
                         '等待网络连接...',
                         style: TextStyle(color: Colors.white),
@@ -68,9 +68,9 @@ class TopChartsPage extends GetView<TopChartsController> {
                     ),
                   );
                 }
-                return SliverFillRemaining(
+                return const SliverFillRemaining(
                   hasScrollBody: false,
-                  child: const Center(
+                  child: Center(
                     child: Text(
                       '暂无数据',
                       style: TextStyle(color: Colors.white),
@@ -84,7 +84,42 @@ class TopChartsPage extends GetView<TopChartsController> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final chart = controller.charts[index];
-                    return _buildTrackItem(chart, index);
+                    return RepaintBoundary(
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: TrackListItem(
+                          track: chart,
+                          index: index,
+                          playlist: controller.charts,
+                          titleStyle: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          indexStyle: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 12,
+                          ),
+                          subtitleStyle: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 12,
+                          ),
+                          durationStyle: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 12,
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(
+                              Icons.more_vert,
+                              color: Colors.white54,
+                              size: 20,
+                            ),
+                            onPressed: () => _showTrackOptions(context, chart),
+                          ),
+                          onTap: () => controller.openChart(chart),
+                        ),
+                      ),
+                    );
                   },
                   childCount: controller.charts.length,
                 ),
@@ -94,58 +129,6 @@ class TopChartsPage extends GetView<TopChartsController> {
         ),
       ),
     );
-  }
-
-  Widget _buildTrackItem(Map<String, dynamic> chart, int index) {
-    final audioService = Get.find<AudioService>();
-    final highlightColor = const Color(0xFFDA5597);
-    final isTop3 = index < 3;
-
-    return Obx(() {
-      final isCurrentTrack = audioService.isCurrentTrack(chart);
-
-      return ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-        onTap: () => controller.openChart(chart),
-        leading: CurrentTrackHighlight(
-          track: chart,
-          child: CachedImage(
-            url: chart['cover_url'] ?? '',
-            width: 56,
-            height: 56,
-          ),
-        ),
-        title: RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: '${index + 1}. ',
-                style: TextStyle(
-                  color: isCurrentTrack ? highlightColor : (isTop3 ? Colors.white : Colors.grey[400]),
-                  fontSize: isTop3 ? 18 : 14,
-                  fontWeight: isTop3 ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-              TextSpan(
-                text: chart['name'] ?? '',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isTop3 ? 16 : 15,
-                  fontWeight: isTop3 ? FontWeight.w600 : FontWeight.w500,
-                ).withHighlight(isCurrentTrack),
-              ),
-            ],
-          ),
-        ),
-        subtitle: Text(
-          chart['artist'] ?? '',
-          style: TextStyle(
-            color: Colors.grey[400],
-            fontSize: isTop3 ? 14 : 13,
-          ).withSubtleHighlight(isCurrentTrack),
-        ),
-      );
-    });
   }
 
   Widget _buildSkeletonList() {
@@ -201,6 +184,19 @@ class TopChartsPage extends GetView<TopChartsController> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showTrackOptions(BuildContext context, dynamic track) {
+    SongOptionsSheet.show(
+      context: context,
+      track: track as Map<String, dynamic>,
+      onAddToPlaylist: () {
+        AddToPlaylistPage.show(
+          context: context,
+          track: track as Map<String, dynamic>,
+        );
+      },
     );
   }
 }

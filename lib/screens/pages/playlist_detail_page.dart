@@ -7,6 +7,7 @@ import '../../widgets/mini_player.dart';
 import '../../widgets/common/current_track_highlight.dart';
 import '../../widgets/common/cached_image.dart';
 import '../../services/network_service.dart';
+import '../../widgets/common/track_list_item.dart';
 
 class PlaylistDetailPage extends StatefulWidget {
   final int playlistId;
@@ -234,60 +235,11 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
     );
   }
 
-  Widget _buildTrackItem(int index, dynamic song) {
-    final audioService = Get.find<AudioService>();
-    final highlightColor = const Color(0xFFDA5597);
-
-    return Obx(() {
-      final isCurrentTrack = audioService.isCurrentTrack(song);
-
-      return ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-        leading: CurrentTrackHighlight(
-          track: song,
-          child: CachedImage(
-            url: song['cover_url'] ?? '',
-            width: 56,
-            height: 56,
-          ),
-        ),
-        title: RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: '${index + 1}. ',
-                style: TextStyle(
-                  color: isCurrentTrack ? highlightColor : Colors.grey[400],
-                  fontSize: 14,
-                ),
-              ),
-              TextSpan(
-                text: song['name'] ?? '',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ).withHighlight(isCurrentTrack),
-              ),
-            ],
-          ),
-        ),
-        subtitle: Text(
-          song['artist'] ?? '',
-          style: TextStyle(
-            color: Colors.grey[400],
-            fontSize: 14,
-          ).withSubtleHighlight(isCurrentTrack),
-        ),
-        trailing: Text(
-          _formatDuration(song['duration']),
-          style: const TextStyle(
-            color: Colors.grey,
-            fontSize: 14,
-          ),
-        ),
-        onTap: () => _playSong(song, index),
-      );
-    });
+  Widget _buildTrackItem(int index, Map<String, dynamic> song) {
+    return TrackListItem(
+      track: song,
+      index: index,
+      playlist: List<Map<String, dynamic>>.from(_tracks),
+    );
   }
 }

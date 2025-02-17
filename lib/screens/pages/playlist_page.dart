@@ -16,6 +16,7 @@ import '../../widgets/mini_player.dart';
 import '../../widgets/common/current_track_highlight.dart';
 import '../../widgets/song_options_sheet.dart';
 import '../../screens/pages/add_to_playlist_page.dart';
+import '../../widgets/common/track_list_item.dart';
 
 extension ColorExtension on Color {
   Color darken([double amount = 0.1]) {
@@ -915,102 +916,48 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
             }
             return null;
           }
-          return _buildTrackItem(index, _displayedTracks[index]);
+
+          return RepaintBoundary(
+            child: Material(
+              type: MaterialType.transparency,
+              child: TrackListItem(
+                track: _displayedTracks[index],
+                index: index,
+                playlist: List<Map<String, dynamic>>.from(_allTracks),
+                titleStyle: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                indexStyle: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                ),
+                subtitleStyle: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                ),
+                durationStyle: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                ),
+                trailing: IconButton(
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
+                  onPressed: () => _showTrackOptions(context, _displayedTracks[index]),
+                ),
+                onTap: () => AudioService.to.playTrack(_displayedTracks[index]),
+              ),
+            ),
+          );
         },
         childCount: _displayedTracks.length + (_hasMoreData ? 1 : 0),
         addAutomaticKeepAlives: false,
         addRepaintBoundaries: true,
       ),
-    );
-  }
-
-  Widget _buildTrackItem(int index, dynamic track) {
-    final audioService = Get.find<AudioService>();
-    final highlightColor = const Color(0xFFDA5597);
-
-    return Obx(() {
-      final isCurrentTrack = audioService.isCurrentTrack(track);
-
-      // 缩小字号
-      final baseTextStyle = const TextStyle(
-        color: Colors.white,
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-      );
-
-      final highlightedStyle = baseTextStyle.copyWith(
-        color: isCurrentTrack ? highlightColor : Colors.white,
-      );
-
-      return RepaintBoundary(
-        child: Material(
-          type: MaterialType.transparency,
-          child: ListTile(
-            key: ValueKey('track_${track['id']}'),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            tileColor: Colors.transparent,
-            selectedTileColor: Colors.transparent,
-            hoverColor: Colors.white.withOpacity(0.1),
-            splashColor: Colors.transparent,
-            leading: CurrentTrackHighlight(
-              track: track,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CachedImage(
-                  url: track['cover_url'] ?? '',
-                  width: 48,
-                  height: 48,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-            title: RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: '${index + 1}. ',
-                    style: TextStyle(
-                      color: isCurrentTrack ? highlightColor : Colors.grey[400],
-                      fontSize: 12,
-                    ),
-                  ),
-                  TextSpan(
-                    text: track['name'] ?? '',
-                    style: highlightedStyle,
-                  ),
-                ],
-              ),
-            ),
-            subtitle: Text(
-              track['artist'] ?? '',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 12,
-              ).withSubtleHighlight(isCurrentTrack),
-            ),
-            trailing: IconButton(
-              icon: const Icon(
-                Icons.more_vert,
-                color: Colors.white54,
-                size: 20,
-              ),
-              onPressed: () {
-                _showTrackOptions(context, track);
-              },
-            ),
-            onTap: () {
-              _playTrack(track, _displayedTracks, index);
-            },
-          ),
-        ),
-      );
-    });
-  }
-
-  void _playTrack(dynamic track, List<dynamic> tracks, int index) {
-    AudioService.to.playPlaylist(
-      List<Map<String, dynamic>>.from(_allTracks),
-      initialIndex: index,
     );
   }
 
