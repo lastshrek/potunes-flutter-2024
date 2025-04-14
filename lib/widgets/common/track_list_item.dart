@@ -127,10 +127,10 @@ class TrackListItem extends StatelessWidget {
                       fontSize: 14,
                     )),
               ),
-            if (trailing != null) ...[
-              const SizedBox(width: 8),
-              trailing!,
-            ],
+            // if (trailing != null) ...[
+            //   const SizedBox(width: 8),
+            //   trailing!,
+            // ],
           ],
         ),
         onTap: _handleTap,
