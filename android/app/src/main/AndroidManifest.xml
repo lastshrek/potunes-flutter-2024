@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
@@ -26,34 +28,17 @@
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data android:name="flutterEmbedding" android:value="2" />
 
-        <!-- 移除或注释掉这个 service -->
-        <!--
+        <!-- 添加 AudioService 服务 -->
         <service android:name="com.ryanheise.audioservice.AudioService" android:foregroundServiceType="mediaPlayback" android:exported="true">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
-        -->
 
-        <!-- 移除或注释掉这个 receiver -->
-        <!--
+        <!-- 媒体按钮接收器（由 audio_service 处理） -->
         <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" android:exported="true">
-            <intent-filter android:priority="1000">
+            <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
-                <action android:name="android.media.AUDIO_BECOMING_NOISY" />
-            </intent-filter>
-        </receiver>
-        -->
-
-        <!-- 只保留我们自己的 MediaButtonReceiver -->
-        <receiver android:name=".MediaButtonReceiver" android:exported="true">
-            <intent-filter android:priority="2000">
-                <action android:name="ACTION_PLAY"/>
-                <action android:name="ACTION_PAUSE"/>
-                <action android:name="ACTION_PREVIOUS"/>
-                <action android:name="ACTION_NEXT"/>
-                <action android:name="android.intent.action.MEDIA_BUTTON" />
-                <action android:name="android.media.AUDIO_BECOMING_NOISY" />
             </intent-filter>
         </receiver>
     </application>
