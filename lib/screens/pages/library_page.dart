@@ -42,12 +42,12 @@ class _LibraryPageState extends State<LibraryPage> {
         _isLoadingPlaylists = true;
       });
 
-      final playlists = await _networkService.getUserPlaylists();
+      // final playlists = await _networkService.getUserPlaylists();
 
       if (mounted) {
         setState(() {
           _playlists.clear();
-          _playlists.addAll(playlists);
+          // _playlists.addAll(playlists);
           _isLoadingPlaylists = false;
         });
       }

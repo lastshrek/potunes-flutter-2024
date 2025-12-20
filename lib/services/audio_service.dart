@@ -99,6 +99,9 @@ class AudioService extends GetxService {
   final _isFMMode = false.obs;
   bool get isFMMode => _isFMMode.value;
 
+  // 添加服务状态标志
+  bool _isForegroundServiceRunning = false;
+
   @override
   void onInit() {
     super.onInit();
@@ -217,6 +220,15 @@ class AudioService extends GetxService {
         final nextIndex = (safeIndex + 1) % _currentPlaylist.value!.length;
         _nextTrack.value = _currentPlaylist.value![nextIndex];
       }
+    });
+
+    // 监听播放状态，自动启动/停止前台服务
+    _audioPlayer.playingStream.listen((isPlaying) {
+      _isPlaying.value = isPlaying;
+      _updateNowPlaying();
+
+      // just_audio_background 会自动处理前台服务
+      // 不需要手动启动/停止
     });
   }
 
@@ -353,6 +365,8 @@ class AudioService extends GetxService {
       // 开始播放
       await _audioPlayer.play();
 
+      // just_audio_background 会自动处理前台服务
+
       // 保存状态
       await _saveLastState();
     } catch (e) {
@@ -367,55 +381,48 @@ class AudioService extends GetxService {
       // 声明 audioSource 变量
       late final AudioSource audioSource;
 
+      // 创建 MediaItem（iOS 和 Android 都需要，just_audio_background 要求）
+      final mediaItem = MediaItem(
+        id: '${track['id']}_${track['nId']}',
+        title: track['name']?.toString() ?? '',
+        artist: track['artist']?.toString() ?? '',
+        album: track['album']?.toString() ?? '',
+        duration: Duration(milliseconds: int.parse(track['duration'].toString())),
+        artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
+        playable: true,
+        displayTitle: track['name']?.toString() ?? '',
+        displaySubtitle: track['artist']?.toString() ?? '',
+        extras: {
+          'type': track['type'] ?? 'potunes',
+          'url': track['url'],
+          'isLive': false,
+          'hasLyrics': true,
+        },
+      );
+
       if (Platform.isIOS) {
         // iOS 使用 MediaItem
-        final mediaItem = MediaItem(
-          id: '${track['id']}_${track['nId']}',
-          title: track['name']?.toString() ?? '',
-          artist: track['artist']?.toString() ?? '',
-          album: track['album']?.toString() ?? '',
-          duration: Duration(milliseconds: int.parse(track['duration'].toString())),
-          artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
-          playable: true,
-          displayTitle: track['name']?.toString() ?? '',
-          displaySubtitle: track['artist']?.toString() ?? '',
-          extras: {
-            'type': track['type'] ?? 'potunes',
-            'url': track['url'],
-            'isLive': false,
-            'hasLyrics': true,
-          },
-        );
-
         audioSource = AudioSource.uri(
           Uri.parse(track['url']),
           tag: mediaItem,
         );
       } else {
-        // Android 使用普通 AudioSource
-        audioSource = AudioSource.uri(Uri.parse(track['url']));
+        // Android 也需要使用 MediaItem（just_audio_background 要求）
+        audioSource = AudioSource.uri(
+          Uri.parse(track['url']),
+          tag: mediaItem,
+        );
       }
 
       await _audioPlayer.setAudioSource(audioSource);
       if (autoPlay) {
         await _audioPlayer.play();
+
+        // just_audio_background 会自动处理前台服务
       }
 
       // 更新控制中心信息
       await _updateNowPlaying();
-
-      // 更新灵动岛（仅 iOS）
-      // if (Platform.isIOS) {
-      //   try {
-      //     await LiveActivitiesService.to.startMusicActivity(
-      //       title: track['name'] ?? '',
-      //       artist: track['artist'] ?? '',
-      //       coverUrl: track['cover_url'] ?? '',
-      //     );
-      //   } catch (e) {
-      //     ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
-      //   }
-      // }
 
       await _saveLastState();
     } catch (e) {
@@ -965,10 +972,10 @@ class AudioService extends GetxService {
       await _audioPlayer.stop();
       _isPlaying.value = false;
 
-      // // 停止灵动岛显示
-      // if (Platform.isIOS) {
-      //   await LiveActivitiesService.to.stopMusicActivity();
-      // }
+      // 在 Android 上停止前台服务
+      if (Platform.isAndroid) {
+        await _stopForegroundService();
+      }
     } catch (e) {
       ErrorReporter.showError('Error stopping playback: $e');
     }
@@ -1089,17 +1096,17 @@ class AudioService extends GetxService {
     try {
       var platform = MethodChannel(channelName);
       if (Platform.isAndroid) {
-        // Android 发送完整信息
+        // Android 发送完整信息（毫秒）
         await platform.invokeMethod('updateNowPlaying', {
           'title': _currentTrack.value!['name'] ?? '',
           'artist': _currentTrack.value!['artist'] ?? '',
-          'duration': _duration.value.inSeconds.toDouble(),
-          'currentTime': _position.value.inSeconds.toDouble(),
+          'duration': _duration.value.inMilliseconds.toDouble(),
+          'currentTime': _position.value.inMilliseconds.toDouble(),
           'isPlaying': _isPlaying.value,
           'coverUrl': _currentTrack.value!['cover_url'] ?? '',
         });
       } else {
-        // iOS 发送完整信息
+        // iOS 发送完整信息（秒）
         await platform.invokeMethod('updateNowPlaying', {
           'title': _currentTrack.value!['name'] ?? '',
           'artist': _currentTrack.value!['artist'] ?? '',
@@ -1124,5 +1131,76 @@ class AudioService extends GetxService {
 
   Future<void> seek(Duration position) async {
     await _audioPlayer.seek(position);
+  }
+
+  // 添加启动前台服务的方法
+  Future<void> _startForegroundService() async {
+    if (Platform.isAndroid && !_isForegroundServiceRunning) {
+      try {
+        const platform = MethodChannel('pink.poche.potunes/audio_control');
+        await platform.invokeMethod('startService');
+        _isForegroundServiceRunning = true;
+        // 启动后立即更新通知信息
+        await _updateNowPlaying();
+      } catch (e) {
+        // 优雅降级：记录错误但继续播放
+        ErrorReporter.showError('Failed to start foreground service: $e');
+      }
+    }
+  }
+
+  // 添加停止前台服务的方法
+  Future<void> _stopForegroundService() async {
+    if (Platform.isAndroid && _isForegroundServiceRunning) {
+      try {
+        const platform = MethodChannel('pink.poche.potunes/audio_control');
+        await platform.invokeMethod('stopService');
+        _isForegroundServiceRunning = false;
+      } catch (e) {
+        // 优雅降级：记录错误但继续
+        ErrorReporter.showError('Failed to stop foreground service: $e');
+      }
+    }
+  }
+
+  // 请求电池优化豁免
+  Future<bool> requestBatteryOptimization() async {
+    if (!Platform.isAndroid) return true;
+    
+    try {
+      const platform = MethodChannel('pink.poche.potunes/audio_control');
+      final result = await platform.invokeMethod<bool>('requestBatteryOptimization');
+      return result ?? false;
+    } catch (e) {
+      // 优雅降级：记录错误但继续
+      ErrorReporter.showError('Failed to request battery optimization: $e');
+      return false;
+    }
+  }
+
+  // 检查电池优化豁免状态
+  Future<bool> checkBatteryOptimization() async {
+    if (!Platform.isAndroid) return true;
+    
+    try {
+      const platform = MethodChannel('pink.poche.potunes/audio_control');
+      final result = await platform.invokeMethod<bool>('checkBatteryOptimization');
+      return result ?? false;
+    } catch (e) {
+      // 优雅降级：记录错误但返回 false
+      ErrorReporter.showError('Failed to check battery optimization: $e');
+      return false;
+    }
+  }
+
+  // 初始化时检查电池优化状态（可在应用启动时调用）
+  Future<void> initBatteryOptimization() async {
+    if (!Platform.isAndroid) return;
+    
+    final isIgnoring = await checkBatteryOptimization();
+    if (!isIgnoring) {
+      // 如果未豁免，请求豁免
+      await requestBatteryOptimization();
+    }
   }
 }

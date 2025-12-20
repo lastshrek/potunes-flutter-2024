@@ -50,30 +50,30 @@ class _AddToPlaylistPageState extends State<AddToPlaylistPage> {
   }
 
   Future<void> _loadPlaylists() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
+    // try {
+    //   setState(() {
+    //     _isLoading = true;
+    //   });
 
-      final playlists = await _networkService.getUserPlaylists();
+    //   final playlists = await _networkService.getUserPlaylists();
 
-      if (mounted) {
-        setState(() {
-          _playlists.clear();
-          _playlists.addAll(playlists);
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('获取歌单失败')),
-        );
-      }
-    }
+    //   if (mounted) {
+    //     setState(() {
+    //       _playlists.clear();
+    //       _playlists.addAll(playlists);
+    //       _isLoading = false;
+    //     });
+    //   }
+    // } catch (e) {
+    //   if (mounted) {
+    //     setState(() {
+    //       _isLoading = false;
+    //     });
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       const SnackBar(content: Text('获取歌单失败')),
+    //     );
+    //   }
+    // }
   }
 
   Future<void> _createPlaylist() async {
