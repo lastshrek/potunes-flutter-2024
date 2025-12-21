@@ -87,7 +87,13 @@ class ErrorReporter {
   }) {
     if (_isShowingSnackbar) {
       Future.delayed(const Duration(milliseconds: 300), () {
-        Get.closeAllSnackbars();
+        try {
+          if (Get.isSnackbarOpen) {
+            Get.closeAllSnackbars();
+          }
+        } catch (e) {
+          // 忽略 snackbar 未初始化的错误
+        }
         _showSnackbarInternal(
           title: title,
           message: message,

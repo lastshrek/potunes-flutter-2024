@@ -53,9 +53,9 @@ private let channelName = "im.coinchat.treehole/audio_control"
                               details: nil))
           }
           
-        // Note: controlCenterEvent handling has been removed.
-        // Media control events (play, pause, next, previous, seek) are now handled
-        // by just_audio_background plugin which manages the MediaSession directly.
+        case "setupRemoteControl":
+          // 不再需要手动设置远程控制，让 just_audio_background 完全管理
+          result(nil)
           
         default:
           result(FlutterMethodNotImplemented)
@@ -75,9 +75,6 @@ private let channelName = "im.coinchat.treehole/audio_control"
     } catch {
       print("Failed to set audio session category. Error: \(error)")
     }
-    
-    // 设置远程控制
-    setupRemoteControl()
     
     // 设置初始播放信息
     setupInitialNowPlaying()
@@ -105,6 +102,10 @@ private let channelName = "im.coinchat.treehole/audio_control"
     }
     
     GeneratedPluginRegistrant.register(with: self)
+    
+    // 设置远程控制命令
+    setupRemoteControl()
+    
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
   
@@ -119,14 +120,57 @@ private let channelName = "im.coinchat.treehole/audio_control"
   }
   
   private func setupRemoteControl() {
-    // Note: Remote control commands (play, pause, next, previous, seek) are now handled
-    // by just_audio_background plugin. We only keep this method for potential future
-    // customization needs. The plugin manages MediaSession and control center integration.
+    let commandCenter = MPRemoteCommandCenter.shared()
     
-    // Commands are enabled/disabled by just_audio_background based on playback state
-    // No custom handlers needed here as the plugin handles all media control events
-    print("Remote control setup delegated to just_audio_background plugin")
+    // 启用所有命令并添加处理器
+    // 这是 iOS 控制中心显示按钮的必要条件
+    
+    commandCenter.playCommand.isEnabled = true
+    commandCenter.playCommand.addTarget { [weak self] _ in
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "play"])
+      return .success
+    }
+    
+    commandCenter.pauseCommand.isEnabled = true
+    commandCenter.pauseCommand.addTarget { [weak self] _ in
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "pause"])
+      return .success
+    }
+    
+    commandCenter.togglePlayPauseCommand.isEnabled = true
+    commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "togglePlayPause"])
+      return .success
+    }
+    
+    commandCenter.nextTrackCommand.isEnabled = true
+    commandCenter.nextTrackCommand.addTarget { [weak self] _ in
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "next"])
+      return .success
+    }
+    
+    commandCenter.previousTrackCommand.isEnabled = true
+    commandCenter.previousTrackCommand.addTarget { [weak self] _ in
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "previous"])
+      return .success
+    }
+    
+    commandCenter.changePlaybackPositionCommand.isEnabled = true
+    commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
+      guard let positionEvent = event as? MPChangePlaybackPositionCommandEvent else {
+        return .commandFailed
+      }
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: [
+        "action": "seek",
+        "position": positionEvent.positionTime
+      ])
+      return .success
+    }
+    
+    print("Remote control commands configured")
   }
+  
+  private var remoteControlConfigured = false
   
   private func updateNowPlayingInfo(
     title: String,
@@ -138,12 +182,28 @@ private let channelName = "im.coinchat.treehole/audio_control"
   ) {
     print("Updating now playing info - Title: \(title), Artist: \(artist)")
     
+    // 只在第一次时配置远程控制命令
+    if !remoteControlConfigured {
+      configureRemoteCommands()
+      remoteControlConfigured = true
+    }
+    
     // 更新基本信息
     nowPlayingInfo[MPMediaItemPropertyTitle] = title
     nowPlayingInfo[MPMediaItemPropertyArtist] = artist
     nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
     nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
     nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+    
+    // 设置媒体类型为音频
+    nowPlayingInfo[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
+    
+    // 设置是否支持实时播放（非直播）
+    nowPlayingInfo[MPNowPlayingInfoPropertyIsLiveStream] = false
+    
+    // 设置播放队列信息，告诉系统有多首歌曲
+    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackQueueIndex] = 0
+    nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackQueueCount] = 2
     
     // 如果有封面URL，异步加载封面图
     if let coverUrlString = coverUrl, let url = URL(string: coverUrlString) {
@@ -167,6 +227,67 @@ private let channelName = "im.coinchat.treehole/audio_control"
     
     // 立即更新控制中心（不等待封面加载）
     MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-    print("Updated now playing info without artwork")
+    
+    let commandCenter = MPRemoteCommandCenter.shared()
+    print("Now playing updated - nextTrackCommand.isEnabled: \(commandCenter.nextTrackCommand.isEnabled)")
+  }
+  
+  private func configureRemoteCommands() {
+    let commandCenter = MPRemoteCommandCenter.shared()
+    
+    // 先移除所有现有的 target
+    commandCenter.playCommand.removeTarget(nil)
+    commandCenter.pauseCommand.removeTarget(nil)
+    commandCenter.togglePlayPauseCommand.removeTarget(nil)
+    commandCenter.nextTrackCommand.removeTarget(nil)
+    commandCenter.previousTrackCommand.removeTarget(nil)
+    commandCenter.changePlaybackPositionCommand.removeTarget(nil)
+    
+    // 启用并添加 target
+    commandCenter.playCommand.isEnabled = true
+    commandCenter.playCommand.addTarget { [weak self] _ in
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "play"])
+      return .success
+    }
+    
+    commandCenter.pauseCommand.isEnabled = true
+    commandCenter.pauseCommand.addTarget { [weak self] _ in
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "pause"])
+      return .success
+    }
+    
+    commandCenter.togglePlayPauseCommand.isEnabled = true
+    commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "togglePlayPause"])
+      return .success
+    }
+    
+    commandCenter.nextTrackCommand.isEnabled = true
+    commandCenter.nextTrackCommand.addTarget { [weak self] _ in
+      print("Next track command received")
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "next"])
+      return .success
+    }
+    
+    commandCenter.previousTrackCommand.isEnabled = true
+    commandCenter.previousTrackCommand.addTarget { [weak self] _ in
+      print("Previous track command received")
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "previous"])
+      return .success
+    }
+    
+    commandCenter.changePlaybackPositionCommand.isEnabled = true
+    commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
+      guard let positionEvent = event as? MPChangePlaybackPositionCommandEvent else {
+        return .commandFailed
+      }
+      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: [
+        "action": "seek",
+        "position": positionEvent.positionTime
+      ])
+      return .success
+    }
+    
+    print("Remote commands configured - nextTrackCommand.isEnabled: \(commandCenter.nextTrackCommand.isEnabled)")
   }
 }

@@ -60,6 +60,39 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // 获取 Logo 文字样式，带有 fallback
+  TextStyle _getLogoTextStyle() {
+    try {
+      return GoogleFonts.righteous(
+        color: Colors.white,
+        fontSize: 24,
+        letterSpacing: 1.2,
+        shadows: [
+          Shadow(
+            color: Colors.black.withOpacity(0.3),
+            offset: const Offset(2, 2),
+            blurRadius: 4,
+          ),
+        ],
+      );
+    } catch (e) {
+      // Fallback 样式
+      return TextStyle(
+        color: Colors.white,
+        fontSize: 24,
+        letterSpacing: 1.2,
+        fontWeight: FontWeight.bold,
+        shadows: [
+          Shadow(
+            color: Colors.black.withOpacity(0.3),
+            offset: const Offset(2, 2),
+            blurRadius: 4,
+          ),
+        ],
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -675,18 +708,7 @@ class _HomePageState extends State<HomePage> {
                       ).createShader(bounds),
                       child: Text(
                         'Just Listen',
-                        style: GoogleFonts.righteous(
-                          color: Colors.white,
-                          fontSize: 24,
-                          letterSpacing: 1.2,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withOpacity(0.3),
-                              offset: const Offset(2, 2),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
+                        style: _getLogoTextStyle(),
                       ),
                     ),
                     const Spacer(),

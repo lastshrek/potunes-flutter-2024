@@ -143,8 +143,15 @@ class AudioService extends GetxService {
             case 'pause':
               await _audioPlayer.pause();
               break;
+            case 'togglePlayPause':
+              if (_audioPlayer.playing) {
+                await _audioPlayer.pause();
+              } else {
+                await _audioPlayer.play();
+              }
+              break;
             case 'next':
-              // Requirements: 1.1, 2.4 - FM 模式下切歌获取新歌曲
+              // FM 模式下切歌获取新歌曲
               if (_isFMMode.value) {
                 await playFMTrack();
               } else if (_currentPlaylist.value != null) {
@@ -159,7 +166,12 @@ class AudioService extends GetxService {
               break;
             case 'seek':
               final position = args['position'] as double;
-              await _audioPlayer.seek(Duration(milliseconds: (position * 1000).round()));
+              // iOS 发送的是秒，需要转换
+              if (Platform.isIOS) {
+                await _audioPlayer.seek(Duration(seconds: position.round()));
+              } else {
+                await _audioPlayer.seek(Duration(milliseconds: (position * 1000).round()));
+              }
               break;
           }
 
@@ -285,18 +297,6 @@ class AudioService extends GetxService {
         playFMTrack().whenComplete(() {
           _isHandlingCompletion = false;
         });
-      }
-      
-      // FM 模式下，当检测到 just_audio_background 触发了 buffering（可能是 skipToNext）
-      // 并且当前位置接近开头，说明是重新播放同一首歌，需要拦截并获取新歌曲
-      if (state == ProcessingState.buffering && _isFMMode.value && !_isHandlingCompletion) {
-        // 检查是否是从头开始播放（just_audio_background 的 skipToNext 行为）
-        if (_position.value.inMilliseconds < 1000) {
-          _isHandlingCompletion = true;
-          playFMTrack().whenComplete(() {
-            _isHandlingCompletion = false;
-          });
-        }
       }
     });
 
@@ -1135,30 +1135,33 @@ class AudioService extends GetxService {
         tag: mediaItem,
       );
       
-      // 创建一个占位符 AudioSource（使用相同的歌曲），让 just_audio_background 显示下一首按钮
-      final placeholderMediaItem = MediaItem(
-        id: '${track['id']}_${track['nId']}_placeholder',
-        title: 'FM 电台',
-        artist: '下一首随机播放',
-        album: '',
-        duration: const Duration(seconds: 1),
-        artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
-        playable: false,
-      );
-      
-      final placeholderSource = AudioSource.uri(
-        Uri.parse(track['url']), // 使用相同的 URL，但不会真正播放
-        tag: placeholderMediaItem,
-      );
-      
-      // 使用 ConcatenatingAudioSource 来保持下一首按钮显示
-      final playlistSource = ConcatenatingAudioSource(
-        useLazyPreparation: true,
-        children: [mainAudioSource, placeholderSource],
-      );
+      if (Platform.isAndroid) {
+        // Android: 需要占位符来让 just_audio_background 显示下一首按钮
+        final placeholderMediaItem = MediaItem(
+          id: '${track['id']}_${track['nId']}_placeholder',
+          title: 'FM 电台',
+          artist: '下一首随机播放',
+          album: '',
+          duration: const Duration(seconds: 1),
+          artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
+          playable: false,
+        );
+        
+        final placeholderSource = AudioSource.uri(
+          Uri.parse(track['url']),
+          tag: placeholderMediaItem,
+        );
+        
+        final playlistSource = ConcatenatingAudioSource(
+          useLazyPreparation: true,
+          children: [mainAudioSource, placeholderSource],
+        );
 
-      // 设置并播放音频
-      await _audioPlayer.setAudioSource(playlistSource, initialIndex: 0);
+        await _audioPlayer.setAudioSource(playlistSource, initialIndex: 0);
+      } else {
+        // iOS: 控制中心由 AppDelegate 的 MPRemoteCommandCenter 管理，不需要占位符
+        await _audioPlayer.setAudioSource(mainAudioSource);
+      }
       
       // FM 模式下禁用循环，确保播放完成时触发 ProcessingState.completed
       await _audioPlayer.setLoopMode(LoopMode.off);
@@ -1185,6 +1188,9 @@ class AudioService extends GetxService {
     _isFMMode.value = false;
     _saveLastState();
   }
+
+  // 标记是否已经设置过远程控制（仅 iOS）
+  bool _hasSetupRemoteControl = false;
 
   // 更新控制中心信息
   Future<void> _updateNowPlaying() async {

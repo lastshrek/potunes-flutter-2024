@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'screens/home_screen.dart';
 
 import 'routes/app_pages.dart';
@@ -17,6 +18,9 @@ import '../config/api_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 配置 google_fonts 允许从网络获取字体（当本地没有时）
+  GoogleFonts.config.allowRuntimeFetching = true;
 
   // 初始化 just_audio_background（iOS 和 Android 都需要）
   await JustAudioBackground.init(
