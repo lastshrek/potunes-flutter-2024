@@ -9,10 +9,8 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
-import android.support.v4.media.session.MediaSessionCompat
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.media.app.NotificationCompat.MediaStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URL
@@ -25,6 +23,8 @@ import java.net.URL
  * - 显示当前曲目信息（标题、艺术家、封面）
  * - 提供播放控制按钮（播放/暂停、上一首、下一首）
  * - 点击通知打开应用
+ * 
+ * 注意：MediaSession 由 just_audio_background 插件管理，本控制器不再依赖 MediaSession
  */
 class NotificationController(private val context: Context) {
     
@@ -63,7 +63,6 @@ class NotificationController(private val context: Context) {
         title: String,
         artist: String,
         isPlaying: Boolean,
-        mediaSession: MediaSessionCompat?,
         albumArt: Bitmap? = null,
         duration: Long = 0,
         position: Long = 0
@@ -112,15 +111,11 @@ class NotificationController(private val context: Context) {
             builder.setLargeIcon(albumArt)
         }
         
-        // 设置 MediaStyle
-        if (mediaSession != null) {
-            val mediaStyle = MediaStyle()
-                .setMediaSession(mediaSession.sessionToken)
-                .setShowActionsInCompactView(0, 1, 2) // 在紧凑视图中显示所有三个按钮
-            
-            // 在 Android 5.0+ 上，MediaStyle 会自动支持进度条拖动
-            builder.setStyle(mediaStyle)
-        }
+        // 使用 BigTextStyle 替代 MediaStyle，因为 MediaSession 由 just_audio_background 管理
+        builder.setStyle(
+            NotificationCompat.BigTextStyle()
+                .bigText(artist)
+        )
         
         return builder.build()
     }

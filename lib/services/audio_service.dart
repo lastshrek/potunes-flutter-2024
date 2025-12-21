@@ -79,6 +79,12 @@ class AudioService extends GetxService {
   // 添加一个标志来防止重复触发
   bool _isHandlingCompletion = false;
 
+  // 添加防重复调用保护标志 - Requirements: 1.1
+  bool _isLoadingFMTrack = false;
+
+  // FM 模式下用于检测上一首按钮的位置跟踪
+  Duration _lastKnownPosition = Duration.zero;
+
   final _isLike = 0.obs;
   bool get isLike => _isLike.value == 1;
 
@@ -138,16 +144,16 @@ class AudioService extends GetxService {
               await _audioPlayer.pause();
               break;
             case 'next':
-              if (_currentPlaylist.value != null) {
-                if (_isFMMode.value) {
-                  await playFMTrack();
-                } else {
-                  await skipToNext();
-                }
+              // Requirements: 1.1, 2.4 - FM 模式下切歌获取新歌曲
+              if (_isFMMode.value) {
+                await playFMTrack();
+              } else if (_currentPlaylist.value != null) {
+                await skipToNext();
               }
               break;
             case 'previous':
-              if (_currentPlaylist.value != null && !_isFMMode.value) {
+              // FM 模式下不支持上一首，直接忽略
+              if (!_isFMMode.value && _currentPlaylist.value != null) {
                 await previous();
               }
               break;
@@ -196,21 +202,9 @@ class AudioService extends GetxService {
           _hasRecordedPlay = true;
         }
 
-        // 检查是否接近结束
-        if (duration - position <= const Duration(milliseconds: 500)) {
-          if (_isFMMode.value && !_isHandlingCompletion) {
-            _isHandlingCompletion = true;
-
-            // 先停止播放
-            _audioPlayer.stop().then((_) async {
-              try {
-                await playFMTrack();
-              } finally {
-                _isHandlingCompletion = false;
-              }
-            });
-          }
-        }
+        // 检查是否接近结束 - 移除这里的自动切歌逻辑
+        // FM 模式的自动切歌由 processingStateStream 监听器处理
+        // 避免重复触发 playFMTrack()
       }
     });
 
@@ -280,15 +274,65 @@ class AudioService extends GetxService {
       _updateNowPlaying();
     });
 
-    // 监听缓冲状态
+    // 监听缓冲状态和播放完成状态
     _audioPlayer.processingStateStream.listen((state) {
       _isBuffering.value = state == ProcessingState.loading || state == ProcessingState.buffering;
+      
+      // FM 模式下，当播放完成时自动获取下一首
+      // Requirements: 1.1, 2.4 - FM 模式后台切歌和行为覆盖
+      if (state == ProcessingState.completed && _isFMMode.value && !_isHandlingCompletion) {
+        _isHandlingCompletion = true;
+        playFMTrack().whenComplete(() {
+          _isHandlingCompletion = false;
+        });
+      }
+      
+      // FM 模式下，当检测到 just_audio_background 触发了 buffering（可能是 skipToNext）
+      // 并且当前位置接近开头，说明是重新播放同一首歌，需要拦截并获取新歌曲
+      if (state == ProcessingState.buffering && _isFMMode.value && !_isHandlingCompletion) {
+        // 检查是否是从头开始播放（just_audio_background 的 skipToNext 行为）
+        if (_position.value.inMilliseconds < 1000) {
+          _isHandlingCompletion = true;
+          playFMTrack().whenComplete(() {
+            _isHandlingCompletion = false;
+          });
+        }
+      }
     });
 
     // 监听播放进度
     _audioPlayer.positionStream.listen((position) {
+      // FM 模式下检测上一首按钮行为（位置突然跳回开头）
+      // 当位置从 > 3秒 突然跳到 < 1秒，且不是因为歌曲播放完成，说明是点击了上一首
+      if (_isFMMode.value && 
+          _lastKnownPosition.inSeconds > 3 && 
+          position.inMilliseconds < 1000 &&
+          !_isHandlingCompletion &&
+          !_isLoadingFMTrack) {
+        // 恢复到之前的位置，阻止上一首行为
+        _audioPlayer.seek(_lastKnownPosition);
+        return;
+      }
+      
+      _lastKnownPosition = position;
       _position.value = position;
       _updateNowPlaying();
+      
+      // FM 模式下，在歌曲快结束时提前触发切歌，避免播放占位符
+      if (_isFMMode.value && 
+          !_isHandlingCompletion && 
+          !_isLoadingFMTrack &&
+          _duration.value.inMilliseconds > 0) {
+        final remaining = _duration.value.inMilliseconds - position.inMilliseconds;
+        // 当剩余时间小于 500ms 时提前切歌
+        if (remaining > 0 && remaining < 500) {
+          _isHandlingCompletion = true;
+          _audioPlayer.pause(); // 先暂停，避免播放占位符
+          playFMTrack().whenComplete(() {
+            _isHandlingCompletion = false;
+          });
+        }
+      }
     });
 
     // 监听音频时长
@@ -1041,11 +1085,22 @@ class AudioService extends GetxService {
   }
 
   // 修改 playFMTrack 方法，使用公开的 playTrack 方法
+  // Requirements: 1.1, 1.4 - FM 模式切歌和错误处理
   Future<void> playFMTrack() async {
+    // Requirements: 1.1 - 防重复调用保护
+    if (_isLoadingFMTrack) {
+      return;
+    }
+    
+    _isLoadingFMTrack = true;
+    // 重置位置跟踪，避免误判为上一首按钮
+    _lastKnownPosition = Duration.zero;
+    
     try {
       _isFMMode.value = true;
-      _audioPlayer.pause();
-      final track = await NetworkService.instance.getRadioTrack(); // 添加调试日志
+      await _audioPlayer.pause();
+      final track = await NetworkService.instance.getRadioTrack();
+      
       // 清除当前播放列表并设置当前歌曲
       _currentPlaylist.value = [track];
       _currentIndex.value = 0;
@@ -1074,33 +1129,54 @@ class AudioService extends GetxService {
         },
       );
 
-      // 创建 AudioSource
-      final audioSource = AudioSource.uri(
+      // 创建主 AudioSource
+      final mainAudioSource = AudioSource.uri(
         Uri.parse(track['url']),
         tag: mediaItem,
       );
+      
+      // 创建一个占位符 AudioSource（使用相同的歌曲），让 just_audio_background 显示下一首按钮
+      final placeholderMediaItem = MediaItem(
+        id: '${track['id']}_${track['nId']}_placeholder',
+        title: 'FM 电台',
+        artist: '下一首随机播放',
+        album: '',
+        duration: const Duration(seconds: 1),
+        artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
+        playable: false,
+      );
+      
+      final placeholderSource = AudioSource.uri(
+        Uri.parse(track['url']), // 使用相同的 URL，但不会真正播放
+        tag: placeholderMediaItem,
+      );
+      
+      // 使用 ConcatenatingAudioSource 来保持下一首按钮显示
+      final playlistSource = ConcatenatingAudioSource(
+        useLazyPreparation: true,
+        children: [mainAudioSource, placeholderSource],
+      );
 
       // 设置并播放音频
-      await _audioPlayer.setAudioSource(audioSource);
-      await _audioPlayer.play();
+      await _audioPlayer.setAudioSource(playlistSource, initialIndex: 0);
+      
+      // FM 模式下禁用循环，确保播放完成时触发 ProcessingState.completed
+      await _audioPlayer.setLoopMode(LoopMode.off);
+      
+      // 重置标志后再开始播放，因为 play() 可能不会立即返回
+      _isLoadingFMTrack = false;
+      
+      // 使用 unawaited 来避免阻塞
+      _audioPlayer.play();
 
-      // if (Platform.isIOS) {
-      //   // 更新灵动岛
-      //   try {
-      //     await LiveActivitiesService.to.startMusicActivity(
-      //       title: track['name'] ?? '',
-      //       artist: track['artist'] ?? '',
-      //       coverUrl: track['cover_url'] ?? '',
-      //     );
-      //   } catch (e) {
-      //     ErrorReporter.showError('LiveActivitiesService error (non-critical): $e');
-      //   }
-      // }
       // 保存状态
       await _saveLastState();
     } catch (e) {
-      ErrorReporter.showError('Error playing FM track: $e');
-      rethrow;
+      // Requirements: 1.4 - 网络失败时不 rethrow，保持当前播放状态
+      // 显示用户友好的错误提示
+      ErrorReporter.showNetworkError(message: '无法获取新歌曲，请检查网络连接');
+      // 不 rethrow，让当前歌曲继续播放
+      _isLoadingFMTrack = false;
     }
   }
 

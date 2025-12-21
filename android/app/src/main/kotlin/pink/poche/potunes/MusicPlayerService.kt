@@ -8,13 +8,8 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
-import android.os.Bundle
 import android.os.IBinder
-import android.support.v4.media.MediaMetadataCompat
-import android.support.v4.media.session.MediaSessionCompat
-import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
-import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,11 +20,12 @@ import kotlinx.coroutines.cancel
  * 增强版音乐播放服务，提供稳定的后台播放支持。
  * 
  * 特性：
- * - MediaSession 集成：支持系统媒体控制（耳机按钮、锁屏控制）
  * - WakeLock 管理：防止 CPU 休眠
  * - 音频焦点管理：与其他音频应用协调
  * - 持久通知：显示播放控制和曲目信息
  * - 服务重启：START_STICKY 确保被杀死后自动重启
+ * 
+ * 注意：MediaSession 由 just_audio_background 插件管理，本服务不再创建 MediaSession
  */
 class MusicPlayerService : Service() {
     
@@ -54,7 +50,6 @@ class MusicPlayerService : Service() {
     }
     
     // 核心组件
-    private var mediaSession: MediaSessionCompat? = null
     private lateinit var wakeLockManager: WakeLockManager
     private lateinit var notificationController: NotificationController
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -72,9 +67,6 @@ class MusicPlayerService : Service() {
     private var isPlaying: Boolean = false
     private var currentAlbumArt: Bitmap? = null
     
-    // Flutter MethodChannel
-    private var methodChannel: MethodChannel? = null
-    
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Service onCreate")
@@ -86,9 +78,6 @@ class MusicPlayerService : Service() {
         
         // 创建通知频道
         notificationController.createNotificationChannel()
-        
-        // 创建 MediaSession
-        createMediaSession()
         
         // 启动前台服务
         startForegroundService()
@@ -120,7 +109,6 @@ class MusicPlayerService : Service() {
         // 释放资源
         abandonAudioFocus()
         wakeLockManager.cleanup()
-        mediaSession?.release()
         serviceScope.cancel()
         
         super.onDestroy()
@@ -128,63 +116,6 @@ class MusicPlayerService : Service() {
     
     override fun onBind(intent: Intent?): IBinder? {
         return null
-    }
-
-    
-    /**
-     * 创建 MediaSession
-     */
-    private fun createMediaSession() {
-        mediaSession = MediaSessionCompat(this, "PotunesToHole").apply {
-            // 设置支持的操作
-            setFlags(
-                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
-            )
-            
-            // 设置回调处理系统媒体控制
-            setCallback(object : MediaSessionCompat.Callback() {
-                override fun onPlay() {
-                    Log.d(TAG, "MediaSession onPlay")
-                    handlePlay()
-                }
-                
-                override fun onPause() {
-                    Log.d(TAG, "MediaSession onPause")
-                    handlePause()
-                }
-                
-                override fun onSkipToNext() {
-                    Log.d(TAG, "MediaSession onSkipToNext")
-                    handleNext()
-                }
-                
-                override fun onSkipToPrevious() {
-                    Log.d(TAG, "MediaSession onSkipToPrevious")
-                    handlePrevious()
-                }
-                
-                override fun onStop() {
-                    Log.d(TAG, "MediaSession onStop")
-                    handleStop()
-                }
-                
-                override fun onSeekTo(pos: Long) {
-                    Log.d(TAG, "MediaSession onSeekTo: $pos")
-                    sendToFlutter("seek", mapOf("position" to pos / 1000.0))
-                }
-                
-                override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
-                    Log.d(TAG, "MediaSession onPlayFromMediaId: $mediaId")
-                    handlePlay()
-                }
-            })
-            
-            // 激活 MediaSession
-            isActive = true
-        }
-        
-        Log.d(TAG, "MediaSession created and activated")
     }
     
     /**
@@ -195,7 +126,6 @@ class MusicPlayerService : Service() {
             title = currentTitle.ifEmpty { "破破音乐" },
             artist = currentArtist.ifEmpty { "准备播放" },
             isPlaying = isPlaying,
-            mediaSession = mediaSession,
             albumArt = currentAlbumArt,
             duration = currentDuration,
             position = currentPosition
@@ -212,54 +142,11 @@ class MusicPlayerService : Service() {
             title = currentTitle.ifEmpty { "破破音乐" },
             artist = currentArtist.ifEmpty { "准备播放" },
             isPlaying = isPlaying,
-            mediaSession = mediaSession,
             albumArt = currentAlbumArt,
             duration = currentDuration,
             position = currentPosition
         )
         notificationController.updateNotification(notification)
-    }
-    
-    /**
-     * 更新 MediaSession 元数据
-     */
-    private fun updateMediaSessionMetadata() {
-        val metadataBuilder = MediaMetadataCompat.Builder()
-            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
-            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
-            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDuration)
-        
-        if (currentAlbumArt != null) {
-            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentAlbumArt)
-        }
-        
-        mediaSession?.setMetadata(metadataBuilder.build())
-    }
-    
-    /**
-     * 更新 MediaSession 播放状态
-     */
-    private fun updateMediaSessionPlaybackState() {
-        val state = if (isPlaying) {
-            PlaybackStateCompat.STATE_PLAYING
-        } else {
-            PlaybackStateCompat.STATE_PAUSED
-        }
-        
-        val playbackState = PlaybackStateCompat.Builder()
-            .setActions(
-                PlaybackStateCompat.ACTION_PLAY or
-                PlaybackStateCompat.ACTION_PAUSE or
-                PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                PlaybackStateCompat.ACTION_SEEK_TO or
-                PlaybackStateCompat.ACTION_STOP
-            )
-            .setState(state, currentPosition, 1.0f)
-            .build()
-        
-        mediaSession?.setPlaybackState(playbackState)
     }
     
     /**
@@ -340,10 +227,8 @@ class MusicPlayerService : Service() {
         if (requestAudioFocus()) {
             isPlaying = true
             wakeLockManager.acquire()
-            updateMediaSessionPlaybackState()
             updateNotification()
-            // 直接通知 Flutter，但不依赖于此
-            sendToFlutter("play", null)
+            Log.d(TAG, "handlePlay: playback started")
         }
     }
     
@@ -352,24 +237,29 @@ class MusicPlayerService : Service() {
      */
     private fun handlePause() {
         isPlaying = false
-        updateMediaSessionPlaybackState()
         updateNotification()
-        sendToFlutter("pause", null)
+        Log.d(TAG, "handlePause: playback paused")
         // 暂停时不释放 WakeLock，保持服务活跃
     }
     
     /**
      * 处理下一首
+     * 注意：实际的切歌逻辑由 just_audio_background 处理，
+     * 此方法仅用于日志记录和可能的未来扩展
      */
     private fun handleNext() {
-        sendToFlutter("next", null)
+        Log.d(TAG, "handleNext: delegated to just_audio_background")
+        // 不再调用 sendToFlutter，由 just_audio_background 处理
     }
     
     /**
      * 处理上一首
+     * 注意：实际的切歌逻辑由 just_audio_background 处理，
+     * 此方法仅用于日志记录和可能的未来扩展
      */
     private fun handlePrevious() {
-        sendToFlutter("previous", null)
+        Log.d(TAG, "handlePrevious: delegated to just_audio_background")
+        // 不再调用 sendToFlutter，由 just_audio_background 处理
     }
     
     /**
@@ -379,7 +269,6 @@ class MusicPlayerService : Service() {
         isPlaying = false
         abandonAudioFocus()
         wakeLockManager.release()
-        mediaSession?.isActive = false
         stopForeground(true)
         stopSelf()
     }
@@ -403,15 +292,12 @@ class MusicPlayerService : Service() {
                 val newAlbumArt = notificationController.loadAlbumArt(currentCoverUrl)
                 if (newAlbumArt != null) {
                     currentAlbumArt = newAlbumArt
-                    updateMediaSessionMetadata()
                     updateNotification()
                 }
             }
         }
         
-        // 更新 MediaSession 和通知
-        updateMediaSessionMetadata()
-        updateMediaSessionPlaybackState()
+        // 更新通知
         updateNotification()
         
         // 如果正在播放，确保持有 WakeLock
@@ -463,8 +349,6 @@ class MusicPlayerService : Service() {
         currentPosition = position
         isPlaying = playing
         
-        updateMediaSessionMetadata()
-        updateMediaSessionPlaybackState()
         updateNotification()
         
         if (playing) {

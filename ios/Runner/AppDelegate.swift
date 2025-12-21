@@ -53,9 +53,9 @@ private let channelName = "im.coinchat.treehole/audio_control"
                               details: nil))
           }
           
-        case "controlCenterEvent":
-          // 处理控制中心事件
-          result(nil)
+        // Note: controlCenterEvent handling has been removed.
+        // Media control events (play, pause, next, previous, seek) are now handled
+        // by just_audio_background plugin which manages the MediaSession directly.
           
         default:
           result(FlutterMethodNotImplemented)
@@ -119,69 +119,13 @@ private let channelName = "im.coinchat.treehole/audio_control"
   }
   
   private func setupRemoteControl() {
-    let commandCenter = MPRemoteCommandCenter.shared()
+    // Note: Remote control commands (play, pause, next, previous, seek) are now handled
+    // by just_audio_background plugin. We only keep this method for potential future
+    // customization needs. The plugin manages MediaSession and control center integration.
     
-    // 启用所有命令
-    commandCenter.playCommand.isEnabled = true
-    commandCenter.pauseCommand.isEnabled = true
-    commandCenter.nextTrackCommand.isEnabled = true
-    commandCenter.previousTrackCommand.isEnabled = true
-    commandCenter.changePlaybackPositionCommand.isEnabled = true
-    
-    // 播放命令
-    commandCenter.playCommand.addTarget { [weak self] event in
-      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "play"]) { result in
-        if let error = result as? FlutterError {
-          print("Error handling play command: \(error.message ?? "unknown error")")
-        }
-      }
-      return .success
-    }
-    
-    // 暂停命令
-    commandCenter.pauseCommand.addTarget { [weak self] event in
-      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "pause"]) { result in
-        if let error = result as? FlutterError {
-          print("Error handling pause command: \(error.message ?? "unknown error")")
-        }
-      }
-      return .success
-    }
-    
-    // 下一首命令
-    commandCenter.nextTrackCommand.addTarget { [weak self] event in
-      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "next"]) { result in
-        if let error = result as? FlutterError {
-          print("Error handling next command: \(error.message ?? "unknown error")")
-        }
-      }
-      return .success
-    }
-    
-    // 上一首命令
-    commandCenter.previousTrackCommand.addTarget { [weak self] event in
-      self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: ["action": "previous"]) { result in
-        if let error = result as? FlutterError {
-          print("Error handling previous command: \(error.message ?? "unknown error")")
-        }
-      }
-      return .success
-    }
-    
-    // 进度控制
-    commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
-      if let event = event as? MPChangePlaybackPositionCommandEvent {
-        self?.methodChannel?.invokeMethod("controlCenterEvent", arguments: [
-          "action": "seek",
-          "position": event.positionTime
-        ]) { result in
-          if let error = result as? FlutterError {
-            print("Error handling seek command: \(error.message ?? "unknown error")")
-          }
-        }
-      }
-      return .success
-    }
+    // Commands are enabled/disabled by just_audio_background based on playback state
+    // No custom handlers needed here as the plugin handles all media control events
+    print("Remote control setup delegated to just_audio_background plugin")
   }
   
   private func updateNowPlayingInfo(
