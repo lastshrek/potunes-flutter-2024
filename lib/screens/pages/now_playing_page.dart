@@ -19,7 +19,7 @@ class NowPlayingPage extends StatefulWidget {
   State<NowPlayingPage> createState() => _NowPlayingPageState();
 }
 
-class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProviderStateMixin {
+class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
   // 添加颜色状态管理
   final _dominantColor = Rx<Color>(Colors.black);
   final _secondaryColor = Rx<Color>(Colors.black.withOpacity(0.7));
@@ -37,10 +37,15 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
   // 添加动画控制器
   late AnimationController _animationController;
   late Animation<double> _bgOpacityAnimation;
+  
+  // 用于强制刷新的计数器
+  final _refreshCounter = 0.obs;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    
     _pageController = PageController(
       initialPage: AudioService.to.currentPageIndex,
     );
@@ -109,9 +114,39 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
       }
     });
   }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // 应用恢复到前台时，强制刷新颜色
+      _extractColors();
+    }
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 订阅路由变化
+    final route = ModalRoute.of(context);
+    if (route != null) {
+      Get.find<RouteObserver<Route<dynamic>>>().subscribe(this, route);
+    }
+  }
+  
+  @override
+  void didPopNext() {
+    // 当从其他页面返回到此页面时调用
+    super.didPopNext();
+    // 强制刷新
+    _refreshCounter.value++;
+    _extractColors();
+  }
 
   @override
   void dispose() {
+    Get.find<RouteObserver<Route<dynamic>>>().unsubscribe(this);
+    WidgetsBinding.instance.removeObserver(this);
     if (_pageController.hasClients) {
       AudioService.to.currentPageIndex = _pageController.page?.round() ?? 0;
     }
@@ -208,26 +243,30 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
-    return GetX<AudioService>(
-      builder: (controller) {
-        final track = controller.currentTrack;
-        final isFMMode = controller.isFMMode;
+    return Obx(() {
+      // 监听刷新计数器，强制重建
+      final _ = _refreshCounter.value;
+      
+      return GetX<AudioService>(
+        builder: (controller) {
+          final track = controller.currentTrack;
+          final isFMMode = controller.isFMMode;
 
-        if (track == null) return const SizedBox.shrink();
+          if (track == null) return const SizedBox.shrink();
 
-        if (track['cover_url'] != _lastTrackUrl) {
-          _extractColors();
-        }
+          if (track['cover_url'] != _lastTrackUrl) {
+            _extractColors();
+          }
 
-        return Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(kToolbarHeight),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+          return Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: PreferredSize(
+              preferredSize: const Size.fromHeight(kToolbarHeight),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                   colors: [
                     Colors.black.withOpacity(0.7),
                     Colors.black.withOpacity(0.0),
@@ -298,6 +337,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
         );
       },
     );
+    });
   }
 
   Widget _buildPageIndicator(int pageIndex) {
@@ -356,6 +396,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: CachedNetworkImage(
+                        key: ValueKey(track['cover_url'] ?? ''),
                         imageUrl: track['cover_url'] ?? '',
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
@@ -544,6 +585,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: CachedNetworkImage(
+                      key: ValueKey(track['cover_url'] ?? ''),
                       imageUrl: track['cover_url'] ?? '',
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
@@ -937,14 +979,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
 
   void _showPlaylistSheet() {
     final playlistScrollController = ScrollController();
-
-    // 预先获取当前歌曲位置
-    final currentIndex = AudioService.to.currentIndex;
-    final itemHeight = 72.0;
-    final targetOffset = currentIndex * itemHeight;
-
-    // 计算初始显示位置（当前歌曲前面几首）
-    final initialOffset = math.max(0.0, targetOffset - itemHeight * 2);
+    bool hasScrolledToInitial = false;
 
     showModalBottomSheet(
       context: context,
@@ -959,28 +994,6 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
           expand: false,
           snap: true,
           builder: (context, sheetScrollController) {
-            // 先跳转到初始位置
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (playlistScrollController.hasClients) {
-                // 先跳到大致位置
-                playlistScrollController.jumpTo(initialOffset);
-
-                // 然后平滑滚动到精确位置
-                Future.delayed(const Duration(milliseconds: 100), () {
-                  if (playlistScrollController.hasClients && mounted) {
-                    playlistScrollController.animateTo(
-                      targetOffset.clamp(
-                        0.0,
-                        playlistScrollController.position.maxScrollExtent,
-                      ),
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOutCubic,
-                    );
-                  }
-                });
-              }
-            });
-
             return Container(
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.9),
@@ -1011,116 +1024,141 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: GetX<AudioService>(
-                      builder: (controller) {
-                        final playlist = controller.displayPlaylist;
-                        if (playlist == null || playlist.isEmpty) {
-                          return const SizedBox.shrink();
-                        }
+                    child: Obx(() {
+                      final controller = AudioService.to;
+                      final playlist = controller.rxCurrentPlaylist.value;
+                      final currentIdx = controller.rxCurrentIndex.value;
+                      
+                      if (playlist == null || playlist.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
 
-                        // 使用 ListView.builder 的优化版本
-                        return ListView.custom(
-                          controller: playlistScrollController,
-                          padding: const EdgeInsets.only(
-                            top: 8.0,
-                            bottom: 72.0,
-                          ),
-                          // 使用自定义子项代理以优化性能
-                          childrenDelegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final track = playlist[index];
-                              final isPlaying = index == controller.currentIndex;
+                      // 首次打开时滚动到当前歌曲位置
+                      if (!hasScrolledToInitial) {
+                        hasScrolledToInitial = true;
+                        final itemHeight = 72.0;
+                        final targetOffset = currentIdx * itemHeight;
+                        final initialOffset = math.max(0.0, targetOffset - itemHeight * 2);
+                        
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (playlistScrollController.hasClients) {
+                            playlistScrollController.jumpTo(initialOffset);
+                            Future.delayed(const Duration(milliseconds: 100), () {
+                              if (playlistScrollController.hasClients) {
+                                playlistScrollController.animateTo(
+                                  targetOffset.clamp(0.0, playlistScrollController.position.maxScrollExtent),
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOutCubic,
+                                );
+                              }
+                            });
+                          }
+                        });
+                      }
 
-                              return RepaintBoundary(
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque, // 优化点击响应区域
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                    Future.delayed(const Duration(milliseconds: 300), () {
-                                      if (mounted) {
-                                        controller.skipToQueueItem(index);
-                                      }
-                                    });
-                                  },
-                                  child: Container(
-                                    color: Colors.transparent,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 12,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: Center(
-                                            child: isPlaying
-                                                ? const _PlayingIndicator()
-                                                : Text(
-                                                    '${index + 1}',
-                                                    style: TextStyle(
-                                                      color: Colors.white.withOpacity(0.5),
-                                                      fontSize: 14,
-                                                    ),
+                      // 使用 ListView.builder 的优化版本
+                      return ListView.custom(
+                        key: ValueKey('${playlist.length}_${playlist.isNotEmpty ? playlist[0]['id'] : ''}'),
+                        controller: playlistScrollController,
+                        padding: const EdgeInsets.only(
+                          top: 8.0,
+                          bottom: 72.0,
+                        ),
+                        // 使用自定义子项代理以优化性能
+                        childrenDelegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final track = playlist[index];
+                            final isPlaying = index == currentIdx;
+
+                            return RepaintBoundary(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque, // 优化点击响应区域
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Future.delayed(const Duration(milliseconds: 300), () {
+                                    if (mounted) {
+                                      controller.skipToQueueItem(index);
+                                    }
+                                  });
+                                },
+                                child: Container(
+                                  color: Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: Center(
+                                          child: isPlaying
+                                              ? const _PlayingIndicator()
+                                              : Text(
+                                                  '${index + 1}',
+                                                  style: TextStyle(
+                                                    color: Colors.white.withOpacity(0.5),
+                                                    fontSize: 14,
                                                   ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(6),
-                                          child: CachedNetworkImage(
-                                            imageUrl: track['cover_url'] ?? '',
-                                            width: 48,
-                                            height: 48,
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                track['name'] ?? '',
-                                                style: TextStyle(
-                                                  color: Colors.white.withOpacity(
-                                                    isPlaying ? 1.0 : 0.9,
-                                                  ),
-                                                  fontSize: 16,
-                                                  fontWeight: isPlaying ? FontWeight.w600 : FontWeight.normal,
                                                 ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                track['artist'] ?? '',
-                                                style: TextStyle(
-                                                  color: Colors.white.withOpacity(0.5),
-                                                  fontSize: 14,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: CachedNetworkImage(
+                                          imageUrl: track['cover_url'] ?? '',
+                                          width: 48,
+                                          height: 48,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              track['name'] ?? '',
+                                              style: TextStyle(
+                                                color: Colors.white.withOpacity(
+                                                  isPlaying ? 1.0 : 0.9,
+                                                ),
+                                                fontSize: 16,
+                                                fontWeight: isPlaying ? FontWeight.w600 : FontWeight.normal,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              track['artist'] ?? '',
+                                              style: TextStyle(
+                                                color: Colors.white.withOpacity(0.5),
+                                                fontSize: 14,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              );
-                            },
-                            childCount: playlist.length,
-                            addAutomaticKeepAlives: false,
-                            addRepaintBoundaries: true,
-                          ),
-                          // 优化滚动性能
-                          physics: const RangeMaintainingScrollPhysics(),
-                          cacheExtent: 72.0 * 10,
-                        );
-                      },
-                    ),
+                              ),
+                            );
+                          },
+                          childCount: playlist.length,
+                          addAutomaticKeepAlives: false,
+                          addRepaintBoundaries: true,
+                        ),
+                        // 优化滚动性能
+                        physics: const RangeMaintainingScrollPhysics(),
+                        cacheExtent: 72.0 * 10,
+                      );
+                    }),
                   ),
                 ],
               ),

@@ -167,7 +167,7 @@ class MainActivity: AudioServiceActivity() {
             startService(intent)
         }
         
-        Log.d(TAG, "MusicPlayerService updated: title=$title, isPlaying=$isPlaying")
+        // Log.d(TAG, "MusicPlayerService updated: title=$title, isPlaying=$isPlaying")
     }
     
     /**

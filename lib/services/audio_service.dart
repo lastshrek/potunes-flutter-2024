@@ -90,10 +90,20 @@ class AudioService extends GetxService {
   final _originalPlaylist = Rxn<List<Map<String, dynamic>>>();
 
   // 修改 displayPlaylist getter，根据模式返回对应列表
+  // 注意：在 GetX builder 中使用时，需要直接访问 _currentPlaylist.value 来触发响应式更新
   List<Map<String, dynamic>>? get displayPlaylist => _currentPlaylist.value;
+  
+  // 添加响应式的播放列表 getter，用于 UI 绑定
+  Rxn<List<Map<String, dynamic>>> get rxCurrentPlaylist => _currentPlaylist;
+  
+  // 添加响应式的当前索引 getter，用于 UI 绑定
+  RxInt get rxCurrentIndex => _currentIndex;
 
   // 移除 _hasRecordedPlay 变量，改用一个标记
   bool _hasRecordedPlay = false;
+
+  // 添加标志来防止 currentIndexStream 监听器在 playPlaylist 期间覆盖 _currentTrack
+  bool _isSettingPlaylist = false;
 
   // 添加 FM 模式标志
   final _isFMMode = false.obs;
@@ -206,6 +216,9 @@ class AudioService extends GetxService {
 
     // 在播放新歌时重置计时器
     _audioPlayer.currentIndexStream.listen((index) {
+      // 如果正在设置播放列表，跳过此次更新（playPlaylist 会自己设置正确的值）
+      if (_isSettingPlaylist) return;
+      
       if (index != null && _currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
         // 确保索引在有效范围内
         final safeIndex = index.clamp(0, _currentPlaylist.value!.length - 1);
@@ -241,6 +254,9 @@ class AudioService extends GetxService {
   void _setupPlayerListeners() {
     // 监听当前索引变化
     _audioPlayer.currentIndexStream.listen((index) async {
+      // 如果正在设置播放列表，跳过此次更新（playPlaylist 会自己设置正确的值）
+      if (_isSettingPlaylist) return;
+      
       if (index != null && _currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
         // 确保索引在有效范围内
         final safeIndex = index.clamp(0, _currentPlaylist.value!.length - 1);
@@ -286,6 +302,7 @@ class AudioService extends GetxService {
   Future<void> playPlaylist(List<Map<String, dynamic>> tracks, {int initialIndex = 0}) async {
     try {
       _hasRecordedPlay = false;
+      _isSettingPlaylist = true;  // 设置标志，防止 currentIndexStream 监听器覆盖
 
       // 退出 FM 模式
       _isFMMode.value = false;
@@ -354,7 +371,10 @@ class AudioService extends GetxService {
         initialIndex: initialIndex,
         preload: true,
       );
-
+      
+      // 清除标志
+      _isSettingPlaylist = false;
+      
       // 设置循环模式
       if (_repeatMode.value == RepeatMode.single) {
         await _audioPlayer.setLoopMode(LoopMode.one);
@@ -370,6 +390,7 @@ class AudioService extends GetxService {
       // 保存状态
       await _saveLastState();
     } catch (e) {
+      _isSettingPlaylist = false;  // 确保在错误时也清除标志
       ErrorReporter.showError('Error playing playlist: $e');
     }
   }

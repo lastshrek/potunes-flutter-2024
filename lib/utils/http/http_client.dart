@@ -16,17 +16,17 @@ class HttpClient {
     _dio.options.connectTimeout = const Duration(milliseconds: ApiConfig.connectTimeout);
     _dio.options.receiveTimeout = const Duration(milliseconds: ApiConfig.receiveTimeout);
 
-    // 添加拦截器来打印请求和响应
-    if (kDebugMode) {
-      _dio.interceptors.add(LogInterceptor(
-        request: true,
-        requestHeader: true,
-        requestBody: true,
-        responseHeader: true,
-        responseBody: true,
-        error: true,
-      ));
-    }
+    // 添加拦截器来打印请求和响应（暂时注释掉以减少日志噪音）
+    // if (kDebugMode) {
+    //   _dio.interceptors.add(LogInterceptor(
+    //     request: true,
+    //     requestHeader: true,
+    //     requestBody: true,
+    //     responseHeader: true,
+    //     responseBody: true,
+    //     error: true,
+    //   ));
+    // }
 
     // 添加拦截器处理 token
     _dio.interceptors.add(InterceptorsWrapper(

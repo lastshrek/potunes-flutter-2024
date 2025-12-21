@@ -949,7 +949,10 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                   ),
                   onPressed: () => _showTrackOptions(context, _displayedTracks[index]),
                 ),
-                onTap: () => AudioService.to.playTrack(_displayedTracks[index]),
+                onTap: () => AudioService.to.playPlaylist(
+                  List<Map<String, dynamic>>.from(_allTracks),
+                  initialIndex: index,
+                ),
               ),
             ),
           );

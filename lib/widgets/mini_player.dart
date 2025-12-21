@@ -404,6 +404,7 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: CachedNetworkImage(
+                  key: ValueKey(controller.currentTrack!['cover_url'] ?? ''),
                   imageUrl: controller.currentTrack!['cover_url'] ?? '',
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
