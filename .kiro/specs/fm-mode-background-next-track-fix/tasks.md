@@ -61,11 +61,11 @@
   - 确保所有测试通过，在真机上测试后台切歌功能
   - 如有问题请告知
 
-- [-] 6. 优化 FM 模式状态管理
-  - [-] 6.1 确保 FM 模式状态在 _loadLastState 中正确恢复
+- [x] 6. 优化 FM 模式状态管理
+  - [x] 6.1 确保 FM 模式状态在 _loadLastState 中正确恢复
     - 验证 `_isFMMode.value` 在应用重启后正确恢复
     - _Requirements: 4.1_
-  - [ ] 6.2 编写 FM 模式状态持久化的属性测试
+  - [x] 6.2 编写 FM 模式状态持久化的属性测试
     - **Property 4: FM Mode State Persistence Round Trip**
     - **Validates: Requirements 4.1**
 
