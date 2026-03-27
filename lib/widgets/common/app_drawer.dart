@@ -82,7 +82,8 @@ class AppDrawer extends StatelessWidget {
                       children: [
                         if (currentIndex != 0)
                           ListTile(
-                            leading: const Icon(Icons.home, color: Colors.white),
+                            leading:
+                                const Icon(Icons.home, color: Colors.white),
                             title: const Text(
                               'Home',
                               style: TextStyle(color: Colors.white),
@@ -94,7 +95,8 @@ class AppDrawer extends StatelessWidget {
                           ),
                         if (currentIndex != 1)
                           ListTile(
-                            leading: const Icon(Icons.trending_up, color: Colors.white),
+                            leading: const Icon(Icons.trending_up,
+                                color: Colors.white),
                             title: const Text(
                               'Top Charts',
                               style: TextStyle(color: Colors.white),
@@ -106,7 +108,8 @@ class AppDrawer extends StatelessWidget {
                           ),
                         if (currentIndex != 2)
                           ListTile(
-                            leading: const Icon(Icons.library_music, color: Colors.white),
+                            leading: const Icon(Icons.library_music,
+                                color: Colors.white),
                             title: const Text(
                               'Library',
                               style: TextStyle(color: Colors.white),
@@ -142,7 +145,8 @@ class AppDrawer extends StatelessWidget {
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.info_outline, color: Colors.white),
+                    leading:
+                        const Icon(Icons.info_outline, color: Colors.white),
                     title: const Text(
                       'About',
                       style: TextStyle(color: Colors.white),
@@ -189,7 +193,6 @@ class AppDrawer extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               _buildUpdateItem('全新UI升级'),
-                              _buildUpdateItem('新增FM模式'),
                               _buildUpdateItem('iOS新增灵动岛'),
                               _buildUpdateItem('新增个人资料管理'),
                               _buildUpdateItem('当前播放歌曲列表内展示'),
