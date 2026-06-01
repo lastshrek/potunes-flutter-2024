@@ -655,121 +655,122 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildRadioSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // FM 标题
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Text(
-                'FM',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+    return Obx(() {
+      final isFM = AudioService.to.isFMMode;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  isFM ? 'FM 播放中' : 'FM',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isFM ? const Color(0xFFDA5597) : Colors.white,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        // Radio 卡片
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Container(
-            height: 120,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: Colors.white.withOpacity(0.05),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.05),
-                  blurRadius: 10,
-                  spreadRadius: -3,
-                ),
+                if (isFM)
+                  GestureDetector(
+                    onTap: () {
+                      AudioService.to.exitFMMode();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: const Text(
+                        '退出',
+                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                    ),
+                  ),
               ],
             ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              height: 120,
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        'Loading Track...',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 14,
+                color: Colors.white.withOpacity(0.05),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.05),
+                    blurRadius: 10,
+                    spreadRadius: -3,
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    if (isFM) {
+                      AudioService.to.exitFMMode();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text(
+                            'Loading Track...',
+                            style: TextStyle(color: Colors.black, fontSize: 14),
+                          ),
+                          duration: const Duration(seconds: 1),
+                          behavior: SnackBarBehavior.floating,
+                          margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: const BorderRadius.all(Radius.circular(8)),
+                          ),
+                          backgroundColor: Colors.white,
+                        ),
+                      );
+                      AudioService.to.playFMTrack();
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 24),
+                      Icon(
+                        isFM ? Icons.radio_button_checked : Icons.radio,
+                        color: isFM ? const Color(0xFFDA5597) : Colors.white,
+                        size: 48,
+                      ),
+                      const Spacer(),
+                      ShaderMask(
+                        shaderCallback: (bounds) => LinearGradient(
+                          colors: isFM
+                              ? [const Color(0xFFDA5597), Colors.white70]
+                              : [const Color(0xFFDA5597), Colors.white],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ).createShader(bounds),
+                        child: Text(
+                          isFM ? '切换歌曲' : 'Just Listen',
+                          style: _getLogoTextStyle(),
                         ),
                       ),
-                      duration: const Duration(seconds: 1),
-                      behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.only(
-                        bottom: 16,
-                        left: 16,
-                        right: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: const BorderRadius.all(Radius.circular(8)),
-                      ),
-                      backgroundColor: Colors.white,
-                    ),
-                  );
-                  AudioService.to.playFMTrack();
-                },
-                child: Row(
-                  children: [
-                    const SizedBox(width: 24),
-                    const Icon(
-                      Icons.radio,
-                      color: Colors.white,
-                      size: 48,
-                    ),
-                    const Spacer(),
-                    ShaderMask(
-                      shaderCallback: (bounds) => const LinearGradient(
-                        colors: [Color(0xFFDA5597), Colors.white],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ).createShader(bounds),
-                      child: Text(
-                        'Just Listen',
-                        style: _getLogoTextStyle(),
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      width: 48,
-                      height: 48,
-                      margin: const EdgeInsets.only(right: 24),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.1),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                          width: 1,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.play_arrow,
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                    ),
-                  ],
+                      const Spacer(),
+                      const SizedBox(width: 24),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    });
   }
+
 
   void _onCollectionPlaylistTap(Map<String, dynamic> playlist) {
     _navigateToPage(

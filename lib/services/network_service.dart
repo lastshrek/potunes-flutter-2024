@@ -950,7 +950,7 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      ErrorReporter.showError(e);
+      // 由调用方 playFMTrack 统一处理错误提示
       rethrow;
     }
   }
