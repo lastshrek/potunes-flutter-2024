@@ -23,6 +23,10 @@ class ApiConfig {
   // 用户相关
   static const String captcha = '/users/captcha';
   static const String verifyCaptcha = '/users/verify';
+  static const String register = '/users/register';
+  static const String login = '/users/login';
+  static const String resetPassword = '/users/reset-password';
+  static const String changePassword = '/users/change-password';
   static const String fav = '/v1/users/favs';
   static const String like = '/v1/tracks/like';
   static const String userPlaylist = '/v1/playlists/custom/user';

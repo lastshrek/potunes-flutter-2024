@@ -26,9 +26,9 @@ Future<void> main() async {
   await JustAudioBackground.init(
     androidNotificationChannelId: 'pink.poche.potunes.audio',
     androidNotificationChannelName: '破破音乐',
-    androidNotificationOngoing: false,
+    androidNotificationOngoing: true,
     androidShowNotificationBadge: true,
-    androidStopForegroundOnPause: false,
+    androidStopForegroundOnPause: true,
     fastForwardInterval: const Duration(seconds: 10),
     rewindInterval: const Duration(seconds: 10),
     preloadArtwork: true,

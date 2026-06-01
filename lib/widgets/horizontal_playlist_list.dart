@@ -22,8 +22,8 @@ class HorizontalPlaylistList extends StatelessWidget {
     return GestureDetector(
       onTap: () => onPlaylistTap(item),
       child: Container(
-        width: 120,
-        margin: const EdgeInsets.only(right: 12),
+        width: 130,
+        margin: const EdgeInsets.only(right: 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -31,51 +31,48 @@ class HorizontalPlaylistList extends StatelessWidget {
               aspectRatio: 1,
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: CachedImage(
-                  url: item['cover'] ?? '',
-                  width: 120,
-                  height: 120,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedImage(
+                    url: item['cover'] ?? '',
+                    width: 130,
+                    height: 130,
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item['title']?.toString() ?? '',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  if (item['artist'] != null)
-                    Text(
-                      item['artist'].toString(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[400],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
+            const SizedBox(height: 10),
+            Text(
+              item['title']?.toString() ?? '',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
+            if (item['artist'] != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                item['artist'].toString(),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[500],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ],
         ),
       ),
@@ -101,9 +98,10 @@ class HorizontalPlaylistList extends StatelessWidget {
                   : Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
+                        letterSpacing: 0.3,
                       ),
                     ),
               if (onTitleTap != null)
@@ -130,9 +128,9 @@ class HorizontalPlaylistList extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         SizedBox(
-          height: 190,
+          height: 210,
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             scrollDirection: Axis.horizontal,
@@ -140,8 +138,8 @@ class HorizontalPlaylistList extends StatelessWidget {
             itemBuilder: (context, index) {
               if (isLoading) {
                 return Container(
-                  width: 120,
-                  margin: const EdgeInsets.only(right: 12),
+                  width: 130,
+                  margin: const EdgeInsets.only(right: 14),
                   child: const SkeletonLoading(),
                 );
               }

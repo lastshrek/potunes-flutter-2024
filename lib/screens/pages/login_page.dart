@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../services/network_service.dart';
-import 'dart:async';
 import '../../services/user_service.dart';
+import '../../utils/password_utils.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,14 +13,11 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _phoneController = TextEditingController();
-  final _captchaController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _isLoading = false.obs;
   final _error = Rx<String?>(null);
-  final _showCaptchaInput = false.obs;
-  final _countdown = 180.obs; // 3分钟倒计时
-  Timer? _timer;
+  final _obscurePassword = true.obs;
 
-  // 验证中国手机号的正则表达式
   final RegExp _phoneRegExp = RegExp(r'^1[3-9]\d{9}$');
 
   bool _isValidPhoneNumber(String phone) {
@@ -30,25 +27,14 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     _phoneController.dispose();
-    _captchaController.dispose();
-    _timer?.cancel(); // 取消定时器
+    _passwordController.dispose();
     super.dispose();
   }
 
-  void _startCountdown() {
-    _countdown.value = 180; // 重置倒计时
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_countdown.value > 0) {
-        _countdown.value--;
-      } else {
-        timer.cancel();
-      }
-    });
-  }
-
-  Future<void> _sendCaptcha() async {
+  Future<void> _login() async {
     final phone = _phoneController.text.trim();
+    final password = _passwordController.text;
+
     if (phone.isEmpty) {
       _error.value = '请输入手机号';
       return;
@@ -59,39 +45,21 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    try {
-      _isLoading.value = true;
-      final networkService = NetworkService.instance;
-      await networkService.sendCaptcha(phone);
-
-      _showCaptchaInput.value = true;
-      _error.value = null;
-      _startCountdown();
-    } catch (e) {
-      _error.value = e.toString();
-    } finally {
-      _isLoading.value = false;
-    }
-  }
-
-  Future<void> _login() async {
-    if (_phoneController.text.isEmpty || _captchaController.text.isEmpty) {
-      _error.value = 'Please enter your phone number and captcha';
+    if (password.isEmpty) {
+      _error.value = '请输入密码';
       return;
     }
 
     try {
       _isLoading.value = true;
-      final networkService = NetworkService.instance;
-      final response = await networkService.verifyCaptcha(
-        _phoneController.text.trim(),
-        _captchaController.text.trim(),
-      );
+      _error.value = null;
 
-      // 保存登录数据
+      final hashedPassword = hashPassword(password);
+      final networkService = NetworkService.instance;
+      final response = await networkService.login(phone, hashedPassword);
+
       await UserService.to.saveLoginData(response);
 
-      // 登录成功
       Navigator.pop(context, true);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -121,6 +89,30 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  void _showForgotPasswordSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => const ForgotPasswordSheet(),
+    );
+  }
+
+  void _showRegisterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => const RegisterSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -131,23 +123,19 @@ class _LoginPageState extends State<LoginPage> {
       type: MaterialType.transparency,
       child: Stack(
         children: [
-          // 背景点击区域
           Positioned.fill(
             child: GestureDetector(
               onTap: () => Navigator.of(context).pop(),
-              child: Container(
-                color: Colors.transparent,
-              ),
+              child: Container(color: Colors.transparent),
             ),
           ),
-          // 主内容区域
           Positioned(
             left: 0,
             right: 0,
             top: topPadding + 60,
             bottom: 0,
             child: GestureDetector(
-              onTap: () {}, // 阻止点击事件穿透
+              onTap: () {},
               child: Container(
                 decoration: const BoxDecoration(
                   color: Colors.black,
@@ -157,23 +145,17 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 child: Column(
                   children: [
-                    // 顶部栏
                     SizedBox(
                       height: 56,
                       child: Row(
                         children: [
-                          // 关闭按钮
                           IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                              color: Colors.white,
-                            ),
+                            icon: const Icon(Icons.close, color: Colors.white),
                             onPressed: () => Navigator.of(context).pop(),
                           ),
                         ],
                       ),
                     ),
-                    // 内容区域
                     Expanded(
                       child: SingleChildScrollView(
                         child: Padding(
@@ -190,8 +172,8 @@ class _LoginPageState extends State<LoginPage> {
                                   children: [
                                     TextSpan(
                                       text: 'PoPo\nCollections\n',
-                                      style: const TextStyle(
-                                        color: Color(0xFFDA5597),
+                                      style: TextStyle(
+                                        color: const Color(0xFFDA5597),
                                         fontSize: 40,
                                         fontWeight: FontWeight.bold,
                                         height: 1.2,
@@ -220,48 +202,69 @@ class _LoginPageState extends State<LoginPage> {
                                   style: const TextStyle(color: Colors.white),
                                   keyboardType: TextInputType.phone,
                                   textAlign: TextAlign.left,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     border: InputBorder.none,
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
                                     hintText: 'Enter Your CellPhone Number',
-                                    hintStyle: TextStyle(color: Colors.grey),
-                                    prefixIcon: Icon(Icons.phone_android, color: Color(0xFFDA5597)),
-                                    prefixIconConstraints: BoxConstraints(minWidth: 40),
-                                    isDense: false,
-                                    isCollapsed: false,
+                                    hintStyle:
+                                        const TextStyle(color: Colors.grey),
+                                    prefixIcon: const Icon(Icons.phone_android,
+                                        color: Color(0xFFDA5597)),
+                                    prefixIconConstraints:
+                                        const BoxConstraints(minWidth: 40),
                                   ),
                                 ),
                               ),
-                              Obx(() => _showCaptchaInput.value
-                                  ? Column(
-                                      children: [
-                                        const SizedBox(height: 16),
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[900],
-                                            borderRadius: BorderRadius.circular(8),
+                              const SizedBox(height: 16),
+                              Obx(() => Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[900],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: TextField(
+                                      controller: _passwordController,
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                      obscureText: _obscurePassword.value,
+                                      textAlign: TextAlign.left,
+                                      decoration: InputDecoration(
+                                        border: InputBorder.none,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 16, vertical: 12),
+                                        hintText: 'Enter Your Password',
+                                        hintStyle:
+                                            const TextStyle(color: Colors.grey),
+                                        prefixIcon: const Icon(
+                                            Icons.lock_outline,
+                                            color: Color(0xFFDA5597)),
+                                        prefixIconConstraints:
+                                            const BoxConstraints(minWidth: 40),
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            _obscurePassword.value
+                                                ? Icons.visibility_off
+                                                : Icons.visibility,
+                                            color: Colors.grey,
                                           ),
-                                          child: TextField(
-                                            controller: _captchaController,
-                                            style: const TextStyle(color: Colors.white),
-                                            keyboardType: TextInputType.number,
-                                            textAlign: TextAlign.left,
-                                            decoration: const InputDecoration(
-                                              border: InputBorder.none,
-                                              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                              hintText: 'Enter Captcha Received',
-                                              hintStyle: TextStyle(color: Colors.grey),
-                                              prefixIcon: Icon(Icons.message, color: Color(0xFFDA5597)),
-                                              prefixIconConstraints: BoxConstraints(minWidth: 40),
-                                              isDense: false,
-                                              isCollapsed: false,
-                                            ),
-                                          ),
+                                          onPressed: () => _obscurePassword
+                                              .value = !_obscurePassword.value,
                                         ),
-                                      ],
-                                    )
-                                  : const SizedBox.shrink()),
-                              const SizedBox(height: 24),
+                                      ),
+                                    ),
+                                  )),
+                              const SizedBox(height: 16),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: _showForgotPasswordSheet,
+                                  child: const Text(
+                                    'Forgot Password?',
+                                    style: TextStyle(color: Color(0xFFDA5597)),
+                                  ),
+                                ),
+                              ),
                               Obx(() {
                                 if (_error.value != null) {
                                   return Padding(
@@ -277,66 +280,53 @@ class _LoginPageState extends State<LoginPage> {
                               SizedBox(
                                 width: double.infinity,
                                 height: 48,
-                                child: Obx(() {
-                                  final bool isCountingDown = _showCaptchaInput.value && _countdown.value > 0;
-                                  final String buttonText = _showCaptchaInput.value ? (isCountingDown ? 'Login' : 'Resend Captcha') : 'Send Captcha';
-
-                                  return ElevatedButton(
-                                    onPressed: _isLoading.value
-                                        ? null
-                                        : () {
-                                            if (_showCaptchaInput.value) {
-                                              if (_countdown.value > 0) {
-                                                _login();
-                                              } else {
-                                                _sendCaptcha();
-                                              }
-                                            } else {
-                                              _sendCaptcha();
-                                            }
-                                          },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFDA5597),
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
+                                child: ElevatedButton(
+                                  onPressed: _isLoading.value ? null : _login,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFDA5597),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: _isLoading.value
-                                        ? const SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                            ),
-                                          )
-                                        : Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                buttonText,
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                              if (isCountingDown) ...[
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  '(${_countdown.value}s)',
-                                                  style: const TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.normal,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
+                                  ),
+                                  child: _isLoading.value
+                                      ? const SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                    Colors.white),
                                           ),
-                                  );
-                                }),
+                                        )
+                                      : const Text(
+                                          'Login',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    "Don't have an account?",
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                  TextButton(
+                                    onPressed: _showRegisterSheet,
+                                    child: const Text(
+                                      'Sign Up',
+                                      style:
+                                          TextStyle(color: Color(0xFFDA5597)),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -350,6 +340,495 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class ForgotPasswordSheet extends StatefulWidget {
+  const ForgotPasswordSheet({super.key});
+
+  @override
+  State<ForgotPasswordSheet> createState() => _ForgotPasswordSheetState();
+}
+
+class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
+  final _phoneController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _isLoading = false.obs;
+  final _error = Rx<String?>(null);
+  final _success = false.obs;
+  final _obscureNewPassword = true.obs;
+  final _obscureConfirmPassword = true.obs;
+
+  final RegExp _phoneRegExp = RegExp(r'^1[3-9]\d{9}$');
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _resetPassword() async {
+    final phone = _phoneController.text.trim();
+    final newPassword = _newPasswordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (phone.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+      _error.value = '请填写所有字段';
+      return;
+    }
+
+    if (!_phoneRegExp.hasMatch(phone)) {
+      _error.value = '请输入正确的手机号';
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      _error.value = '密码长度至少6位';
+      return;
+    }
+
+    if (newPassword != confirmPassword) {
+      _error.value = '两次输入的密码不一致';
+      return;
+    }
+
+    try {
+      _isLoading.value = true;
+      _error.value = null;
+
+      final hashedPassword = hashPassword(newPassword);
+      final networkService = NetworkService.instance;
+      await networkService.resetPassword(phone, hashedPassword);
+
+      _success.value = true;
+    } catch (e) {
+      _error.value = e.toString();
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: 24 + bottomInset,
+      ),
+      child: Obx(() {
+        if (_success.value) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 64),
+              const SizedBox(height: 16),
+              const Text(
+                '密码重置成功',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDA5597),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('返回登录',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Reset Password',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Enter your phone number and new password',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: TextField(
+                controller: _phoneController,
+                style: const TextStyle(color: Colors.white),
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  hintText: 'Phone Number',
+                  hintStyle: TextStyle(color: Colors.grey),
+                  prefixIcon:
+                      Icon(Icons.phone_android, color: Color(0xFFDA5597)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Obx(() => Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[900],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: TextField(
+                    controller: _newPasswordController,
+                    style: const TextStyle(color: Colors.white),
+                    obscureText: _obscureNewPassword.value,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      hintText: 'New Password',
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      prefixIcon: const Icon(Icons.lock_outline,
+                          color: Color(0xFFDA5597)),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                            _obscureNewPassword.value
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey),
+                        onPressed: () => _obscureNewPassword.value =
+                            !_obscureNewPassword.value,
+                      ),
+                    ),
+                  ),
+                )),
+            const SizedBox(height: 16),
+            Obx(() => Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[900],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: TextField(
+                    controller: _confirmPasswordController,
+                    style: const TextStyle(color: Colors.white),
+                    obscureText: _obscureConfirmPassword.value,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      hintText: 'Confirm Password',
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      prefixIcon: const Icon(Icons.lock_outline,
+                          color: Color(0xFFDA5597)),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                            _obscureConfirmPassword.value
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey),
+                        onPressed: () => _obscureConfirmPassword.value =
+                            !_obscureConfirmPassword.value,
+                      ),
+                    ),
+                  ),
+                )),
+            const SizedBox(height: 16),
+            if (_error.value != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(_error.value!,
+                    style: const TextStyle(color: Colors.red)),
+              ),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _isLoading.value ? null : _resetPassword,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDA5597),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                child: _isLoading.value
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white)),
+                      )
+                    : const Text('Reset Password',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+}
+
+class RegisterSheet extends StatefulWidget {
+  const RegisterSheet({super.key});
+
+  @override
+  State<RegisterSheet> createState() => _RegisterSheetState();
+}
+
+class _RegisterSheetState extends State<RegisterSheet> {
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _isLoading = false.obs;
+  final _error = Rx<String?>(null);
+  final _success = false.obs;
+  final _obscurePassword = true.obs;
+  final _obscureConfirmPassword = true.obs;
+
+  final RegExp _phoneRegExp = RegExp(r'^1[3-9]\d{9}$');
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (phone.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+      _error.value = '请填写所有字段';
+      return;
+    }
+
+    if (!_phoneRegExp.hasMatch(phone)) {
+      _error.value = '请输入正确的手机号';
+      return;
+    }
+
+    if (password.length < 6) {
+      _error.value = '密码长度至少6位';
+      return;
+    }
+
+    if (password != confirmPassword) {
+      _error.value = '两次输入的密码不一致';
+      return;
+    }
+
+    try {
+      _isLoading.value = true;
+      _error.value = null;
+
+      final hashedPassword = hashPassword(password);
+      final networkService = NetworkService.instance;
+      final response = await networkService.register(phone, hashedPassword);
+
+      await UserService.to.saveLoginData(response);
+
+      _success.value = true;
+    } catch (e) {
+      _error.value = e.toString();
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: 24 + bottomInset,
+      ),
+      child: Obx(() {
+        if (_success.value) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.pop(context, true);
+          });
+          return const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 64),
+              SizedBox(height: 16),
+              Text(
+                '注册成功',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold),
+              ),
+            ],
+          );
+        }
+
+        return SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Create Account',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Enter your phone number and password to register',
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: TextField(
+                  controller: _phoneController,
+                  style: const TextStyle(color: Colors.white),
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    hintText: 'Phone Number',
+                    hintStyle: TextStyle(color: Colors.grey),
+                    prefixIcon:
+                        Icon(Icons.phone_android, color: Color(0xFFDA5597)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Obx(() => Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TextField(
+                      controller: _passwordController,
+                      style: const TextStyle(color: Colors.white),
+                      obscureText: _obscurePassword.value,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        hintText: 'Password (min 6 chars)',
+                        hintStyle: const TextStyle(color: Colors.grey),
+                        prefixIcon: const Icon(Icons.lock_outline,
+                            color: Color(0xFFDA5597)),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                              _obscurePassword.value
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: Colors.grey),
+                          onPressed: () =>
+                              _obscurePassword.value = !_obscurePassword.value,
+                        ),
+                      ),
+                    ),
+                  )),
+              const SizedBox(height: 16),
+              Obx(() => Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TextField(
+                      controller: _confirmPasswordController,
+                      style: const TextStyle(color: Colors.white),
+                      obscureText: _obscureConfirmPassword.value,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        hintText: 'Confirm Password',
+                        hintStyle: const TextStyle(color: Colors.grey),
+                        prefixIcon: const Icon(Icons.lock_outline,
+                            color: Color(0xFFDA5597)),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                              _obscureConfirmPassword.value
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: Colors.grey),
+                          onPressed: () => _obscureConfirmPassword.value =
+                              !_obscureConfirmPassword.value,
+                        ),
+                      ),
+                    ),
+                  )),
+              const SizedBox(height: 16),
+              if (_error.value != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(_error.value!,
+                      style: const TextStyle(color: Colors.red)),
+                ),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isLoading.value ? null : _register,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDA5597),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: _isLoading.value
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white)),
+                        )
+                      : const Text('Sign Up',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 }

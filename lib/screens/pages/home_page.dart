@@ -35,19 +35,16 @@ class _HomePageState extends State<HomePage> {
   Future<void> _openSettings() async {
     if (Platform.isIOS) {
       try {
-        // 使用 URL Scheme 打开设置
         final settingsUrl = Uri.parse('App-Prefs:root=General');
         if (await canLaunchUrl(settingsUrl)) {
           await launchUrl(settingsUrl, mode: LaunchMode.externalApplication);
         } else {
-          // 如果无法打开设置，尝试使用系统设置 URL
           final fallbackUrl = Uri.parse('app-settings:');
           if (await canLaunchUrl(fallbackUrl)) {
             await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication);
           }
         }
       } catch (e) {
-        // 如果出现错误，显示提示
         Get.snackbar(
           '提示',
           '无法打开设置，请手动前往系统设置允许网络访问',
@@ -60,7 +57,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // 获取 Logo 文字样式，带有 fallback
   TextStyle _getLogoTextStyle() {
     try {
       return GoogleFonts.righteous(
@@ -69,14 +65,13 @@ class _HomePageState extends State<HomePage> {
         letterSpacing: 1.2,
         shadows: [
           Shadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             offset: const Offset(2, 2),
             blurRadius: 4,
           ),
         ],
       );
     } catch (e) {
-      // Fallback 样式
       return TextStyle(
         color: Colors.white,
         fontSize: 24,
@@ -84,7 +79,7 @@ class _HomePageState extends State<HomePage> {
         fontWeight: FontWeight.bold,
         shadows: [
           Shadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             offset: const Offset(2, 2),
             blurRadius: 4,
           ),
@@ -186,10 +181,9 @@ class _HomePageState extends State<HomePage> {
             child: CustomScrollView(
               slivers: [
                 AppHeader(
-                  title: '', // 空标题
-                  showSearch: true, // 显示搜索栏
+                  title: '',
+                  showSearch: true,
                   onSearchChanged: (value) {
-                    // TODO: 实现搜索功能
                     print('Search query: $value');
                   },
                 ),
@@ -197,7 +191,6 @@ class _HomePageState extends State<HomePage> {
                   delegate: SliverChildListDelegate([
                     _buildCollectionsSection(context),
                     const SizedBox(height: 24),
-                    // Finals 部分
                     HorizontalPlaylistList(
                       title: 'Finals',
                       playlists: controller.finals,
@@ -214,10 +207,8 @@ class _HomePageState extends State<HomePage> {
                       onPlaylistTap: _onPlaylistTap,
                     ),
                     const SizedBox(height: 24),
-                    // Albums 部分
                     _buildAlbumsSection(),
                     const SizedBox(height: 8),
-                    // Netease Toplist 部分
                     HorizontalPlaylistList(
                       title: 'Netease Toplist',
                       playlists: controller.neteaseToplist,
@@ -226,7 +217,6 @@ class _HomePageState extends State<HomePage> {
                       onPlaylistTap: _onNeteaseToplistTap,
                     ),
                     const SizedBox(height: 24),
-                    // Netease New Albums 部分
                     HorizontalPlaylistList(
                       title: 'Netease New Albums',
                       playlists: controller.neteaseNewAlbums,
@@ -234,7 +224,6 @@ class _HomePageState extends State<HomePage> {
                       onTitleTap: null,
                       onPlaylistTap: _onNeteaseNewAlbumTap,
                     ),
-                    // 添加固定的底部间距
                     SizedBox(
                       height: AudioService.to.currentTrack != null ? 0 : 56,
                     ),
@@ -251,7 +240,6 @@ class _HomePageState extends State<HomePage> {
   Widget _buildSkeletonList() {
     return CustomScrollView(
       slivers: [
-        // AppBar 骨架屏
         const SliverAppBar(
           pinned: true,
           floating: false,
@@ -268,12 +256,9 @@ class _HomePageState extends State<HomePage> {
           elevation: 0,
           toolbarHeight: 64,
         ),
-
-        // 内容区域骨架屏
         SliverList(
           delegate: SliverChildListDelegate([
             const SizedBox(height: 8),
-            // Collections 标题骨架屏
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -285,8 +270,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 8),
-
-            // Collections 轮播图骨架屏
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: AspectRatio(
@@ -298,20 +281,12 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // Final 部分骨架屏
             _buildSectionSkeleton(),
             const SizedBox(height: 24),
-
-            // Albums 部分骨架屏
             _buildSectionSkeleton(),
             const SizedBox(height: 24),
-
-            // Netease Toplist 部分骨架屏
             _buildSectionSkeleton(),
             const SizedBox(height: 24),
-
-            // Netease New Albums 部分骨架屏
             _buildSectionSkeleton(),
             const SizedBox(height: 56),
           ]),
@@ -320,12 +295,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // 抽取通用的section骨架屏组件
   Widget _buildSectionSkeleton() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 标题骨架屏
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -337,8 +310,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         const SizedBox(height: 12),
-
-        // 横向滚动列表骨架屏
         SizedBox(
           height: 160,
           child: ListView.builder(
@@ -351,24 +322,15 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 封面图骨架屏
                     SkeletonLoading(
                       width: 120,
                       height: 120,
                       borderRadius: 8,
                     ),
                     const SizedBox(height: 8),
-                    // 标题骨架屏
-                    SkeletonLoading(
-                      width: 100,
-                      height: 16,
-                    ),
+                    SkeletonLoading(width: 100, height: 16),
                     const SizedBox(height: 4),
-                    // 副标题骨架屏
-                    SkeletonLoading(
-                      width: 80,
-                      height: 12,
-                    ),
+                    SkeletonLoading(width: 80, height: 12),
                   ],
                 ),
               );
@@ -391,10 +353,7 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               controller.isRefreshing
-                  ? const SkeletonLoading(
-                      width: 100,
-                      height: 18,
-                    )
+                  ? const SkeletonLoading(width: 100, height: 18)
                   : const Text(
                       'Collections',
                       style: TextStyle(
@@ -407,10 +366,7 @@ class _HomePageState extends State<HomePage> {
                 width: 24,
                 height: 24,
                 child: controller.isRefreshing
-                    ? const SkeletonLoading(
-                        width: 24,
-                        height: 24,
-                      )
+                    ? const SkeletonLoading(width: 24, height: 24)
                     : IconButton(
                         icon: const Icon(
                           Icons.arrow_outward,
@@ -420,9 +376,7 @@ class _HomePageState extends State<HomePage> {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         visualDensity: VisualDensity.compact,
-                        onPressed: () {
-                          _onViewAllCollectionsTap();
-                        },
+                        onPressed: _onViewAllCollectionsTap,
                       ),
               ),
             ],
@@ -435,7 +389,6 @@ class _HomePageState extends State<HomePage> {
                 MediaQuery.of(context).orientation == Orientation.landscape;
 
             if (isLandscape) {
-              // 横屏布局
               return SizedBox(
                 height: 140,
                 child: ListView.builder(
@@ -456,24 +409,59 @@ class _HomePageState extends State<HomePage> {
                 ),
               );
             } else {
-              // 竖屏布局
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: AspectRatio(
-                  aspectRatio: 32 / 15,
-                  child: controller.isRefreshing
-                      ? const SkeletonLoading()
-                      : Swiper(
-                          itemBuilder: (context, index) {
-                            final item = collections[index];
-                            return _buildCollectionItem(item);
-                          },
-                          itemCount: collections.length,
-                          autoplay: true,
-                          autoplayDelay: 3000,
-                          viewportFraction: 1.0,
-                          scale: 1.0,
-                        ),
+              final screenWidth = MediaQuery.of(context).size.width;
+              final cardHeight = screenWidth * 0.45;
+
+              return SizedBox(
+                height: cardHeight + 30,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: controller.isRefreshing
+                            ? const SkeletonLoading()
+                            : Swiper(
+                                itemBuilder: (context, index) {
+                                  final item = collections[index];
+                                  return _buildCollectionItem(item);
+                                },
+                                itemCount: collections.length,
+                                autoplay: true,
+                                autoplayDelay: 5000,
+                                viewportFraction: 0.92,
+                                scale: 0.95,
+                                onIndexChanged: (index) {
+                                  AudioService.to.currentPageIndex = index;
+                                },
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (collections.isNotEmpty)
+                      Obx(() => Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(
+                              collections.length,
+                              (index) => AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 3),
+                                width: AudioService.to.currentPageIndex == index
+                                    ? 20
+                                    : 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  color:
+                                      AudioService.to.currentPageIndex == index
+                                          ? Colors.white.withValues(alpha: 0.9)
+                                          : Colors.white.withValues(alpha: 0.3),
+                                ),
+                              ),
+                            ),
+                          )),
+                  ],
                 ),
               );
             }
@@ -495,7 +483,7 @@ class _HomePageState extends State<HomePage> {
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -507,7 +495,6 @@ class _HomePageState extends State<HomePage> {
               height: 140,
             ),
           ),
-          // 渐变遮罩
           Positioned(
             left: 0,
             right: 12,
@@ -521,14 +508,13 @@ class _HomePageState extends State<HomePage> {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withOpacity(0.7),
+                    Colors.black.withValues(alpha: 0.7),
                   ],
                   stops: const [0.5, 1.0],
                 ),
               ),
             ),
           ),
-          // 标题
           Positioned(
             left: 24,
             right: 36,
@@ -541,10 +527,7 @@ class _HomePageState extends State<HomePage> {
                 fontWeight: FontWeight.bold,
                 shadows: [
                   Shadow(
-                    offset: Offset(1, 1),
-                    blurRadius: 3,
-                    color: Colors.black,
-                  ),
+                      offset: Offset(1, 1), blurRadius: 3, color: Colors.black),
                 ],
               ),
               maxLines: 2,
@@ -557,67 +540,115 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCollectionItem(Map<String, dynamic> item) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardHeight = screenWidth * 0.45;
+
     return GestureDetector(
       onTap: () => _onCollectionPlaylistTap(item),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
-            child: CachedImage(
-              url: item['cover'] ?? '',
-              width: MediaQuery.of(context).size.width - 32,
-              height: (MediaQuery.of(context).size.width - 32) * 15 / 32,
-            ),
-          ),
-          // 渐变遮罩
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.7),
-                ],
-                stops: const [0.6, 1.0],
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CachedImage(
+                url: item['cover'] ?? '',
+                width: screenWidth - 32,
+                height: cardHeight,
               ),
-            ),
-          ),
-          // 标题
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 12,
-            child: Text(
-              item['title']?.toString() ?? '',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                shadows: [
-                  Shadow(
-                    offset: Offset(1, 1),
-                    blurRadius: 3,
-                    color: Colors.black,
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.6),
+                    ],
+                    stops: const [0.4, 1.0],
                   ),
-                ],
+                ),
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      item['title']?.toString() ?? '',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (item['description'] != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        item['description'].toString(),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.play_circle_filled,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'PLAY',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -636,7 +667,7 @@ class _HomePageState extends State<HomePage> {
     _navigateToPage(
       AllPlaylistsPage(
         title: 'Collections',
-        playlists: collections,
+        playlists: controller.collections,
         apiPath: ApiConfig.allCollections,
       ),
     );

@@ -32,7 +32,9 @@ class NetworkService {
     try {
       final response = await _client.get<dynamic>(ApiConfig.latestCollection);
 
-      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is List) {
         return response['data'] as List<dynamic>;
       }
 
@@ -53,7 +55,9 @@ class NetworkService {
     try {
       final response = await _client.get<dynamic>(ApiConfig.latestFinal);
 
-      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is List) {
         return response['data'] as List<dynamic>;
       }
 
@@ -74,7 +78,9 @@ class NetworkService {
     try {
       final response = await _client.get<dynamic>(ApiConfig.home);
 
-      if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is Map<String, dynamic>) {
         final data = response['data'] as Map<String, dynamic>;
 
         // 处理所有可能包含歌曲的列表
@@ -110,7 +116,9 @@ class NetworkService {
       final response = await _client.get<dynamic>('${ApiConfig.playlist}/$id');
       print('getPlaylistById response: $response');
 
-      if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is Map<String, dynamic>) {
         final data = response['data'] as Map<String, dynamic>;
 
         // 处理 tracks 数组
@@ -287,7 +295,9 @@ class NetworkService {
     try {
       final response = await _client.get<dynamic>(ApiConfig.allCollections);
 
-      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is List) {
         return response['data'] as List<dynamic>;
       }
 
@@ -308,7 +318,9 @@ class NetworkService {
     try {
       final response = await _client.get<dynamic>(ApiConfig.allFinals);
 
-      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is List) {
         return response['data'] as List<dynamic>;
       }
 
@@ -329,7 +341,9 @@ class NetworkService {
     try {
       final response = await _client.get<dynamic>(ApiConfig.allAlbums);
 
-      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is List) {
         return response['data'] as List<dynamic>;
       }
 
@@ -355,7 +369,8 @@ class NetworkService {
         },
       );
 
-      if (response is Map && (response['statusCode'] == 200 || response['statusCode'] == 201)) {
+      if (response is Map &&
+          (response['statusCode'] == 200 || response['statusCode'] == 201)) {
         ErrorReporter.showSuccess('Verification code sent successfully');
         return;
       }
@@ -374,7 +389,8 @@ class NetworkService {
     }
   }
 
-  Future<Map<String, dynamic>> verifyCaptcha(String phone, String captcha) async {
+  Future<Map<String, dynamic>> verifyCaptcha(
+      String phone, String captcha) async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();
     }
@@ -387,15 +403,130 @@ class NetworkService {
         },
       );
 
-      print('Verify captcha response: $response'); // 打印响应内容
+      print('Verify captcha response: $response');
 
-      if (response is Map && (response['statusCode'] == 200 || response['statusCode'] == 201)) {
+      if (response is Map &&
+          (response['statusCode'] == 200 || response['statusCode'] == 201)) {
         return response as Map<String, dynamic>;
       }
 
       throw ApiException(
         statusCode: 500,
         message: response['message'] ?? '验证失败',
+      );
+    } catch (e) {
+      ErrorReporter.showError(e);
+      rethrow;
+    }
+  }
+
+  // 用户注册
+  Future<Map<String, dynamic>> register(String phone, String password) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.post<dynamic>(
+        ApiConfig.register,
+        data: {
+          'phone': phone,
+          'password': password,
+        },
+      );
+
+      if (response is Map && response['statusCode'] == 200) {
+        return response as Map<String, dynamic>;
+      }
+
+      throw ApiException(
+        statusCode: response['statusCode'] ?? 400,
+        message: response['message'] ?? '注册失败',
+      );
+    } catch (e) {
+      ErrorReporter.showError(e);
+      rethrow;
+    }
+  }
+
+  // 用户登录（密码登录）
+  Future<Map<String, dynamic>> login(String phone, String password) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.post<dynamic>(
+        ApiConfig.login,
+        data: {
+          'phone': phone,
+          'password': password,
+        },
+      );
+
+      if (response is Map && response['statusCode'] == 200) {
+        return response as Map<String, dynamic>;
+      }
+
+      throw ApiException(
+        statusCode: response['statusCode'] ?? 401,
+        message: response['message'] ?? '登录失败',
+      );
+    } catch (e) {
+      ErrorReporter.showError(e);
+      rethrow;
+    }
+  }
+
+  // 重置密码
+  Future<bool> resetPassword(String phone, String newPassword) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.post<dynamic>(
+        ApiConfig.resetPassword,
+        data: {
+          'phone': phone,
+          'password': newPassword,
+        },
+      );
+
+      if (response is Map && response['statusCode'] == 200) {
+        return true;
+      }
+
+      throw ApiException(
+        statusCode: response['statusCode'] ?? 404,
+        message: response['message'] ?? '密码重置失败',
+      );
+    } catch (e) {
+      ErrorReporter.showError(e);
+      rethrow;
+    }
+  }
+
+  // 修改密码
+  Future<bool> changePassword(
+      String phone, String oldPassword, String newPassword) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.post<dynamic>(
+        ApiConfig.changePassword,
+        data: {
+          'phone': phone,
+          'oldPassword': oldPassword,
+          'newPassword': newPassword,
+        },
+      );
+
+      if (response is Map && response['statusCode'] == 200) {
+        return true;
+      }
+
+      throw ApiException(
+        statusCode: response['statusCode'] ?? 401,
+        message: response['message'] ?? '密码修改失败',
       );
     } catch (e) {
       ErrorReporter.showError(e);
@@ -410,7 +541,9 @@ class NetworkService {
     try {
       final response = await _client.get<dynamic>(ApiConfig.fav);
 
-      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is List) {
         final List<dynamic> rawFavourites = response['data'];
 
         // 转换并验证数据
@@ -529,7 +662,8 @@ class NetworkService {
         // 如果存在 tracks 数组，为每个 track 添加 type 字段
         if (data['tracks'] is List) {
           final List<dynamic> tracks = data['tracks'] as List<dynamic>;
-          final List<Map<String, dynamic>> processedTracks = tracks.map((track) {
+          final List<Map<String, dynamic>> processedTracks =
+              tracks.map((track) {
             if (track is Map<String, dynamic>) {
               return {
                 ...track,
@@ -571,7 +705,8 @@ class NetworkService {
         // 处理 tracks 数组
         if (data['tracks'] is List) {
           final List<dynamic> tracks = data['tracks'] as List<dynamic>;
-          final List<Map<String, dynamic>> processedTracks = tracks.map((track) {
+          final List<Map<String, dynamic>> processedTracks =
+              tracks.map((track) {
             if (track is Map<String, dynamic>) {
               return {
                 ...track,
@@ -612,7 +747,8 @@ class NetworkService {
       if (Platform.isIOS) {
         // 先从本地存储读取权限状态
         final prefs = await SharedPreferences.getInstance();
-        final hasStoredPermission = prefs.getBool(_networkPermissionKey) ?? false;
+        final hasStoredPermission =
+            prefs.getBool(_networkPermissionKey) ?? false;
 
         if (hasStoredPermission) {
           _hasNetworkPermission = true;
@@ -639,7 +775,9 @@ class NetworkService {
           Get.find<AppController>().updateNetworkStatus(true);
           return true;
         } catch (e) {
-          if (e is DioException && (e.type == DioExceptionType.connectionError || e.error.toString().contains('network'))) {
+          if (e is DioException &&
+              (e.type == DioExceptionType.connectionError ||
+                  e.error.toString().contains('network'))) {
             ErrorReporter.showPermissionError(
               message: 'Network permission is required to use the app',
             );
@@ -687,7 +825,8 @@ class NetworkService {
     try {
       // 获取当前日期，格式化为 yyyy-MM-dd
       final now = DateTime.now();
-      final date = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final date =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
       // 构建请求体
       final requestBody = {
@@ -799,7 +938,9 @@ class NetworkService {
     try {
       final response = await _client.get<dynamic>(ApiConfig.radio);
 
-      if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is Map<String, dynamic>) {
         final track = response['data'] as Map<String, dynamic>;
         return _processTrackData(track);
       }
@@ -832,7 +973,8 @@ class NetworkService {
         ),
       );
 
-      if (response is Map && (response['statusCode'] == 200 || response['statusCode'] == 201)) {
+      if (response is Map &&
+          (response['statusCode'] == 200 || response['statusCode'] == 201)) {
         return response['data'] as Map<String, dynamic>;
       }
 
@@ -863,9 +1005,13 @@ class NetworkService {
         ),
       );
 
-      if (response is Map && response['statusCode'] == 200 && response['data'] is List) {
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is List) {
         final List<dynamic> rawPlaylists = response['data'];
-        return rawPlaylists.map((item) => item as Map<String, dynamic>).toList();
+        return rawPlaylists
+            .map((item) => item as Map<String, dynamic>)
+            .toList();
       }
 
       throw ApiException(
@@ -881,7 +1027,8 @@ class NetworkService {
     }
   }
 
-  Future<bool> addTrackToPlaylist(int playlistId, Map<String, dynamic> track) async {
+  Future<bool> addTrackToPlaylist(
+      int playlistId, Map<String, dynamic> track) async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();
     }
@@ -902,7 +1049,8 @@ class NetworkService {
       );
 
       // 成功时返回的是正常的 statusCode
-      if (response is Map && (response['statusCode'] == 200 || response['statusCode'] == 201)) {
+      if (response is Map &&
+          (response['statusCode'] == 200 || response['statusCode'] == 201)) {
         return true;
       }
 
@@ -949,7 +1097,9 @@ class NetworkService {
       if (kDebugMode) {
         print('getPlaylistDetail response: $response');
       }
-      if (response is Map && response['statusCode'] == 200 && response['data'] is Map<String, dynamic>) {
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is Map<String, dynamic>) {
         return response['data'] as Map<String, dynamic>;
       }
 
