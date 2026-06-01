@@ -1179,9 +1179,20 @@ class AudioService extends GetxService {
 
 
   // 退出 FM 模式
-  void exitFMMode() {
-    _isFMMode.value = false;
-    _saveLastState();
+  Future<void> exitFMMode() async {
+    try {
+      await _audioPlayer.pause();
+      await _audioPlayer.stop();
+      _currentTrack.value = null;
+      _currentPlaylist.value = null;
+      _currentIndex.value = 0;
+      _parsedLyrics.value = null;
+      _isFMMode.value = false;
+      _hasRecordedPlay = false;
+      await _saveLastState();
+    } catch (e) {
+      ErrorReporter.showError('退出 FM 模式失败: $e');
+    }
   }
 
   // 标记是否已经设置过远程控制（仅 iOS）

@@ -292,8 +292,8 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                 backgroundColor: Colors.transparent,
                 elevation: 0,
                 leading: IconButton(
-                  icon: const Icon(Icons.keyboard_arrow_down),
-                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.power_settings_new),
+                  onPressed: () => _showExitFMDialog(context),
                 ),
                 centerTitle: true,
                 title: Row(
@@ -353,6 +353,32 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
       },
     );
     });
+  }
+
+  void _showExitFMDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('退出 FM 模式', style: TextStyle(color: Colors.white)),
+        content: const Text('确定要退出 FM 模式吗？', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              AudioService.to.exitFMMode();
+              Navigator.of(context).pop();
+            },
+            child: const Text('确定', style: TextStyle(color: Color(0xFFDA5597))),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildPageIndicator(int pageIndex) {

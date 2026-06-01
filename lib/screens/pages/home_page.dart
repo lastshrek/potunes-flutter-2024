@@ -7,6 +7,7 @@ import '../../screens/pages/playlist_page.dart';
 import '../../config/api_config.dart';
 import 'package:get/get.dart';
 import '../../controllers/home_controller.dart';
+import '../../screens/pages/now_playing_page.dart';
 import '../../screens/pages/all_playlists_page.dart';
 import 'dart:io' show Platform;
 import 'package:url_launcher/url_launcher.dart';
@@ -718,22 +719,16 @@ class _HomePageState extends State<HomePage> {
                     if (isFM) {
                       AudioService.to.exitFMMode();
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text(
-                            'Loading Track...',
-                            style: TextStyle(color: Colors.black, fontSize: 14),
-                          ),
-                          duration: const Duration(seconds: 1),
-                          behavior: SnackBarBehavior.floating,
-                          margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: const BorderRadius.all(Radius.circular(8)),
-                          ),
-                          backgroundColor: Colors.white,
+                      AudioService.to.playFMTrack();
+                      // FM 模式直接进入歌词页，用 PopScope 阻止返回
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => Obx(() => PopScope(
+                            canPop: !AudioService.to.isFMMode,
+                            child: const NowPlayingPage(),
+                          )),
                         ),
                       );
-                      AudioService.to.playFMTrack();
                     }
                   },
                   child: Row(
