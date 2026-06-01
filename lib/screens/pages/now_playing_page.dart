@@ -178,8 +178,10 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
         return;
       }
 
+      debugPrint('🎨 [extractColors] 开始提取颜色, url=$coverUrl');
       // 封面 URL 为空时直接使用默认色，避免 PaletteGenerator 无限等待
       if (coverUrl.isEmpty) {
+        debugPrint('🎨 [extractColors] coverUrl 为空，跳过');
         _dominantColor.value = Colors.black;
         _secondaryColor.value = Colors.black87;
         return;
@@ -192,14 +194,16 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
         height: 100,
       );
 
+      debugPrint('🎨 [extractColors] 调用 PaletteGenerator...');
       final paletteGenerator = await PaletteGenerator.fromImageProvider(
         imageProvider,
         size: const Size(100, 100),
         maximumColorCount: 8,
       ).timeout(const Duration(seconds: 8), onTimeout: () {
-        debugPrint('PaletteGenerator timeout for: $coverUrl');
+        debugPrint('🎨 [extractColors] 超时: $coverUrl');
         throw TimeoutException('PaletteGenerator timeout');
       });
+      debugPrint('🎨 [extractColors] PaletteGenerator 完成');
 
       if (!mounted) return;
 
@@ -209,7 +213,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
       _secondaryColor.value = newColor.withOpacity(0.7);
       _colorCache[coverUrl] = newColor;
     } catch (e) {
-      debugPrint('Error extracting colors: $e');
+      debugPrint('🎨 [extractColors] 异常: $e');
     }
   }
 

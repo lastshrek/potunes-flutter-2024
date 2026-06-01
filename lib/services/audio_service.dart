@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 
 import 'package:just_audio/just_audio.dart';
@@ -329,6 +330,8 @@ class AudioService extends GetxService {
 
   Future<void> playPlaylist(List<Map<String, dynamic>> tracks, {int initialIndex = 0}) async {
     try {
+      final stopwatch = Stopwatch()..start();
+      debugPrint('⏯️ [playPlaylist] 开始, 共 ${tracks.length} 首歌, 起始索引 $initialIndex');
       _hasRecordedPlay = false;
       _isSettingPlaylist = true;  // 设置标志，防止 currentIndexStream 监听器覆盖
 
@@ -391,14 +394,18 @@ class AudioService extends GetxService {
       _currentTrack.value = processedTracks[initialIndex];
 
       // 先加载第一首歌的歌词
+      debugPrint('⏯️ [playPlaylist] 开始加载歌词...');
       await _loadLyrics(processedTracks[initialIndex]);
+      debugPrint('⏯️ [playPlaylist] 歌词加载完成 (${stopwatch.elapsedMilliseconds}ms)');
 
       // 设置音频源
+      debugPrint('⏯️ [playPlaylist] 开始设置音频源...');
       await _audioPlayer.setAudioSource(
         playlistSource,
         initialIndex: initialIndex,
         preload: true,
       );
+      debugPrint('⏯️ [playPlaylist] 音频源设置完成 (${stopwatch.elapsedMilliseconds}ms)');
       
       // 清除标志
       _isSettingPlaylist = false;
@@ -411,14 +418,17 @@ class AudioService extends GetxService {
       }
 
       // 开始播放
+      debugPrint('⏯️ [playPlaylist] 开始播放...');
       await _audioPlayer.play();
+      debugPrint('⏯️ [playPlaylist] 播放已启动');
 
       // just_audio_background 会自动处理前台服务
 
       // 保存状态
       await _saveLastState();
     } catch (e) {
-      _isSettingPlaylist = false;  // 确保在错误时也清除标志
+      debugPrint('⏯️ [playPlaylist] 异常: $e');
+      _isSettingPlaylist = false;
       ErrorReporter.showError('Error playing playlist: $e');
     }
   }
@@ -714,6 +724,9 @@ class AudioService extends GetxService {
 
   Future<void> _loadLyrics(Map<String, dynamic> track) async {
     try {
+      final lyricStopwatch = Stopwatch()..start();
+      final tid = track['id']?.toString() ?? 'unknown';
+      debugPrint('📝 [loadLyrics] 开始加载歌词, trackId=$tid');
       _isLoadingLyrics.value = true;
 
       // 避免重复加载相同的歌词
@@ -724,10 +737,12 @@ class AudioService extends GetxService {
       _currentLyricsId = track['id']?.toString();
       _currentLyricsNId = track['nId']?.toString();
 
+      debugPrint('📝 [loadLyrics] 请求 API...');
       final response = await _networkService.getLyrics(
         _currentLyricsId ?? '',
         _currentLyricsNId ?? '',
       );
+      debugPrint('📝 [loadLyrics] API 返回 (${lyricStopwatch.elapsedMilliseconds}ms)');
 
       // 更新喜欢状态
       if (response['isLike'] != null) {
@@ -737,6 +752,7 @@ class AudioService extends GetxService {
       // 格式化歌词
       _parsedLyrics.value = _formatLyrics(response);
     } catch (e) {
+      debugPrint('📝 [loadLyrics] 异常: $e');
       ErrorReporter.showError('Error loading lyrics: $e');
       _parsedLyrics.value = null;
     } finally {
@@ -965,7 +981,9 @@ class AudioService extends GetxService {
       );
 
       // 开始播放
+      debugPrint('⏯️ [playPlaylist] 开始播放...');
       await _audioPlayer.play();
+      debugPrint('⏯️ [playPlaylist] 播放已启动');
 
       // 保存状态
       await _saveLastState();
