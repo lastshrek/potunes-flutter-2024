@@ -178,7 +178,14 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
         return;
       }
 
-      // 使用较小的图片尺寸
+      // 封面 URL 为空时直接使用默认色，避免 PaletteGenerator 无限等待
+      if (coverUrl.isEmpty) {
+        _dominantColor.value = Colors.black;
+        _secondaryColor.value = Colors.black87;
+        return;
+      }
+
+      // 使用较小的图片尺寸，带超时保护
       final imageProvider = ResizeImage(
         CachedNetworkImageProvider(coverUrl, headers: getImageHeaders(coverUrl)),
         width: 100,
@@ -189,7 +196,10 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
         imageProvider,
         size: const Size(100, 100),
         maximumColorCount: 8,
-      );
+      ).timeout(const Duration(seconds: 8), onTimeout: () {
+        debugPrint('PaletteGenerator timeout for: $coverUrl');
+        throw TimeoutException('PaletteGenerator timeout');
+      });
 
       if (!mounted) return;
 

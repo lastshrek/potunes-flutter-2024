@@ -379,11 +379,16 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
         height: 100,
       );
 
+      // 封面 URL 为空时跳过
+      if (nonNullCoverUrl.isEmpty) return;
       final paletteGenerator = await PaletteGenerator.fromImageProvider(
         imageProvider,
         size: const Size(100, 100),
         maximumColorCount: 8,
-      );
+      ).timeout(const Duration(seconds: 8), onTimeout: () {
+        debugPrint('PaletteGenerator timeout');
+        throw TimeoutException('PaletteGenerator timeout');
+      });
 
       if (!mounted) return;
 

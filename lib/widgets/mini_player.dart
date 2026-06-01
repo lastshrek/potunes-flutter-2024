@@ -111,6 +111,7 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
 
     try {
       final imageProvider = CachedNetworkImageProvider(imageUrl, headers: getImageHeaders(imageUrl));
+      if (imageUrl.isEmpty) return;
       final paletteGenerator = await PaletteGenerator.fromImageProvider(
         imageProvider,
         size: const Size(100, 100),
