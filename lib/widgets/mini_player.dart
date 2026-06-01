@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import '../screens/pages/now_playing_page.dart';
 import 'package:palette_generator/palette_generator.dart';
 import '../utils/error_reporter.dart';
+import '../utils/image_headers.dart';
 
 class MiniPlayer extends StatefulWidget {
   final bool isAboveBottomBar;
@@ -109,7 +110,7 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
     _lastCoverUrl = imageUrl;
 
     try {
-      final imageProvider = CachedNetworkImageProvider(imageUrl);
+      final imageProvider = CachedNetworkImageProvider(imageUrl, headers: getImageHeaders(imageUrl));
       final paletteGenerator = await PaletteGenerator.fromImageProvider(
         imageProvider,
         size: const Size(100, 100),

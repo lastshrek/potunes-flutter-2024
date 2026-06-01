@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:ui';
 import '../../services/user_service.dart';
 import '../../widgets/scrolling_text.dart';
+import '../../utils/image_headers.dart';
 
 class NowPlayingPage extends StatefulWidget {
   const NowPlayingPage({super.key});
@@ -179,7 +180,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
 
       // 使用较小的图片尺寸
       final imageProvider = ResizeImage(
-        CachedNetworkImageProvider(coverUrl),
+        CachedNetworkImageProvider(coverUrl, headers: getImageHeaders(coverUrl)),
         width: 100,
         height: 100,
       );
@@ -398,6 +399,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                       child: CachedNetworkImage(
                         key: ValueKey(track['cover_url'] ?? ''),
                         imageUrl: track['cover_url'] ?? '',
+                          httpHeaders: getImageHeaders(track['cover_url'] ?? ''),
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
                           color: Colors.grey[900],
@@ -587,6 +589,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                     child: CachedNetworkImage(
                       key: ValueKey(track['cover_url'] ?? ''),
                       imageUrl: track['cover_url'] ?? '',
+                        httpHeaders: getImageHeaders(track['cover_url'] ?? ''),
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
                         color: Colors.grey[900],
@@ -1109,6 +1112,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProvid
                                         borderRadius: BorderRadius.circular(6),
                                         child: CachedNetworkImage(
                                           imageUrl: track['cover_url'] ?? '',
+                                            httpHeaders: getImageHeaders(track['cover_url'] ?? ''),
                                           width: 48,
                                           height: 48,
                                           fit: BoxFit.cover,

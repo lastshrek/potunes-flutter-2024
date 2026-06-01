@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../utils/image_headers.dart';
 
 class CachedImage extends StatelessWidget {
   final String url;
@@ -30,6 +31,7 @@ class CachedImage extends StatelessWidget {
       child: CachedNetworkImage(
         key: ValueKey(url),
         imageUrl: url,
+        httpHeaders: getImageHeaders(url),
         width: width,
         height: height,
         fit: fit,
