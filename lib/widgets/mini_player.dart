@@ -25,8 +25,7 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
   late final Animation<Offset> _slideAnimation;
   late final AnimationController _swipeController;
   Animation<double>? _swipeAnimation;
-  final ValueNotifier<Color> _backgroundColor =
-      ValueNotifier<Color>(Colors.black);
+  final ValueNotifier<Color> _backgroundColor = ValueNotifier<Color>(Colors.black);
   int _lastPrintedSecond = -1;
   String? _lastCoverUrl;
 
@@ -160,13 +159,16 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
 
   // 处理滑动手势
   void _handleHorizontalDragStart(DragStartDetails details) {
+    // FM 模式下不允许滑动切歌
+    if (AudioService.to.isFMMode) return;
+
     _isDragging = true;
     _dragStartX = details.localPosition.dx;
     _dragDistance = 0;
   }
 
   void _handleHorizontalDragUpdate(DragUpdateDetails details) {
-    if (!_isDragging) return;
+    if (!_isDragging || AudioService.to.isFMMode) return;
 
     setState(() {
       _dragDistance = details.localPosition.dx - _dragStartX;
@@ -174,7 +176,7 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
   }
 
   void _handleHorizontalDragEnd(DragEndDetails details) {
-    if (!_isDragging) return;
+    if (!_isDragging || AudioService.to.isFMMode) return;
 
     final velocity = details.primaryVelocity ?? 0;
     final distance = _dragDistance.abs();
@@ -257,6 +259,7 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
 
         return Obx(() {
           final isLoggedIn = UserService.to.isLoggedIn;
+          final isFMMode = controller.isFMMode;
 
           return TweenAnimationBuilder<double>(
             tween: Tween<double>(
@@ -288,7 +291,7 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
       height: 66,
       child: PageView.builder(
         controller: _pageController,
-        physics: const BouncingScrollPhysics(),
+        physics: controller.isFMMode ? const NeverScrollableScrollPhysics() : const BouncingScrollPhysics(),
         onPageChanged: (page) {
           if (page != 1) {
             // 切换歌曲
@@ -303,22 +306,35 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
         },
         itemBuilder: (context, index) {
           if (index == 1) {
-            return _buildNormalMode(controller, backgroundColor);
+            return controller.isFMMode ? _buildFMMode(controller, backgroundColor) : _buildNormalMode(controller, backgroundColor);
           } else if (index == 0) {
             // 左侧页面（上一首）
             return Padding(
               padding: const EdgeInsets.only(right: 16),
-              child: _buildNormalMode(controller, backgroundColor),
+              child: controller.isFMMode ? _buildFMMode(controller, backgroundColor) : _buildNormalMode(controller, backgroundColor),
             );
           } else {
             // 右侧页面（下一首）
             return Padding(
               padding: const EdgeInsets.only(left: 16),
-              child: _buildNormalMode(controller, backgroundColor),
+              child: controller.isFMMode ? _buildFMMode(controller, backgroundColor) : _buildNormalMode(controller, backgroundColor),
             );
           }
         },
         itemCount: 3,
+      ),
+    );
+  }
+
+  Widget _buildFMMode(AudioService controller, Color backgroundColor) {
+    return GestureDetector(
+      onTap: () => _navigateToNowPlaying(),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildPlayerBody(controller),
+          _buildProgressBar(controller, backgroundColor),
+        ],
       ),
     );
   }
@@ -447,9 +463,7 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
                   // 播放/暂停按钮
                   IconButton(
                     icon: FaIcon(
-                      controller.isPlaying
-                          ? FontAwesomeIcons.pause
-                          : FontAwesomeIcons.play,
+                      controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
                       color: Colors.white,
                       size: 18,
                     ),
@@ -457,27 +471,24 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
                     padding: EdgeInsets.zero,
                     visualDensity: VisualDensity.compact,
                   ),
-                  // 下一首按钮
-                  IconButton(
-                    icon: const FaIcon(
-                      FontAwesomeIcons.forward,
-                      color: Colors.white,
-                      size: 18,
+                  // 下一首按钮 - 只在非 FM 模式下显示
+                  if (controller.isFMMode)
+                    IconButton(
+                      icon: const FaIcon(
+                        FontAwesomeIcons.forward,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      onPressed: controller.skipToNext,
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
                     ),
-                    onPressed: controller.skipToNext,
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                  ),
                   // 喜欢按钮
                   if (UserService.to.isLoggedIn)
                     IconButton(
                       icon: Icon(
-                        controller.isLike
-                            ? Icons.favorite
-                            : Icons.favorite_border,
-                        color: controller.isLike
-                            ? const Color(0xFFDA5597)
-                            : Colors.white,
+                        controller.isLike ? Icons.favorite : Icons.favorite_border,
+                        color: controller.isLike ? const Color(0xFFDA5597) : Colors.white,
                       ),
                       onPressed: controller.toggleLike,
                     ),
@@ -498,9 +509,7 @@ class _MiniPlayerState extends State<MiniPlayer> with TickerProviderStateMixin {
         builder: (context, snapshot) {
           final position = snapshot.data ?? Duration.zero;
           final duration = controller.duration;
-          final progress = duration.inMilliseconds > 0
-              ? position.inMilliseconds / duration.inMilliseconds
-              : 0.0;
+          final progress = duration.inMilliseconds > 0 ? position.inMilliseconds / duration.inMilliseconds : 0.0;
 
           return ClipRRect(
             borderRadius: BorderRadius.circular(1),

@@ -19,8 +19,7 @@ class NowPlayingPage extends StatefulWidget {
   State<NowPlayingPage> createState() => _NowPlayingPageState();
 }
 
-class _NowPlayingPageState extends State<NowPlayingPage>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
+class _NowPlayingPageState extends State<NowPlayingPage> with SingleTickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
   // 添加颜色状态管理
   final _dominantColor = Rx<Color>(Colors.black);
   final _secondaryColor = Rx<Color>(Colors.black.withOpacity(0.7));
@@ -38,7 +37,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   // 添加动画控制器
   late AnimationController _animationController;
   late Animation<double> _bgOpacityAnimation;
-
+  
   // 用于强制刷新的计数器
   final _refreshCounter = 0.obs;
 
@@ -46,7 +45,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
+    
     _pageController = PageController(
       initialPage: AudioService.to.currentPageIndex,
     );
@@ -115,7 +114,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
       }
     });
   }
-
+  
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
@@ -124,7 +123,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
       _extractColors();
     }
   }
-
+  
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -134,7 +133,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
       Get.find<RouteObserver<Route<dynamic>>>().subscribe(this, route);
     }
   }
-
+  
   @override
   void didPopNext() {
     // 当从其他页面返回到此页面时调用
@@ -193,9 +192,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
 
       if (!mounted) return;
 
-      final newColor = paletteGenerator.darkMutedColor?.color ??
-          paletteGenerator.dominantColor?.color ??
-          Colors.black;
+      final newColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.dominantColor?.color ?? Colors.black;
 
       _dominantColor.value = newColor;
       _secondaryColor.value = newColor.withOpacity(0.7);
@@ -220,23 +217,19 @@ class _NowPlayingPageState extends State<NowPlayingPage>
 
     // 计算目标偏移量：
     // 1. 计算容器中心点
-    final containerHeight =
-        MediaQuery.of(context).size.height - kToolbarHeight - 65;
+    final containerHeight = MediaQuery.of(context).size.height - kToolbarHeight - 65;
     final centerY = containerHeight / 2;
 
     // 2. 计算当前行高度
-    final currentLineHeight =
-        _calculateLineHeight(lyrics[currentIndex].toString());
+    final currentLineHeight = _calculateLineHeight(lyrics[currentIndex].toString());
 
     // 3. 计算目标偏移量
     // offset: 当前行之前所有行的总高度
     // centerY: 容器中心点位置
     // currentLineHeight / 2: 当前行高度的一半，使文本中心对齐
     // listViewTopPadding: ListView 的顶部 padding
-    final listViewTopPadding =
-        MediaQuery.of(context).size.height / 2 - kToolbarHeight - 65;
-    final targetOffset =
-        offset - centerY + (currentLineHeight / 2) + listViewTopPadding;
+    final listViewTopPadding = MediaQuery.of(context).size.height / 2 - kToolbarHeight - 65;
+    final targetOffset = offset - centerY + (currentLineHeight / 2) + listViewTopPadding;
 
     _lyricsScrollController.animateTo(
       targetOffset.clamp(
@@ -253,10 +246,11 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     return Obx(() {
       // 监听刷新计数器，强制重建
       final _ = _refreshCounter.value;
-
+      
       return GetX<AudioService>(
         builder: (controller) {
           final track = controller.currentTrack;
+          final isFMMode = controller.isFMMode;
 
           if (track == null) return const SizedBox.shrink();
 
@@ -273,80 +267,76 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.7),
-                      Colors.black.withOpacity(0.0),
-                    ],
-                  ),
-                ),
-                child: AppBar(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  leading: IconButton(
-                    icon: const Icon(Icons.keyboard_arrow_down),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  centerTitle: true,
-                  title: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildPageIndicator(0),
-                      const SizedBox(width: 8),
-                      _buildPageIndicator(1),
-                    ],
-                  ),
-                  actions: [
-                    // 添加喜欢按钮 - 只在登录时显示
-                    Obx(() {
-                      if (UserService.to.isLoggedIn) {
-                        return IconButton(
-                          icon: FaIcon(
-                            AudioService.to.isLike
-                                ? FontAwesomeIcons.solidHeart
-                                : FontAwesomeIcons.heart,
-                            color: AudioService.to.isLike
-                                ? const Color(0xFFFF69B4)
-                                : Colors.white,
-                            size: 20,
-                          ),
-                          onPressed: AudioService.to.toggleLike,
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }),
-                  ],
-                ),
-              ),
-            ),
-            extendBodyBehindAppBar: true,
-            body: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
                   colors: [
-                    _dominantColor.value.withOpacity(0.95),
-                    _secondaryColor.value,
-                    Colors.black,
+                    Colors.black.withOpacity(0.7),
+                    Colors.black.withOpacity(0.0),
                   ],
-                  stops: const [0.0, 0.5, 1.0],
                 ),
               ),
-              child: PageView(
-                controller: _pageController,
-                physics: const BouncingScrollPhysics(),
-                onPageChanged: (index) {
-                  AudioService.to.currentPageIndex = index;
-                },
-                children: [
-                  _buildPlayerPage(track, controller),
-                  _buildLyricsPage(track),
+              child: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.keyboard_arrow_down),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                centerTitle: true,
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildPageIndicator(0),
+                    const SizedBox(width: 8),
+                    _buildPageIndicator(1),
+                  ],
+                ),
+                actions: [
+                  // 添加喜欢按钮 - 只在登录时显示
+                  Obx(() {
+                    if (UserService.to.isLoggedIn) {
+                      return IconButton(
+                        icon: FaIcon(
+                          AudioService.to.isLike ? FontAwesomeIcons.solidHeart : FontAwesomeIcons.heart,
+                          color: AudioService.to.isLike ? const Color(0xFFFF69B4) : Colors.white,
+                          size: 20,
+                        ),
+                        onPressed: AudioService.to.toggleLike,
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
                 ],
               ),
             ),
-          );
-        },
-      );
+          ),
+          extendBodyBehindAppBar: true,
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  _dominantColor.value.withOpacity(0.95),
+                  _secondaryColor.value,
+                  Colors.black,
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
+            ),
+            child: PageView(
+              controller: _pageController,
+              physics: const BouncingScrollPhysics(),
+              onPageChanged: (index) {
+                AudioService.to.currentPageIndex = index;
+              },
+              children: [
+                _buildPlayerPage(track, controller, isFMMode),
+                _buildLyricsPage(track),
+              ],
+            ),
+          ),
+        );
+      },
+    );
     });
   }
 
@@ -354,8 +344,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     return AnimatedBuilder(
       animation: _pageController,
       builder: (context, child) {
-        double page =
-            _pageController.hasClients ? _pageController.page ?? 0 : 0;
+        double page = _pageController.hasClients ? _pageController.page ?? 0 : 0;
         bool isSelected = pageIndex == page.round();
         double width = isSelected ? 16.0 : 4.0; // 选中的长度减半，未选中使用圆点
 
@@ -373,10 +362,9 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     );
   }
 
-  Widget _buildPlayerPage(Map<String, dynamic> track, AudioService controller) {
+  Widget _buildPlayerPage(Map<String, dynamic> track, AudioService controller, bool isFMMode) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
     if (!isLandscape) {
       // 保持原有的竖屏布局
@@ -442,8 +430,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                   // 歌曲标题
                   ScrollingText(
                     title: track['name'] ?? 'Unknown',
-                    subtitle:
-                        '${track['artist'] ?? 'Unknown Artist'} • ${track['album'] ?? 'Unknown Album'}',
+                    subtitle: '${track['artist'] ?? 'Unknown Artist'} • ${track['album'] ?? 'Unknown Album'}',
                     titleStyle: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -453,8 +440,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                       color: Colors.white.withOpacity(0.7),
                       fontSize: 16,
                     ),
-                    width:
-                        MediaQuery.of(context).size.width - 64, // 考虑左右padding
+                    width: MediaQuery.of(context).size.width - 64, // 考虑左右padding
                   ),
                   const SizedBox(height: 20),
                   // 进度条
@@ -517,42 +503,44 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                   ),
                   const SizedBox(height: 16),
                   // 播放控制
-                  _buildControlButtons(controller),
+                  _buildControlButtons(controller, isFMMode),
                   const SizedBox(height: 16),
                   // 添加 Coming Up Next 容器
-                  GestureDetector(
-                    onTap: _showPlaylistSheet,
-                    child: Center(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Container(
-                            height: 40,
-                            width: 160,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.black.withOpacity(0.5),
-                                  Colors.black.withOpacity(0.3),
-                                ],
+                  if (!isFMMode)
+                    GestureDetector(
+                      onTap: _showPlaylistSheet,
+                      child: Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Container(
+                              height: 40,
+                              width: 160,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.black.withOpacity(0.5),
+                                    Colors.black.withOpacity(0.3),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.1),
+                                  width: 0.5,
+                                ),
                               ),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.1),
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'Coming Up Next',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.8),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 0.5,
+                              child: Center(
+                                child: Text(
+                                  'Coming Up Next',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                               ),
                             ),
@@ -560,7 +548,6 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                         ),
                       ),
                     ),
-                  ),
                   const SizedBox(height: 16),
                 ],
               ),
@@ -633,8 +620,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                 // 歌曲标题
                 ScrollingText(
                   title: track['name'] ?? 'Unknown',
-                  subtitle:
-                      '${track['artist'] ?? 'Unknown Artist'} • ${track['album'] ?? 'Unknown Album'}',
+                  subtitle: '${track['artist'] ?? 'Unknown Artist'} • ${track['album'] ?? 'Unknown Album'}',
                   titleStyle: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -644,8 +630,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                     color: Colors.white.withOpacity(0.7),
                     fontSize: 16,
                   ),
-                  width:
-                      MediaQuery.of(context).size.width * 0.4, // 根据可用宽度调整文本宽度
+                  width: MediaQuery.of(context).size.width * 0.4, // 根据可用宽度调整文本宽度
                 ),
                 const SizedBox(height: 20),
                 // 进度条
@@ -708,42 +693,44 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                 ),
                 const SizedBox(height: 16),
                 // 播放控制
-                _buildControlButtons(controller),
+                _buildControlButtons(controller, isFMMode),
                 const SizedBox(height: 16),
                 // Coming Up Next 容器
-                GestureDetector(
-                  onTap: _showPlaylistSheet,
-                  child: Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          height: 40,
-                          width: 160,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.black.withOpacity(0.5),
-                                Colors.black.withOpacity(0.3),
-                              ],
+                if (!isFMMode)
+                  GestureDetector(
+                    onTap: _showPlaylistSheet,
+                    child: Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            height: 40,
+                            width: 160,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.black.withOpacity(0.5),
+                                  Colors.black.withOpacity(0.3),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.1),
+                                width: 0.5,
+                              ),
                             ),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.1),
-                              width: 0.5,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Coming Up Next',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 0.5,
+                            child: Center(
+                              child: Text(
+                                'Coming Up Next',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
                             ),
                           ),
@@ -751,7 +738,6 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                       ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -795,8 +781,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white70),
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
                               ),
                               SizedBox(height: 16),
                               Text(
@@ -822,10 +807,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                             60.0,
                             'notAvailable',
                             20.0,
-                            useWhite:
-                                Theme.of(context).brightness == Brightness.light
-                                    ? false
-                                    : true,
+                            useWhite: Theme.of(context).brightness == Brightness.light ? false : true,
                           ),
                         );
                       }
@@ -834,9 +816,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                         child: ListView.builder(
                           controller: _lyricsScrollController,
                           padding: EdgeInsets.only(
-                            top: MediaQuery.of(context).size.height / 2 -
-                                kToolbarHeight -
-                                65,
+                            top: MediaQuery.of(context).size.height / 2 - kToolbarHeight - 65,
                             bottom: MediaQuery.of(context).size.height / 2,
                           ),
                           itemCount: lyrics.length,
@@ -847,8 +827,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                             if (isCurrentLine) {
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 if (_pageController.page == 1) {
-                                  _scrollToCurrentLine(
-                                      currentIndex, availableHeight);
+                                  _scrollToCurrentLine(currentIndex, availableHeight);
                                 }
                               });
                             }
@@ -885,7 +864,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // 播放控制按钮
-                        _buildControlButtons(AudioService.to),
+                        _buildControlButtons(AudioService.to, false),
                         SizedBox(height: bottomPadding + 8),
                       ],
                     ),
@@ -908,8 +887,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
 
   Widget _buildLyricLine(LyricLine line, bool isCurrentLine) {
     return Container(
-      height:
-          _calculateLineHeight(line.toString(), isCurrentLine: isCurrentLine),
+      height: _calculateLineHeight(line.toString(), isCurrentLine: isCurrentLine),
       alignment: Alignment.centerLeft,
       child: Container(
         padding: EdgeInsets.only(
@@ -918,10 +896,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
           bottom: 6.0,
         ),
         child: SizedBox(
-          width: (MediaQuery.of(context).size.width -
-                  MediaQuery.of(context).padding.left -
-                  20.0) /
-              1.2,
+          width: (MediaQuery.of(context).size.width - MediaQuery.of(context).padding.left - 20.0) / 1.2,
           child: TweenAnimationBuilder<double>(
             tween: Tween<double>(
               begin: isCurrentLine ? 1.0 : 1.0,
@@ -944,8 +919,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                     fontSize: 16,
                     height: 1.5,
                     letterSpacing: 0.5,
-                    fontWeight:
-                        isCurrentLine ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
                   ),
                   textAlign: TextAlign.left,
                   softWrap: true,
@@ -992,10 +966,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     );
 
     // 始终使用缩放后的宽度计算布局
-    final maxWidth = (MediaQuery.of(context).size.width -
-            MediaQuery.of(context).padding.left -
-            20.0) /
-        1.2;
+    final maxWidth = (MediaQuery.of(context).size.width - MediaQuery.of(context).padding.left - 20.0) / 1.2;
     textPainter.layout(maxWidth: maxWidth);
 
     final textHeight = textPainter.height;
@@ -1026,8 +997,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
             return Container(
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.9),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
                 children: [
@@ -1058,7 +1028,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                       final controller = AudioService.to;
                       final playlist = controller.rxCurrentPlaylist.value;
                       final currentIdx = controller.rxCurrentIndex.value;
-
+                      
                       if (playlist == null || playlist.isEmpty) {
                         return const SizedBox.shrink();
                       }
@@ -1068,20 +1038,15 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                         hasScrolledToInitial = true;
                         final itemHeight = 72.0;
                         final targetOffset = currentIdx * itemHeight;
-                        final initialOffset =
-                            math.max(0.0, targetOffset - itemHeight * 2);
-
+                        final initialOffset = math.max(0.0, targetOffset - itemHeight * 2);
+                        
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (playlistScrollController.hasClients) {
                             playlistScrollController.jumpTo(initialOffset);
-                            Future.delayed(const Duration(milliseconds: 100),
-                                () {
+                            Future.delayed(const Duration(milliseconds: 100), () {
                               if (playlistScrollController.hasClients) {
                                 playlistScrollController.animateTo(
-                                  targetOffset.clamp(
-                                      0.0,
-                                      playlistScrollController
-                                          .position.maxScrollExtent),
+                                  targetOffset.clamp(0.0, playlistScrollController.position.maxScrollExtent),
                                   duration: const Duration(milliseconds: 300),
                                   curve: Curves.easeOutCubic,
                                 );
@@ -1093,8 +1058,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
 
                       // 使用 ListView.builder 的优化版本
                       return ListView.custom(
-                        key: ValueKey(
-                            '${playlist.length}_${playlist.isNotEmpty ? playlist[0]['id'] : ''}'),
+                        key: ValueKey('${playlist.length}_${playlist.isNotEmpty ? playlist[0]['id'] : ''}'),
                         controller: playlistScrollController,
                         padding: const EdgeInsets.only(
                           top: 8.0,
@@ -1111,8 +1075,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                                 behavior: HitTestBehavior.opaque, // 优化点击响应区域
                                 onTap: () {
                                   Navigator.pop(context);
-                                  Future.delayed(
-                                      const Duration(milliseconds: 300), () {
+                                  Future.delayed(const Duration(milliseconds: 300), () {
                                     if (mounted) {
                                       controller.skipToQueueItem(index);
                                     }
@@ -1135,8 +1098,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                                               : Text(
                                                   '${index + 1}',
                                                   style: TextStyle(
-                                                    color: Colors.white
-                                                        .withOpacity(0.5),
+                                                    color: Colors.white.withOpacity(0.5),
                                                     fontSize: 14,
                                                   ),
                                                 ),
@@ -1155,8 +1117,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               track['name'] ?? '',
@@ -1165,9 +1126,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                                                   isPlaying ? 1.0 : 0.9,
                                                 ),
                                                 fontSize: 16,
-                                                fontWeight: isPlaying
-                                                    ? FontWeight.w600
-                                                    : FontWeight.normal,
+                                                fontWeight: isPlaying ? FontWeight.w600 : FontWeight.normal,
                                               ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
@@ -1176,8 +1135,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                                             Text(
                                               track['artist'] ?? '',
                                               style: TextStyle(
-                                                color: Colors.white
-                                                    .withOpacity(0.5),
+                                                color: Colors.white.withOpacity(0.5),
                                                 fontSize: 14,
                                               ),
                                               maxLines: 1,
@@ -1213,7 +1171,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     });
   }
 
-  Widget _buildControlButtons(AudioService controller) {
+  Widget _buildControlButtons(AudioService controller, bool isFMMode) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -1222,19 +1180,36 @@ class _NowPlayingPageState extends State<NowPlayingPage>
           icon: FaIcon(
             FontAwesomeIcons.shuffle,
             size: 20,
-            color:
-                Colors.white.withOpacity(controller.isShuffleMode ? 1.0 : 0.4),
+            color: isFMMode
+                ? Colors.grey.withOpacity(0.4) // FM 模式下置灰
+                : Colors.white.withOpacity(controller.isShuffleMode ? 1.0 : 0.4),
           ),
-          onPressed: controller.toggleShuffle,
+          onPressed: isFMMode
+              ? () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('FM 模式下不支持随机播放'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  )
+              : controller.toggleShuffle,
         ),
         // 上一首按钮
         IconButton(
           icon: FaIcon(
             FontAwesomeIcons.backward,
             size: 24,
-            color: Colors.white.withOpacity(0.8),
+            color: isFMMode
+                ? Colors.grey.withOpacity(0.4) // FM 模式下置灰
+                : Colors.white.withOpacity(0.8),
           ),
-          onPressed: controller.previous,
+          onPressed: isFMMode
+              ? () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('FM 模式下不支持上一首'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  )
+              : controller.previous,
         ),
         // 播放/暂停按钮
         Container(
@@ -1255,9 +1230,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
               onTap: controller.togglePlayPause,
               child: Center(
                 child: FaIcon(
-                  controller.isPlaying
-                      ? FontAwesomeIcons.pause
-                      : FontAwesomeIcons.play,
+                  controller.isPlaying ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
                   size: 24,
                   color: Colors.white,
                 ),
@@ -1276,29 +1249,42 @@ class _NowPlayingPageState extends State<NowPlayingPage>
         ),
         // 循环模式按钮
         IconButton(
-          icon: Stack(
-            alignment: Alignment.center,
-            children: [
-              FaIcon(
-                FontAwesomeIcons.repeat,
-                size: 20,
-                color: Colors.white,
-              ),
-              if (controller.repeatMode == RepeatMode.single)
-                Positioned(
-                  top: 4,
-                  child: Text(
-                    '1',
-                    style: TextStyle(
+          icon: isFMMode
+              ? FaIcon(
+                  FontAwesomeIcons.repeat,
+                  size: 20,
+                  color: Colors.grey.withOpacity(0.4),
+                )
+              : Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    FaIcon(
+                      FontAwesomeIcons.repeat,
+                      size: 20,
                       color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
                     ),
-                  ),
+                    if (controller.repeatMode == RepeatMode.single)
+                      Positioned(
+                        top: 4,
+                        child: Text(
+                          '1',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-            ],
-          ),
-          onPressed: controller.toggleRepeatMode,
+          onPressed: isFMMode
+              ? () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('FM 模式下不支持循环播放'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  )
+              : controller.toggleRepeatMode,
         ),
       ],
     );
@@ -1312,8 +1298,7 @@ class _PlayingIndicator extends StatefulWidget {
   State<_PlayingIndicator> createState() => _PlayingIndicatorState();
 }
 
-class _PlayingIndicatorState extends State<_PlayingIndicator>
-    with SingleTickerProviderStateMixin {
+class _PlayingIndicatorState extends State<_PlayingIndicator> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   final List<Animation<double>> _animations = [];
 
