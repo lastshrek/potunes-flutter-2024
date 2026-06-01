@@ -171,6 +171,13 @@ class NetworkService {
       }
 
       throw Exception('Invalid response format');
+    } on DioException catch (e) {
+      // 歌词 404 很常见（不是所有歌曲都有歌词），静默处理
+      if (e.response?.statusCode == 404) {
+        return {};
+      }
+      ErrorReporter.showError(e);
+      rethrow;
     } catch (e) {
       ErrorReporter.showError(e);
       rethrow;

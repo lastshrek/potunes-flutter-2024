@@ -226,6 +226,12 @@ class AudioService extends GetxService {
       // 如果正在设置播放列表，跳过此次更新（playPlaylist 会自己设置正确的值）
       if (_isSettingPlaylist) return;
       
+      // FM 模式：索引 1 是静音占位符，点击下一首时立即加载新 FM 曲目
+      if (_isFMMode.value && index == 1 && !_isLoadingFMTrack) {
+        playFMTrack();
+        return;
+      }
+      
       if (index != null && _currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
         // 确保索引在有效范围内
         final safeIndex = index.clamp(0, _currentPlaylist.value!.length - 1);
@@ -263,6 +269,12 @@ class AudioService extends GetxService {
     _audioPlayer.currentIndexStream.listen((index) async {
       // 如果正在设置播放列表，跳过此次更新（playPlaylist 会自己设置正确的值）
       if (_isSettingPlaylist) return;
+      
+      // FM 模式：索引 1 是静音占位符，点击下一首时立即加载新 FM 曲目
+      if (_isFMMode.value && index == 1 && !_isLoadingFMTrack) {
+        playFMTrack();
+        return;
+      }
       
       if (index != null && _currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
         // 确保索引在有效范围内
@@ -752,8 +764,7 @@ class AudioService extends GetxService {
       // 格式化歌词
       _parsedLyrics.value = _formatLyrics(response);
     } catch (e) {
-      debugPrint('📝 [loadLyrics] 异常: $e');
-      ErrorReporter.showError('Error loading lyrics: $e');
+      debugPrint('📝 [loadLyrics] 歌词不可用: $e');
       _parsedLyrics.value = null;
     } finally {
       _isLoadingLyrics.value = false;
@@ -1105,7 +1116,9 @@ class AudioService extends GetxService {
       await _audioPlayer.pause();
       final track = await NetworkService.instance.getRadioTrack();
 
-      _currentPlaylist.value = [track];
+      // FM 模式用 2 元素播放列表：索引 0 是真实曲目，索引 1 是静音占位符
+      // 占位符使通知栏显示下一首按钮，点击后由 currentIndexStream 拦截切歌
+      _currentPlaylist.value = [track, {}];
       _currentIndex.value = 0;
       _currentTrack.value = track;
       _nextTrack.value = null;
@@ -1130,11 +1143,22 @@ class AudioService extends GetxService {
         },
       );
 
-      // 统一使用单曲 ConcatenatingAudioSource，由 processingState.completed 驱动切歌
+      // 极小静音 WAV（~0.02ms），用作占位符让通知栏显示"下一首"按钮
+      // 当用户点下一首走到索引 1 时，currentIndexStream 立即拦截并加载新 FM 曲目
+      const silentWavDataUri = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+
       final source = ConcatenatingAudioSource(
         useLazyPreparation: true,
         children: [
           AudioSource.uri(Uri.parse(track['url']), tag: mediaItem),
+          AudioSource.uri(
+            Uri.parse(silentWavDataUri),
+            tag: MediaItem(
+              id: '__fm_placeholder__',
+              title: '',
+              duration: Duration.zero,
+            ),
+          ),
         ],
       );
 
@@ -1142,6 +1166,7 @@ class AudioService extends GetxService {
       await _audioPlayer.setLoopMode(LoopMode.off);
 
       _isLoadingFMTrack = false;
+      _isHandlingCompletion = false;
       _audioPlayer.play();
       await _saveLastState();
     } catch (e) {
