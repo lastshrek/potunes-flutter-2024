@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../utils/image_headers.dart';
 
 class CarouselSlider extends StatelessWidget {
   final List<Map<String, dynamic>> items;
@@ -34,7 +33,6 @@ class CarouselSlider extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                     child: CachedNetworkImage(
                       imageUrl: item['cover_url'] ?? '',
-                        httpHeaders: getImageHeaders(item['cover_url'] ?? ''),
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
                         color: Colors.grey[900],

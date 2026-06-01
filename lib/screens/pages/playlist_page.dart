@@ -17,7 +17,6 @@ import '../../widgets/common/current_track_highlight.dart';
 import '../../widgets/song_options_sheet.dart';
 import '../../screens/pages/add_to_playlist_page.dart';
 import '../../widgets/common/track_list_item.dart';
-import '../../utils/image_headers.dart';
 
 extension ColorExtension on Color {
   Color darken([double amount = 0.1]) {
@@ -374,7 +373,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
       // 使用较小的图片尺寸
       final imageProvider = ResizeImage(
-        CachedNetworkImageProvider(nonNullCoverUrl, headers: getImageHeaders(nonNullCoverUrl)),
+        CachedNetworkImageProvider(nonNullCoverUrl),
         width: 100,
         height: 100,
       );
