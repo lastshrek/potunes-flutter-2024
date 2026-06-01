@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../utils/image_headers.dart';
 
 class TrackListTile extends StatelessWidget {
   final Map<String, dynamic> track;
@@ -32,6 +33,7 @@ class TrackListTile extends StatelessWidget {
             height: 40,
             fit: BoxFit.cover,
             imageUrl: track['cover_url'] ?? '',
+              httpHeaders: getImageHeaders(track['cover_url'] ?? ''),
             placeholder: (context, url) => Container(
               color: Colors.grey[800],
               child: const Icon(

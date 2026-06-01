@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'image_headers.dart';
 
 class ImageCacheManager {
   static final ImageCacheManager _instance = ImageCacheManager._internal();
@@ -20,6 +21,7 @@ class ImageCacheManager {
   }) {
     return Image.network(
       url,
+      headers: getImageHeaders(url),
       width: width,
       height: height,
       fit: fit,

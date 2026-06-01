@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../utils/image_headers.dart';
 
 class CachedImage extends StatelessWidget {
   final String url;
@@ -21,7 +22,6 @@ class CachedImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 计算缓存尺寸，确保值有效且不为无穷大
     final int? cacheWidth = width.isFinite ? (width * 2).toInt() : null;
     final int? cacheHeight = height.isFinite ? (height * 2).toInt() : null;
 
@@ -33,6 +33,7 @@ class CachedImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
+        httpHeaders: getImageHeaders(url),
         memCacheWidth: cacheWidth,
         memCacheHeight: cacheHeight,
         placeholder: (context, url) => Container(
