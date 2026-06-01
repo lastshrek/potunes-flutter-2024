@@ -828,8 +828,8 @@ class NetworkService {
       final date =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
-      // 构建请求体
-      final requestBody = {
+      // 构建请求体，只发送后端需要的字段，避免 422
+      final requestBody = <String, dynamic>{
         'id': track['id'],
         'nId': track['nId'],
         'name': track['name'],
@@ -839,13 +839,15 @@ class NetworkService {
         'cover_url': track['cover_url'],
         'url': track['url'],
         'type': track['id'] == 0 ? 'netease' : 'potunes',
-        'playlist_id': track['playlist_id'],
-        'ar': track['ar'] ?? [],
-        'original_album': track['original_album'] ?? '',
-        'original_album_id': track['original_album_id'] ?? 0,
-        'mv': track['mv'] ?? 0,
-        'date': date, // 添加日期字段
+        'date': date,
       };
+      // 可选字段，存在时才发送
+      if (track['playlist_id'] != null) {
+        requestBody['playlist_id'] = track['playlist_id'];
+      }
+      if (track['ar'] != null) {
+        requestBody['ar'] = track['ar'];
+      }
       final response = await _client.post<dynamic>(
         ApiConfig.updatePlayCount,
         data: requestBody,
