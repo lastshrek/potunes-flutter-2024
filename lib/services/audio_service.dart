@@ -403,7 +403,7 @@ class AudioService extends GetxService {
       await _audioPlayer.setAudioSource(
         playlistSource,
         initialIndex: initialIndex,
-        preload: true,
+        preload: false,
       );
       debugPrint('⏯️ [playPlaylist] 音频源设置完成 (${stopwatch.elapsedMilliseconds}ms)');
       
@@ -704,7 +704,7 @@ class AudioService extends GetxService {
           await _audioPlayer.setAudioSource(
             playlistSource,
             initialIndex: index,
-            preload: true,
+            preload: false,
           );
         }
       }
@@ -977,7 +977,7 @@ class AudioService extends GetxService {
       await _audioPlayer.setAudioSource(
         playlistSource,
         initialIndex: index,
-        preload: true,
+        preload: false,
       );
 
       // 开始播放
