@@ -27,7 +27,12 @@ class ApiException implements Exception {
         statusCode = 503;
       case DioExceptionType.badResponse:
         statusCode = error.response?.statusCode ?? 500;
-        message = error.response?.statusMessage ?? ApiConfig.serverError;
+        final data = error.response?.data;
+        if (data is Map) {
+          message = data['message']?.toString() ?? data['error']?.toString() ?? ApiConfig.serverError;
+        } else {
+          message = error.response?.statusMessage ?? ApiConfig.serverError;
+        }
       default:
         message = ApiConfig.serverError;
         statusCode = 500;

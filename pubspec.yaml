@@ -57,6 +57,7 @@ dependencies:
   flutter_displaymode: ^0.6.0
   google_fonts: ^8.1.0
   crypto: ^3.0.3
+  open_filex: ^4.5.0
 
 dev_dependencies:
   flutter_test:

@@ -12,36 +12,25 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _phoneController = TextEditingController();
+  final _accountController = TextEditingController();
   final _passwordController = TextEditingController();
   final _isLoading = false.obs;
   final _error = Rx<String?>(null);
   final _obscurePassword = true.obs;
 
-  final RegExp _phoneRegExp = RegExp(r'^1[3-9]\d{9}$');
-
-  bool _isValidPhoneNumber(String phone) {
-    return _phoneRegExp.hasMatch(phone);
-  }
-
   @override
   void dispose() {
-    _phoneController.dispose();
+    _accountController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _login() async {
-    final phone = _phoneController.text.trim();
+    final account = _accountController.text.trim();
     final password = _passwordController.text;
 
-    if (phone.isEmpty) {
-      _error.value = '请输入手机号';
-      return;
-    }
-
-    if (!_isValidPhoneNumber(phone)) {
-      _error.value = '请输入正确的手机号';
+    if (account.isEmpty) {
+      _error.value = '请输入用户名或手机号';
       return;
     }
 
@@ -56,7 +45,7 @@ class _LoginPageState extends State<LoginPage> {
 
       final hashedPassword = hashPassword(password);
       final networkService = NetworkService.instance;
-      final response = await networkService.login(phone, hashedPassword);
+      final response = await networkService.login(account, hashedPassword);
 
       await UserService.to.saveLoginData(response);
 
@@ -101,8 +90,8 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void _showRegisterSheet() {
-    showModalBottomSheet(
+  void _showRegisterSheet() async {
+    final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.black,
@@ -111,6 +100,9 @@ class _LoginPageState extends State<LoginPage> {
       ),
       builder: (context) => const RegisterSheet(),
     );
+    if (result == true && mounted) {
+      Navigator.pop(context, true);
+    }
   }
 
   @override
@@ -198,18 +190,18 @@ class _LoginPageState extends State<LoginPage> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: TextField(
-                                  controller: _phoneController,
+                                  controller: _accountController,
                                   style: const TextStyle(color: Colors.white),
-                                  keyboardType: TextInputType.phone,
+                                  keyboardType: TextInputType.text,
                                   textAlign: TextAlign.left,
                                   decoration: InputDecoration(
                                     border: InputBorder.none,
                                     contentPadding: const EdgeInsets.symmetric(
                                         horizontal: 16, vertical: 12),
-                                    hintText: 'Enter Your CellPhone Number',
+                                    hintText: 'Username or Phone Number',
                                     hintStyle:
                                         const TextStyle(color: Colors.grey),
-                                    prefixIcon: const Icon(Icons.phone_android,
+                                    prefixIcon: const Icon(Icons.person_outline,
                                         color: Color(0xFFDA5597)),
                                     prefixIconConstraints:
                                         const BoxConstraints(minWidth: 40),
@@ -601,37 +593,39 @@ class RegisterSheet extends StatefulWidget {
 }
 
 class _RegisterSheetState extends State<RegisterSheet> {
-  final _phoneController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _oldPhoneController = TextEditingController();
+  final _bindPhone = false.obs;
   final _isLoading = false.obs;
   final _error = Rx<String?>(null);
   final _success = false.obs;
   final _obscurePassword = true.obs;
   final _obscureConfirmPassword = true.obs;
 
-  final RegExp _phoneRegExp = RegExp(r'^1[3-9]\d{9}$');
-
   @override
   void dispose() {
-    _phoneController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _oldPhoneController.dispose();
     super.dispose();
   }
 
   Future<void> _register() async {
-    final phone = _phoneController.text.trim();
+    final username = _usernameController.text.trim();
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
+    final oldPhone = _bindPhone.value ? _oldPhoneController.text.trim() : null;
 
-    if (phone.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+    if (username.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       _error.value = '请填写所有字段';
       return;
     }
 
-    if (!_phoneRegExp.hasMatch(phone)) {
-      _error.value = '请输入正确的手机号';
+    if (username.length < 4 || username.length > 20) {
+      _error.value = '用户名长度4-20位';
       return;
     }
 
@@ -651,7 +645,7 @@ class _RegisterSheetState extends State<RegisterSheet> {
 
       final hashedPassword = hashPassword(password);
       final networkService = NetworkService.instance;
-      final response = await networkService.register(phone, hashedPassword);
+      final response = await networkService.registerWithBind(username, hashedPassword, oldPhone: oldPhone);
 
       await UserService.to.saveLoginData(response);
 
@@ -709,7 +703,7 @@ class _RegisterSheetState extends State<RegisterSheet> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Enter your phone number and password to register',
+                'Enter your username and password to register',
                 style: TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 24),
@@ -719,17 +713,17 @@ class _RegisterSheetState extends State<RegisterSheet> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: TextField(
-                  controller: _phoneController,
+                  controller: _usernameController,
                   style: const TextStyle(color: Colors.white),
-                  keyboardType: TextInputType.phone,
+                  keyboardType: TextInputType.text,
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    hintText: 'Phone Number',
+                    hintText: 'Username (4-20 characters)',
                     hintStyle: TextStyle(color: Colors.grey),
                     prefixIcon:
-                        Icon(Icons.phone_android, color: Color(0xFFDA5597)),
+                        Icon(Icons.person_outline, color: Color(0xFFDA5597)),
                   ),
                 ),
               ),
@@ -793,6 +787,52 @@ class _RegisterSheetState extends State<RegisterSheet> {
                       ),
                     ),
                   )),
+              const SizedBox(height: 16),
+              Obx(() => GestureDetector(
+                    onTap: () => _bindPhone.value = !_bindPhone.value,
+                    child: Row(
+                      children: [
+                        Icon(
+                          _bindPhone.value
+                              ? Icons.check_box
+                              : Icons.check_box_outline_blank,
+                          color: const Color(0xFFDA5597),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Bind existing phone account',
+                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  )),
+              Obx(() {
+                if (!_bindPhone.value) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TextField(
+                      controller: _oldPhoneController,
+                      style: const TextStyle(color: Colors.white),
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        hintText: 'Old Phone Number',
+                        hintStyle: TextStyle(color: Colors.grey),
+                        prefixIcon: Icon(Icons.phone_android,
+                            color: Color(0xFFDA5597)),
+                      ),
+                    ),
+                  ),
+                );
+              }),
               const SizedBox(height: 16),
               if (_error.value != null)
                 Padding(

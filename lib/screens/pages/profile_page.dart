@@ -183,7 +183,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 24),
 
-            // 手机号（不可修改）
+            // 手机号
             const Text(
               'Phone',
               style: TextStyle(
@@ -192,17 +192,41 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _formatPhone(_phone ?? ''),
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 16,
+            InkWell(
+              onTap: (_phone == null || _phone!.isEmpty) ? _showBindPhoneDialog : null,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _phone != null && _phone!.isNotEmpty
+                            ? _formatPhone(_phone!)
+                            : 'Not set',
+                        style: TextStyle(
+                          color: _phone != null && _phone!.isNotEmpty
+                              ? Colors.grey
+                              : Colors.grey[700],
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    if (_phone == null || _phone!.isEmpty)
+                      const Text(
+                        'Bind',
+                        style: TextStyle(
+                          color: Color(0xFFDA5597),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -322,6 +346,89 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showBindPhoneDialog() {
+    final phoneController = TextEditingController();
+    final isLoading = false.obs;
+    final error = Rx<String?>(null);
+
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Bind Phone', style: TextStyle(color: Colors.white)),
+        content: SingleChildScrollView(
+          child: Obx(() => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (error.value != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(error.value!,
+                          style: const TextStyle(color: Colors.red)),
+                    ),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      hintText: 'Old Phone Number',
+                      hintStyle: TextStyle(color: Colors.grey),
+                      prefixIcon:
+                          Icon(Icons.phone_android, color: Color(0xFFDA5597)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'This will merge the old account\'s data\n(favorites, playlists) into your current account.',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
+              )),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          Obx(() => TextButton(
+                onPressed: isLoading.value
+                    ? null
+                    : () async {
+                        final phone = phoneController.text.trim();
+                        if (phone.length != 11) {
+                          error.value = '请输入11位手机号';
+                          return;
+                        }
+                        try {
+                          isLoading.value = true;
+                          error.value = null;
+                          final response = await NetworkService.instance.bindPhone(phone);
+                          await UserService.to.saveLoginData(response);
+                          Get.back();
+                          setState(() {
+                            _phone = phone;
+                          });
+                          ErrorReporter.showSuccess('Phone bound successfully');
+                        } catch (e) {
+                          error.value = e.toString();
+                        } finally {
+                          isLoading.value = false;
+                        }
+                      },
+                child: isLoading.value
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Color(0xFFDA5597)),
+                      )
+                    : const Text('Bind',
+                        style: TextStyle(color: Color(0xFFDA5597))),
+              )),
+        ],
       ),
     );
   }

@@ -13,8 +13,9 @@ import 'bindings/initial_binding.dart';
 import 'services/user_service.dart';
 import 'controllers/app_controller.dart';
 import 'services/version_service.dart';
+import 'services/download_service.dart';
 import 'package:dio/dio.dart';
-import '../config/api_config.dart';
+import 'config/api_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,7 +71,8 @@ Future<void> main() async {
     receiveTimeout: const Duration(milliseconds: ApiConfig.receiveTimeout),
   ));
 
-  final versionService = Get.put(VersionService(dio));
+  final downloadService = Get.put(DownloadService());
+  final versionService = Get.put(VersionService(dio, downloadService));
 
   // 设置图片缓存
   PaintingBinding.instance.imageCache.maximumSize = 100; // 限制缓存数量

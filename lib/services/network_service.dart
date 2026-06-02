@@ -430,7 +430,7 @@ class NetworkService {
   }
 
   // 用户注册
-  Future<Map<String, dynamic>> register(String phone, String password) async {
+  Future<Map<String, dynamic>> register(String username, String password) async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();
     }
@@ -438,7 +438,7 @@ class NetworkService {
       final response = await _client.post<dynamic>(
         ApiConfig.register,
         data: {
-          'phone': phone,
+          'username': username,
           'password': password,
         },
       );
@@ -457,8 +457,40 @@ class NetworkService {
     }
   }
 
-  // 用户登录（密码登录）
-  Future<Map<String, dynamic>> login(String phone, String password) async {
+  // 注册并绑定旧手机号
+  Future<Map<String, dynamic>> registerWithBind(String username, String password, {String? oldPhone}) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final data = <String, dynamic>{
+        'username': username,
+        'password': password,
+      };
+      if (oldPhone != null && oldPhone.isNotEmpty) {
+        data['oldPhone'] = oldPhone;
+      }
+      final response = await _client.post<dynamic>(
+        ApiConfig.registerWithBind,
+        data: data,
+      );
+
+      if (response is Map && response['statusCode'] == 200) {
+        return response as Map<String, dynamic>;
+      }
+
+      throw ApiException(
+        statusCode: response['statusCode'] ?? 400,
+        message: response['message'] ?? '注册失败',
+      );
+    } catch (e) {
+      ErrorReporter.showError(e);
+      rethrow;
+    }
+  }
+
+  // 用户登录（用户名或手机号）
+  Future<Map<String, dynamic>> login(String account, String password) async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();
     }
@@ -466,7 +498,7 @@ class NetworkService {
       final response = await _client.post<dynamic>(
         ApiConfig.login,
         data: {
-          'phone': phone,
+          'account': account,
           'password': password,
         },
       );
@@ -536,6 +568,31 @@ class NetworkService {
       throw ApiException(
         statusCode: response['statusCode'] ?? 401,
         message: response['message'] ?? '密码修改失败',
+      );
+    } catch (e) {
+      ErrorReporter.showError(e);
+      rethrow;
+    }
+  }
+
+  // 绑定手机号（已登录用户）
+  Future<Map<String, dynamic>> bindPhone(String phone) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.post<dynamic>(
+        ApiConfig.bindPhone,
+        data: { 'phone': phone },
+      );
+
+      if (response is Map && response['statusCode'] == 200) {
+        return response as Map<String, dynamic>;
+      }
+
+      throw ApiException(
+        statusCode: response['statusCode'] ?? 400,
+        message: response['message'] ?? '绑定失败',
       );
     } catch (e) {
       ErrorReporter.showError(e);

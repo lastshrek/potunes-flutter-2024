@@ -1,17 +1,17 @@
 import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../config/api_config.dart';
 import '../utils/error_reporter.dart';
+import 'download_service.dart';
 
 class VersionService extends GetxService {
   final Dio _dio;
+  final DownloadService _downloadService;
 
-  VersionService(this._dio);
+  VersionService(this._dio, this._downloadService);
 
   Future<void> initCheckVersion() async {
     await Future.delayed(const Duration(seconds: 1));
@@ -19,7 +19,6 @@ class VersionService extends GetxService {
   }
 
   Future<void> checkVersion() async {
-    // 只在 Android 平台检查更新
     if (!Platform.isAndroid) {
       return;
     }
@@ -37,11 +36,9 @@ class VersionService extends GetxService {
         final responseData = response.data['data'] as Map<String, dynamic>;
         final newVersion = responseData['a_version'] as String;
         final downloadUrl = responseData['a_url'] as String;
-        // 使用正确的字段名 updateText
         final dynamic rawUpdateText = responseData['updateText'];
-
         final updateText = rawUpdateText?.toString() ?? '暂无更新说明';
-        // 验证 URL 格式
+
         if (downloadUrl.isEmpty) {
           return;
         }
@@ -65,30 +62,70 @@ class VersionService extends GetxService {
         }
       }
     } catch (e) {
-      // 版本检查失败不影响应用使用
       ErrorReporter.showError(e);
     }
   }
 
   bool _shouldUpdate(String currentVersion, String newVersion) {
     try {
-      // 分割版本号并转换为数字数组
       final List<int> current = currentVersion.split('.').map((e) => int.parse(e.trim())).toList();
       final List<int> latest = newVersion.split('.').map((e) => int.parse(e.trim())).toList();
 
-      // 确保两个版本号都有相同的段数
       while (current.length < latest.length) current.add(0);
       while (latest.length < current.length) latest.add(0);
 
-      // 从高位到低位比较每一段
       for (int i = 0; i < current.length; i++) {
-        if (latest[i] > current[i]) return true; // 需要更新
-        if (latest[i] < current[i]) return false; // 不需要更新
+        if (latest[i] > current[i]) return true;
+        if (latest[i] < current[i]) return false;
       }
-      return false; // 版本相同，不需要更新
+      return false;
     } catch (e) {
       ErrorReporter.showError(e);
-      return false; // 出错时保守处理，返回不需要更新
+      return false;
+    }
+  }
+
+  Future<void> _startDownloadAndInstall(String url) async {
+    try {
+      await Get.dialog(
+        WillPopScope(
+          onWillPop: () async => false,
+          child: _DownloadProgressDialog(),
+        ),
+        barrierDismissible: false,
+      );
+
+      final controller = Get.find<_DownloadProgressController>();
+      controller.state.value = _DownloadState.downloading;
+
+      final filePath = await _downloadService.downloadApk(
+        url: url,
+        onProgress: (progress) {
+          controller.progress.value = progress;
+        },
+      );
+
+      controller.state.value = _DownloadState.installing;
+      await _downloadService.installApk(filePath);
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        return;
+      }
+      ErrorReporter.showError(e);
+      if (Get.context != null) {
+        Get.snackbar(
+          '更新失败',
+          '下载或安装过程中发生错误',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.black87,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+      }
+    } finally {
+      if (Get.isDialogOpen!) {
+        Get.back();
+      }
     }
   }
 
@@ -160,37 +197,9 @@ class VersionService extends GetxService {
                   ),
                 ),
                 TextButton(
-                  onPressed: () async {
-                    try {
-                      Get.back();
-
-                      if (Platform.isAndroid) {
-                        final Uri uri = Uri.parse(url);
-                        await launchUrl(
-                          uri,
-                          mode: LaunchMode.externalNonBrowserApplication,
-                        ).then((bool result) {
-                          if (!result) {
-                            launchUrl(
-                              uri,
-                              mode: LaunchMode.externalApplication,
-                            );
-                          }
-                        });
-                      }
-                    } catch (e) {
-                      ErrorReporter.showError(e);
-                      if (Get.context != null) {
-                        Get.snackbar(
-                          '错误',
-                          '打开下载链接失败',
-                          snackPosition: SnackPosition.BOTTOM,
-                          backgroundColor: Colors.black87,
-                          colorText: Colors.white,
-                          duration: const Duration(seconds: 2),
-                        );
-                      }
-                    }
+                  onPressed: () {
+                    Get.back();
+                    _startDownloadAndInstall(url);
                   },
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.white,
@@ -223,5 +232,101 @@ class VersionService extends GetxService {
     } catch (e) {
       ErrorReporter.showError(e);
     }
+  }
+}
+
+enum _DownloadState { downloading, installing }
+
+class _DownloadProgressController extends GetxController {
+  final progress = 0.0.obs;
+  final state = _DownloadState.downloading.obs;
+}
+
+class _DownloadProgressDialog extends StatelessWidget {
+  _DownloadProgressDialog() {
+    Get.put(_DownloadProgressController(), permanent: false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<_DownloadProgressController>(
+      builder: (controller) {
+        return AlertDialog(
+          backgroundColor: Colors.black87,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          content: SizedBox(
+            width: 280,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Obx(() {
+                  if (controller.state.value == _DownloadState.installing) {
+                    return const Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.green,
+                      size: 48,
+                    );
+                  }
+                  return const Icon(
+                    Icons.file_download_outlined,
+                    color: Colors.white,
+                    size: 48,
+                  );
+                }),
+                const SizedBox(height: 16),
+                Obx(() => Text(
+                  controller.state.value == _DownloadState.downloading
+                      ? '正在下载更新...'
+                      : '正在安装...',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                )),
+                const SizedBox(height: 8),
+                Obx(() {
+                  if (controller.state.value == _DownloadState.installing) {
+                    return const Text(
+                      '请等待安装完成',
+                      style: TextStyle(color: Colors.white60, fontSize: 13),
+                    );
+                  }
+                  final pct = (controller.progress.value * 100).toStringAsFixed(1);
+                  return Text(
+                    '$pct%',
+                    style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  );
+                }),
+                const SizedBox(height: 16),
+                Obx(() {
+                  if (controller.state.value == _DownloadState.installing) {
+                    return const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                      ),
+                    );
+                  }
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: controller.progress.value,
+                      minHeight: 6,
+                      backgroundColor: Colors.white12,
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

@@ -27,6 +27,7 @@ class ApiConfig {
   static const String login = '/users/login';
   static const String resetPassword = '/users/reset-password';
   static const String changePassword = '/users/change-password';
+  static const String registerWithBind = '/users/register-with-bind';
   static const String fav = '/v1/users/favs';
   static const String like = '/v1/tracks/like';
   static const String userPlaylist = '/v1/playlists/custom/user';
@@ -44,6 +45,7 @@ class ApiConfig {
   // 用户相关
   static const String updateAvatar = '/v1/users/avatar';
   static const String updateProfile = '/v1/users/profile';
+  static const String bindPhone = '/users/bind-phone';
 
   // 超时时间
   static const int connectTimeout = 15000; // 15s

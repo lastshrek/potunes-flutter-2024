@@ -57,8 +57,8 @@ class HttpClient {
         onReceiveProgress: onReceiveProgress,
       );
       return response.data;
-    } catch (e) {
-      _handleError(e);
+    } on DioException catch (e) {
+      _handleDioError(e);
     }
   }
 
@@ -82,8 +82,8 @@ class HttpClient {
         onReceiveProgress: onReceiveProgress,
       );
       return response.data;
-    } catch (e) {
-      _handleError(e);
+    } on DioException catch (e) {
+      _handleDioError(e);
     }
   }
 
