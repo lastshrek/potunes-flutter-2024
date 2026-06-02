@@ -125,13 +125,16 @@ class _LibraryPageState extends State<LibraryPage> {
             toolbarColor: Colors.black,
             toolbarWidgetColor: Colors.white,
             backgroundColor: Colors.black,
+            statusBarColor: Colors.black,
             activeControlsWidgetColor: const Color(0xFFDA5597),
-            cropStyle: CropStyle.rectangle,
+            lockAspectRatio: true,
           ),
           IOSUiSettings(
             title: '裁剪头像',
             cancelButtonTitle: '取消',
             doneButtonTitle: '完成',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
           ),
         ],
       );
