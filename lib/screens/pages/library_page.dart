@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img;
+import 'package:image_cropper/image_cropper.dart';
 import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../services/user_service.dart';
 import '../../controllers/navigation_controller.dart';
@@ -75,83 +73,78 @@ class _LibraryPageState extends State<LibraryPage> {
     return '${phone.substring(0, 3)}****${phone.substring(7, 11)}';
   }
 
-  // 选择图片
   Future<void> _pickImage(BuildContext context) async {
     try {
-      final ImagePicker picker = ImagePicker();
-
-      // 显示选择对话框
-      await showModalBottomSheet(
+      final source = await showModalBottomSheet<ImageSource>(
         context: context,
         backgroundColor: Colors.grey[900],
-        builder: (BuildContext context) {
+        builder: (context) {
           return SafeArea(
             child: Wrap(
-              children: <Widget>[
+              children: [
                 ListTile(
                   leading: const Icon(Icons.photo_library, color: Colors.white),
-                  title: const Text(
-                    'Choose from Gallery',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final XFile? image = await picker.pickImage(
-                      source: ImageSource.gallery,
-                      maxWidth: 1024,
-                      maxHeight: 1024,
-                      imageQuality: 85,
-                    );
-                    if (image != null) {
-                      _processImage(image);
-                    }
-                  },
+                  title: const Text('从相册选择', style: TextStyle(color: Colors.white)),
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
                 ),
                 ListTile(
                   leading: const Icon(Icons.photo_camera, color: Colors.white),
-                  title: const Text(
-                    'Take a Photo',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final XFile? image = await picker.pickImage(
-                      source: ImageSource.camera,
-                      maxWidth: 1024,
-                      maxHeight: 1024,
-                      imageQuality: 85,
-                    );
-                    if (image != null) {
-                      _processImage(image);
-                    }
-                  },
+                  title: const Text('拍照', style: TextStyle(color: Colors.white)),
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
                 ),
               ],
             ),
           );
         },
       );
+
+      if (source == null) return;
+
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        maxWidth: 256,
+        maxHeight: 256,
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 85,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: '裁剪头像',
+            toolbarColor: Colors.black,
+            toolbarWidgetColor: Colors.white,
+            backgroundColor: Colors.black,
+            activeControlsWidgetColor: const Color(0xFFDA5597),
+            cropStyle: CropStyle.rectangle,
+          ),
+          IOSUiSettings(
+            title: '裁剪头像',
+            cancelButtonTitle: '取消',
+            doneButtonTitle: '完成',
+          ),
+        ],
+      );
+
+      if (croppedFile == null) return;
+      _processCropped(croppedFile);
     } catch (e) {
       print('Error picking image: $e');
     }
   }
 
-  Future<void> _processImage(XFile image) async {
+  Future<void> _processCropped(CroppedFile file) async {
     try {
-      final bytes = await File(image.path).readAsBytes();
-      final original = img.decodeImage(bytes);
-      if (original == null) throw '图片解码失败';
-
-      final size = math.min(original.width, original.height);
-      final x = (original.width - size) ~/ 2;
-      final y = (original.height - size) ~/ 2;
-      final cropped = img.copyCrop(original, x: x, y: y, width: size, height: size);
-
-      final resized = img.copyResize(cropped, width: 256, height: 256);
-      final jpegBytes = img.encodeJpg(resized, quality: 85);
-
-      final String base64Image =
-          'data:image/jpeg;base64,${base64Encode(jpegBytes)}';
+      final bytes = await file.readAsBytes();
+      final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
 
       setState(() {
         _avatarBase64 = base64Image;
