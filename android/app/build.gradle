@@ -101,3 +101,9 @@ dependencies {
     implementation "androidx.media2:media2-session:1.2.1"
     implementation "androidx.media2:media2-player:1.2.1"
 }
+
+configurations.all {
+    resolutionStrategy {
+        force 'com.github.yalantis:ucrop:2.2.11'
+    }
+}
