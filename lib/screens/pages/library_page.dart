@@ -110,6 +110,8 @@ class _LibraryPageState extends State<LibraryPage> {
 
       if (image == null) return;
 
+      debugPrint('ImageCropper sourcePath: ${image.path}');
+
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: image.path,
         aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
@@ -134,10 +136,22 @@ class _LibraryPageState extends State<LibraryPage> {
         ],
       );
 
+      debugPrint('ImageCropper result: ${croppedFile?.path}');
+
       if (croppedFile == null) return;
       _processCropped(croppedFile);
     } catch (e) {
-      print('Error picking image: $e');
+      ErrorReporter.showError(e);
+      if (context.mounted) {
+        Get.snackbar(
+          '头像更新失败',
+          '打开裁剪界面时出错: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.black87,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 4),
+        );
+      }
     }
   }
 
