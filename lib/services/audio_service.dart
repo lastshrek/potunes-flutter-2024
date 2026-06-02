@@ -370,7 +370,7 @@ class AudioService extends GetxService {
       // 转换播放列表为 AudioSource
       final audioSources = processedTracks.map((track) {
         return AudioSource.uri(
-          Uri.parse(track['url']),
+          Uri.parse(track['url']?.toString() ?? ''),
           tag: MediaItem(
             id: '${track['id']}_${track['nId']}', // 使用组合 ID
             title: track['name']?.toString() ?? '',
@@ -474,13 +474,13 @@ class AudioService extends GetxService {
       if (Platform.isIOS) {
         // iOS 使用 MediaItem
         audioSource = AudioSource.uri(
-          Uri.parse(track['url']),
+          Uri.parse(track['url']?.toString() ?? ''),
           tag: mediaItem,
         );
       } else {
         // Android 也需要使用 MediaItem（just_audio_background 要求）
         audioSource = AudioSource.uri(
-          Uri.parse(track['url']),
+          Uri.parse(track['url']?.toString() ?? ''),
           tag: mediaItem,
         );
       }
@@ -575,18 +575,28 @@ class AudioService extends GetxService {
       // 保存 FM 模式状态
       await prefs.setBool(_isFMModeKey, _isFMMode.value);
 
+      // 清理或保存当前歌曲
       if (_currentTrack.value != null) {
-        // 保存当前歌曲
         await prefs.setString('current_track', jsonEncode(_currentTrack.value));
+      } else {
+        await prefs.remove('current_track');
       }
 
-      if (_currentPlaylist.value != null) {
+      // 清理或保存播放列表
+      if (_currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
         await prefs.setString(_playlistKey, jsonEncode(_currentPlaylist.value));
-        if (_originalPlaylist.value != null) {
-          await prefs.setString('original_playlist', jsonEncode(_originalPlaylist.value));
-        }
         await prefs.setInt(_indexKey, _currentIndex.value);
         await prefs.setBool('shuffle_mode', _isShuffleMode.value);
+        if (_originalPlaylist.value != null) {
+          await prefs.setString('original_playlist', jsonEncode(_originalPlaylist.value));
+        } else {
+          await prefs.remove('original_playlist');
+        }
+      } else {
+        await prefs.remove(_playlistKey);
+        await prefs.remove(_indexKey);
+        await prefs.remove('shuffle_mode');
+        await prefs.remove('original_playlist');
       }
     } catch (e) {
       ErrorReporter.showError('Error saving last state: $e');
@@ -619,7 +629,7 @@ class AudioService extends GetxService {
           title: _currentTrack.value!['name']?.toString() ?? '',
           artist: _currentTrack.value!['artist']?.toString() ?? '',
           album: _currentTrack.value!['album']?.toString() ?? '',
-          duration: Duration(milliseconds: int.parse(_currentTrack.value!['duration'].toString())),
+          duration: Duration(milliseconds: int.tryParse(_currentTrack.value!['duration']?.toString() ?? '0') ?? 0),
           artUri: Uri.parse(_currentTrack.value!['cover_url']?.toString() ?? ''),
           playable: true,
           displayTitle: _currentTrack.value!['name']?.toString() ?? '',
@@ -638,7 +648,7 @@ class AudioService extends GetxService {
           useLazyPreparation: true,
           children: [
             AudioSource.uri(
-              Uri.parse(_currentTrack.value!['url']),
+              Uri.parse(_currentTrack.value!['url']?.toString() ?? ''),
               tag: mediaItem,
             ),
           ],
@@ -683,7 +693,7 @@ class AudioService extends GetxService {
           // 创建音频源
           final audioSources = playlist.map((track) {
             return AudioSource.uri(
-              Uri.parse(track['url']),
+              Uri.parse(track['url']?.toString() ?? ''),
               tag: MediaItem(
                 id: '${track['id']}_${track['nId']}', // 使用组合 ID
                 title: track['name']?.toString() ?? '',
@@ -721,10 +731,6 @@ class AudioService extends GetxService {
         }
       }
 
-      // 如果是 FM 模式，直接播放当前歌曲
-      if (_isFMMode.value && _currentTrack.value != null) {
-        await playTrack(_currentTrack.value!, autoPlay: false);
-      }
     } catch (e) {
       ErrorReporter.showError('Error loading last state: $e');
       _currentPlaylist.value = null;
@@ -948,7 +954,7 @@ class AudioService extends GetxService {
       // 重新创建播放列表
       final audioSources = _currentPlaylist.value!.map((track) {
         return AudioSource.uri(
-          Uri.parse(track['url']),
+          Uri.parse(track['url']?.toString() ?? ''),
           tag: MediaItem(
             id: '${track['id']}_${track['nId']}', // 使用组合 ID
             title: track['name']?.toString() ?? '',
@@ -1150,7 +1156,7 @@ class AudioService extends GetxService {
       final source = ConcatenatingAudioSource(
         useLazyPreparation: true,
         children: [
-          AudioSource.uri(Uri.parse(track['url']), tag: mediaItem),
+          AudioSource.uri(Uri.parse(track['url']?.toString() ?? ''), tag: mediaItem),
           AudioSource.uri(
             Uri.parse(silentWavDataUri),
             tag: MediaItem(

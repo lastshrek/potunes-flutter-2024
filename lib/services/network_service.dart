@@ -108,12 +108,12 @@ class NetworkService {
     }
   }
 
-  Future<Map<String, dynamic>> getPlaylistById(int id) async {
+  Future<Map<String, dynamic>> getPlaylistById(int id, {CancelToken? cancelToken}) async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();
     }
     try {
-      final response = await _client.get<dynamic>('${ApiConfig.playlist}/$id');
+      final response = await _client.get<dynamic>('${ApiConfig.playlist}/$id', cancelToken: cancelToken);
       print('getPlaylistById response: $response');
 
       if (response is Map &&
@@ -655,13 +655,14 @@ class NetworkService {
   }
 
   // 添加获取 toplist 详情的方法
-  Future<Map<String, dynamic>> getTopListDetail(int id) async {
+  Future<Map<String, dynamic>> getTopListDetail(int id, {CancelToken? cancelToken}) async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();
     }
     try {
       final response = await _client.get(
         '${ApiConfig.baseUrl}${ApiConfig.topListDetail}/$id',
+        cancelToken: cancelToken,
       );
       if (response is Map<String, dynamic> && response['statusCode'] == 200) {
         final data = response['data'] as Map<String, dynamic>;
@@ -697,13 +698,14 @@ class NetworkService {
     }
   }
 
-  Future<Map<String, dynamic>> getNewAlbumDetail(int id) async {
+  Future<Map<String, dynamic>> getNewAlbumDetail(int id, {CancelToken? cancelToken}) async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();
     }
     try {
       final response = await _client.get(
         '${ApiConfig.baseUrl}${ApiConfig.neteaseNewAlbumDetail}/$id',
+        cancelToken: cancelToken,
       );
 
       if (response is Map<String, dynamic> && response['statusCode'] == 200) {

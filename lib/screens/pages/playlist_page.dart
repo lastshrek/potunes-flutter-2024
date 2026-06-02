@@ -7,6 +7,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../widgets/common/cached_image.dart';
@@ -63,11 +64,14 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   final NetworkService _networkService = NetworkService.instance;
   bool _isLoading = true;
   bool _isRouteReady = false;
+  bool _isLoadingData = false;
+  String? _loadError;
   Color? dominantColor;
   Color? secondaryColor;
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _bgOpacity = ValueNotifier<double>(0.0);
   static const int _pageSize = 20; // 每页加载的数量
+  CancelToken? _cancelToken;
   List<dynamic> _allTracks = []; // 存储所有 tracks
   List<dynamic> _displayedTracks = []; // 当前显示的 tracks
   bool _isLoadingMore = false;
@@ -129,6 +133,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   @override
   void initState() {
     super.initState();
+    _cancelToken = CancelToken();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
     _scrollController.addListener(_onScrollForPagination);
@@ -146,6 +151,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     Get.find<RouteObserver<Route<dynamic>>>().unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_onScroll);
+    _cancelToken?.cancel('页面已销毁');
+    _cancelToken = null;
     _scrollController.removeListener(_onScrollForPagination);
     _scrollController.dispose();
     // 移除横屏模式的滚动监听并释放
@@ -185,8 +192,12 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   // 预加载数据
   Future<void> _preloadData() async {
+    // 并发防护：防止重复调用
+    if (_isLoadingData) return;
+    _isLoadingData = true;
+
     // 在后台线程加载数据
-    unawaited(_loadTracks());
+    unawaited(_loadTracks().whenComplete(() => _isLoadingData = false));
 
     // 等待页面转场动画完成后再显示内容
     await Future.delayed(const Duration(milliseconds: 300));
@@ -257,14 +268,15 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   Future<void> _loadTracks() async {
     try {
+      _loadError = null;
       if (kDebugMode) {
         print('开始加载歌曲列表...');
       }
 
       final response = widget.isFromTopList
-          ? await _networkService.getTopListDetail(widget.playlistId)
+          ? await _networkService.getTopListDetail(widget.playlistId, cancelToken: _cancelToken)
           : widget.isFromNewAlbum
-              ? await _networkService.getNewAlbumDetail(widget.playlistId)
+              ? await _networkService.getNewAlbumDetail(widget.playlistId, cancelToken: _cancelToken)
               : await _networkService.getPlaylistById(widget.playlistId);
 
       if (!mounted) return;
@@ -312,6 +324,17 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
           });
         }
       }
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) return;
+      if (!mounted) return;
+      if (kDebugMode) {
+        print('加载歌曲列表时网络出错: $e');
+      }
+      setState(() {
+        _isLoading = false;
+        _hasMoreData = false;
+        _loadError = '网络连接失败，请检查网络后重试';
+      });
     } catch (e) {
       if (!mounted) return;
       if (kDebugMode) {
@@ -320,6 +343,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
       setState(() {
         _isLoading = false;
         _hasMoreData = false;
+        _loadError = '加载失败，请点击重试';
       });
     }
   }
@@ -896,6 +920,46 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
         child: Center(
           child: CircularProgressIndicator(
             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        ),
+      );
+    }
+
+    // 显示错误状态（仅当没有已显示的数据时）
+    if (_loadError != null && _displayedTracks.isEmpty) {
+      return SliverFillRemaining(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.wifi_off_rounded,
+                  color: Colors.white38,
+                  size: 56,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _loadError!,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 15,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _loadTracks,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('点击重试'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.15),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
