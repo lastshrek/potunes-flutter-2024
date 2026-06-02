@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../services/audio_service.dart';
-import 'dart:math' as math;
 
 class CurrentTrackHighlight extends StatelessWidget {
   final Map<String, dynamic> track;
@@ -36,7 +35,7 @@ class CurrentTrackHighlight extends StatelessWidget {
                   color: Colors.black.withOpacity(0.5),
                 ),
                 child: const Center(
-                  child: AudioWaveBar(key: ValueKey('wave_bar')),
+                  child: PlayingIndicator(key: ValueKey('wave_bar')),
                 ),
               ),
             ),
@@ -82,7 +81,8 @@ class _WaveformBar extends StatefulWidget {
   State<_WaveformBar> createState() => _WaveformBarState();
 }
 
-class _WaveformBarState extends State<_WaveformBar> with SingleTickerProviderStateMixin {
+class _WaveformBarState extends State<_WaveformBar>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -146,15 +146,16 @@ class _WaveformBarState extends State<_WaveformBar> with SingleTickerProviderSta
   }
 }
 
-// 添加 AudioWaveBar 组件
-class AudioWaveBar extends StatefulWidget {
-  const AudioWaveBar({super.key});
+// 添加 PlayingIndicator 组件（统一当前播放的波浪效果，供 CurrentTrackHighlight 和 NowPlayingPage 共用）
+class PlayingIndicator extends StatefulWidget {
+  const PlayingIndicator({super.key});
 
   @override
-  State<AudioWaveBar> createState() => _AudioWaveBarState();
+  State<PlayingIndicator> createState() => _PlayingIndicatorState();
 }
 
-class _AudioWaveBarState extends State<AudioWaveBar> with SingleTickerProviderStateMixin {
+class _PlayingIndicatorState extends State<PlayingIndicator>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   final List<Animation<double>> _animations = [];
 
@@ -162,21 +163,17 @@ class _AudioWaveBarState extends State<AudioWaveBar> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
-    )..repeat(reverse: true);
+    )..repeat();
 
-    // 修改动画区间，确保不超过 1.0
+    // 与 now_playing_page 的 _PlayingIndicator 对齐：800ms 单向循环，错开 0.15 区间
     for (int i = 0; i < 3; i++) {
       _animations.add(
-        Tween<double>(begin: 0.3, end: 1.0).animate(
+        Tween<double>(begin: 3, end: 12).animate(
           CurvedAnimation(
             parent: _controller,
-            curve: Interval(
-              i * 0.2, // start: 0.0, 0.2, 0.4
-              math.min(0.6 + i * 0.2, 1.0), // end: 0.6, 0.8, 1.0
-              curve: Curves.easeInOut,
-            ),
+            curve: Interval(i * 0.15, 0.45 + i * 0.15, curve: Curves.easeInOut),
           ),
         ),
       );
@@ -197,7 +194,7 @@ class _AudioWaveBarState extends State<AudioWaveBar> with SingleTickerProviderSt
         children: List.generate(
           3,
           (index) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 1),
             child: _WaveBar(animation: _animations[index]),
           ),
         ),
@@ -217,11 +214,11 @@ class _WaveBar extends StatelessWidget {
     return AnimatedBuilder(
       animation: animation,
       builder: (_, __) => Container(
-        width: 3,
-        height: 20 * animation.value,
+        width: 2,
+        height: animation.value,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(1.5),
+          color: Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(1),
         ),
       ),
     );
