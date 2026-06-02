@@ -24,13 +24,17 @@ extension ColorExtension on Color {
   Color darken([double amount = 0.1]) {
     assert(amount >= 0 && amount <= 1);
     final hsl = HSLColor.fromColor(this);
-    return hsl.withLightness((hsl.lightness - amount).clamp(0.0, 1.0)).toColor();
+    return hsl
+        .withLightness((hsl.lightness - amount).clamp(0.0, 1.0))
+        .toColor();
   }
 
   Color saturate([double amount = 0.1]) {
     assert(amount >= 0 && amount <= 1);
     final hsl = HSLColor.fromColor(this);
-    return hsl.withSaturation((hsl.saturation + amount).clamp(0.0, 1.0)).toColor();
+    return hsl
+        .withSaturation((hsl.saturation + amount).clamp(0.0, 1.0))
+        .toColor();
   }
 }
 
@@ -60,7 +64,8 @@ class PlaylistPage extends StatefulWidget {
   State<PlaylistPage> createState() => _PlaylistPageState();
 }
 
-class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClientMixin, WidgetsBindingObserver, RouteAware {
+class _PlaylistPageState extends State<PlaylistPage>
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver, RouteAware {
   final NetworkService _networkService = NetworkService.instance;
   bool _isLoading = true;
   bool _isRouteReady = false;
@@ -126,7 +131,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   void didChangeDependencies() {
     super.didChangeDependencies();
     // 使用正确的类型获取 RouteObserver
-    final RouteObserver<Route<dynamic>> routeObserver = Get.find<RouteObserver<Route<dynamic>>>();
+    final RouteObserver<Route<dynamic>> routeObserver =
+        Get.find<RouteObserver<Route<dynamic>>>();
     routeObserver.subscribe(this, ModalRoute.of(context)!);
   }
 
@@ -217,7 +223,9 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
     final double delayHeight = 90.0;
 
     // 只在必要时更新值
-    final double newOpacity = offset <= 0 ? 0.0 : ((offset - delayHeight) / _imageSize).clamp(0.0, 1.0);
+    final double newOpacity = offset <= 0
+        ? 0.0
+        : ((offset - delayHeight) / _imageSize).clamp(0.0, 1.0);
     if ((_bgOpacity.value - newOpacity).abs() > 0.01) {
       _bgOpacity.value = newOpacity;
     }
@@ -225,9 +233,10 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
   void _onScrollForPagination() {
     // 获取当前活动的 ScrollController
-    final activeController = MediaQuery.of(context).orientation == Orientation.landscape
-        ? _landscapeRightController // 使用右侧列表的 controller
-        : _scrollController;
+    final activeController =
+        MediaQuery.of(context).orientation == Orientation.landscape
+            ? _landscapeRightController // 使用右侧列表的 controller
+            : _scrollController;
 
     if (!activeController.hasClients) return;
 
@@ -274,9 +283,11 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
       }
 
       final response = widget.isFromTopList
-          ? await _networkService.getTopListDetail(widget.playlistId, cancelToken: _cancelToken)
+          ? await _networkService.getTopListDetail(widget.playlistId,
+              cancelToken: _cancelToken)
           : widget.isFromNewAlbum
-              ? await _networkService.getNewAlbumDetail(widget.playlistId, cancelToken: _cancelToken)
+              ? await _networkService.getNewAlbumDetail(widget.playlistId,
+                  cancelToken: _cancelToken)
               : await _networkService.getPlaylistById(widget.playlistId);
 
       if (!mounted) return;
@@ -357,7 +368,12 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
       // 如果没有直接的 coverUrl，尝试从 playlist 中获取
       if (coverUrl == null || coverUrl.isEmpty) {
         // 尝试所有可能的封面字段
-        coverUrl = widget.playlist['cover_url'] ?? widget.playlist['cover'] ?? widget.playlist['coverUrl'] ?? widget.playlist['coverImgUrl'] ?? widget.playlist['picUrl'] ?? '';
+        coverUrl = widget.playlist['cover_url'] ??
+            widget.playlist['cover'] ??
+            widget.playlist['coverUrl'] ??
+            widget.playlist['coverImgUrl'] ??
+            widget.playlist['picUrl'] ??
+            '';
       }
 
       // 检查 coverUrl 是否为空
@@ -398,7 +414,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
       // 使用较小的图片尺寸
       final imageProvider = ResizeImage(
-        CachedNetworkImageProvider(nonNullCoverUrl, headers: getImageHeaders(nonNullCoverUrl)),
+        CachedNetworkImageProvider(nonNullCoverUrl,
+            headers: getImageHeaders(nonNullCoverUrl)),
         width: 100,
         height: 100,
       );
@@ -416,7 +433,9 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
 
       if (!mounted) return;
 
-      final newColor = paletteGenerator.darkMutedColor?.color ?? paletteGenerator.dominantColor?.color ?? Colors.black;
+      final newColor = paletteGenerator.darkMutedColor?.color ??
+          paletteGenerator.dominantColor?.color ??
+          Colors.black;
 
       setState(() {
         dominantColor = newColor;
@@ -464,10 +483,13 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
         return;
       }
 
-      final t = (elapsedTime.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
-      _colorNotifier.value = Color.lerp(_colorTween.begin!, _colorTween.end!, t)!;
+      final t = (elapsedTime.inMilliseconds / duration.inMilliseconds)
+          .clamp(0.0, 1.0);
+      _colorNotifier.value =
+          Color.lerp(_colorTween.begin!, _colorTween.end!, t)!;
 
-      _colorAnimationTimer = Timer(const Duration(milliseconds: 16), updateColor);
+      _colorAnimationTimer =
+          Timer(const Duration(milliseconds: 16), updateColor);
     }
 
     _colorAnimationTimer?.cancel();
@@ -500,7 +522,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
       );
     }
 
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     if (isLandscape) {
       return WillPopScope(
@@ -549,9 +572,13 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                         child: LayoutBuilder(
                           builder: (context, constraints) {
                             final miniPlayerHeight = 80.0;
-                            final topPadding = MediaQuery.of(context).padding.top;
+                            final topPadding =
+                                MediaQuery.of(context).padding.top;
                             final bottomPadding = 16.0;
-                            final availableHeight = constraints.maxHeight - miniPlayerHeight - topPadding - bottomPadding;
+                            final availableHeight = constraints.maxHeight -
+                                miniPlayerHeight -
+                                topPadding -
+                                bottomPadding;
 
                             // 减小 coverSize 的比例，为底部留出更多空间
                             final coverSize = widget.isFromCollections
@@ -576,18 +603,22 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                     ),
                                     onPressed: _handlePopBack,
                                   ),
-                                  systemOverlayStyle: const SystemUiOverlayStyle(
+                                  systemOverlayStyle:
+                                      const SystemUiOverlayStyle(
                                     statusBarColor: Colors.transparent,
                                     statusBarIconBrightness: Brightness.light,
-                                    systemNavigationBarColor: Colors.transparent,
-                                    systemNavigationBarIconBrightness: Brightness.light,
+                                    systemNavigationBarColor:
+                                        Colors.transparent,
+                                    systemNavigationBarIconBrightness:
+                                        Brightness.light,
                                   ),
                                 ),
                                 SliverToBoxAdapter(
                                   child: Padding(
                                     padding: const EdgeInsets.all(24.0),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         // 专辑封面
                                         SizedBox(
@@ -595,29 +626,62 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                           width: constraints.maxWidth,
                                           child: Center(
                                             child: AspectRatio(
-                                              aspectRatio: widget.isFromCollections ? 32 / 15 : 1,
+                                              aspectRatio:
+                                                  widget.isFromCollections
+                                                      ? 32 / 15
+                                                      : 1,
                                               child: Container(
-                                                width: constraints.maxWidth * 0.9,
-                                                height: widget.isFromCollections ? (constraints.maxWidth * 0.9 * 15 / 32) : constraints.maxWidth * 0.9,
+                                                width:
+                                                    constraints.maxWidth * 0.9,
+                                                height: widget.isFromCollections
+                                                    ? (constraints.maxWidth *
+                                                        0.9 *
+                                                        15 /
+                                                        32)
+                                                    : constraints.maxWidth *
+                                                        0.9,
                                                 decoration: BoxDecoration(
-                                                  borderRadius: BorderRadius.circular(8.0),
-                                                  color: const Color(0xff161616),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          8.0),
+                                                  color:
+                                                      const Color(0xff161616),
                                                   boxShadow: [
                                                     BoxShadow(
-                                                      color: Colors.black.withOpacity(0.2),
+                                                      color: Colors.black
+                                                          .withOpacity(0.2),
                                                       blurRadius: 8,
-                                                      offset: const Offset(0, 4),
+                                                      offset:
+                                                          const Offset(0, 4),
                                                     ),
                                                   ],
                                                 ),
                                                 child: ClipRRect(
-                                                  borderRadius: BorderRadius.circular(8.0),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          8.0),
                                                   child: Center(
                                                     child: CachedImage(
-                                                      url: widget.playlist['cover'] ?? '',
-                                                      width: constraints.maxWidth * 0.9,
-                                                      height: widget.isFromCollections ? (constraints.maxWidth * 0.9 * 15 / 32) : constraints.maxWidth * 0.9,
-                                                      fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
+                                                      url: widget.playlist[
+                                                              'cover'] ??
+                                                          '',
+                                                      width:
+                                                          constraints.maxWidth *
+                                                              0.9,
+                                                      height: widget
+                                                              .isFromCollections
+                                                          ? (constraints
+                                                                  .maxWidth *
+                                                              0.9 *
+                                                              15 /
+                                                              32)
+                                                          : constraints
+                                                                  .maxWidth *
+                                                              0.9,
+                                                      fit: widget
+                                                              .isFromCollections
+                                                          ? BoxFit.fitWidth
+                                                          : BoxFit.cover,
                                                     ),
                                                   ),
                                                 ),
@@ -641,7 +705,10 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                 ),
                                 // 增加底部空间
                                 SliverToBoxAdapter(
-                                  child: SizedBox(height: miniPlayerHeight + bottomPadding + 32), // 增加更多底部间距
+                                  child: SizedBox(
+                                      height: miniPlayerHeight +
+                                          bottomPadding +
+                                          32), // 增加更多底部间距
                                 ),
                               ],
                             );
@@ -666,7 +733,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                                 ),
                                 _buildTrackList(),
                                 SliverToBoxAdapter(
-                                  child: SizedBox(height: miniPlayerHeight + 16),
+                                  child:
+                                      SizedBox(height: miniPlayerHeight + 16),
                                 ),
                               ],
                             );
@@ -712,6 +780,7 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                   ),
                 ),
                 child: SafeArea(
+                  top: false,
                   bottom: false,
                   child: Column(
                     children: [
@@ -753,23 +822,33 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
       valueListenable: _bgOpacity,
       builder: (context, opacity, child) {
         // 使用 Transform.scale 代替直接改变 size
-        final double scale = ((imageSize - (imageSize - minImageSize) * opacity) / imageSize).clamp(minImageSize / imageSize, 1.0);
+        final double scale =
+            ((imageSize - (imageSize - minImageSize) * opacity) / imageSize)
+                .clamp(minImageSize / imageSize, 1.0);
         final double titleOpacity = ((opacity - 0.7) * 5).clamp(0.0, 1.0);
 
-        final Color backgroundColor = opacity <= 0.01 ? Colors.transparent : (secondaryColor?.withOpacity(opacity) ?? const Color(0xff161616).withOpacity(opacity));
+        final Color backgroundColor = opacity <= 0.01
+            ? Colors.transparent
+            : (secondaryColor?.withOpacity(opacity) ??
+                const Color(0xff161616).withOpacity(opacity));
 
         // 计算 Collections 图片的高度
-        final double imageHeight = widget.isFromCollections ? (screenWidth * 0.7 * 15 / 32) : imageSize;
+        final double imageHeight = widget.isFromCollections
+            ? (screenWidth * 0.7 * 15 / 32)
+            : imageSize;
 
         return SliverAppBar(
-          expandedHeight: widget.isFromCollections ? imageHeight + topPadding + 10 : imageSize + topPadding + 10,
+          expandedHeight: widget.isFromCollections
+              ? imageHeight + topPadding + 10
+              : imageSize + topPadding + 10,
           pinned: true,
           stretch: true,
-          systemOverlayStyle: const SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: backgroundColor,
             statusBarIconBrightness: Brightness.light,
             systemNavigationBarColor: Colors.transparent,
             systemNavigationBarIconBrightness: Brightness.light,
+            systemStatusBarContrastEnforced: false,
           ),
           backgroundColor: backgroundColor, // 恢复背景色
           leading: IconButton(
@@ -806,13 +885,16 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                       alignment: Alignment.center,
                       child: SizedBox(
                         width: imageSize,
-                        height: widget.isFromCollections ? (screenWidth * 0.7 * 15 / 32) : imageSize,
+                        height: widget.isFromCollections
+                            ? (screenWidth * 0.7 * 15 / 32)
+                            : imageSize,
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8.0),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.2 * (1 - opacity)), // 随滚动调整阴影
+                                color: Colors.black.withOpacity(
+                                    0.2 * (1 - opacity)), // 随滚动调整阴影
                                 blurRadius: 8 * (1 - opacity), // 随滚动调整模糊
                                 offset: Offset(0, 4 * (1 - opacity)), // 随滚动调整偏移
                               ),
@@ -823,8 +905,12 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                             child: CachedImage(
                               url: widget.playlist['cover'] ?? '',
                               width: imageSize,
-                              height: widget.isFromCollections ? (screenWidth * 0.7 * 15 / 32) : imageSize,
-                              fit: widget.isFromCollections ? BoxFit.fitWidth : BoxFit.cover,
+                              height: widget.isFromCollections
+                                  ? (screenWidth * 0.7 * 15 / 32)
+                                  : imageSize,
+                              fit: widget.isFromCollections
+                                  ? BoxFit.fitWidth
+                                  : BoxFit.cover,
                             ),
                           ),
                         ),
@@ -1017,7 +1103,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
                     color: Colors.white54,
                     size: 20,
                   ),
-                  onPressed: () => _showTrackOptions(context, _displayedTracks[index]),
+                  onPressed: () =>
+                      _showTrackOptions(context, _displayedTracks[index]),
                 ),
                 onTap: () => AudioService.to.playPlaylist(
                   List<Map<String, dynamic>>.from(_allTracks),
@@ -1042,7 +1129,8 @@ class _PlaylistPageState extends State<PlaylistPage> with AutomaticKeepAliveClie
   void _showTrackOptions(BuildContext context, dynamic track) {
     SongOptionsSheet.show(
       context: context,
-      track: track as Map<String, dynamic>, // 确保 track 是 Map<String, dynamic> 类型
+      track:
+          track as Map<String, dynamic>, // 确保 track 是 Map<String, dynamic> 类型
       onAddToPlaylist: () {
         // 调用 AddToPlaylistPage.show 并传递 track
         AddToPlaylistPage.show(
@@ -1083,7 +1171,10 @@ class PlayButton extends StatelessWidget {
           ),
           child: Obx(() => Center(
                 child: FaIcon(
-                  AudioService.to.isPlaying && AudioService.to.currentPlaylist == tracks ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
+                  AudioService.to.isPlaying &&
+                          AudioService.to.currentPlaylist == tracks
+                      ? FontAwesomeIcons.pause
+                      : FontAwesomeIcons.play,
                   color: Colors.white,
                   size: 24,
                 ),
