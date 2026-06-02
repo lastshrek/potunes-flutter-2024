@@ -77,8 +77,8 @@ class _PlaylistPageState extends State<PlaylistPage>
   final ValueNotifier<double> _bgOpacity = ValueNotifier<double>(0.0);
   static const int _pageSize = 20; // 每页加载的数量
   CancelToken? _cancelToken;
-  List<dynamic> _allTracks = []; // 存储所有 tracks
-  List<dynamic> _displayedTracks = []; // 当前显示的 tracks
+  List<Map<String, dynamic>> _allTracks = []; // 存储所有 tracks
+  List<Map<String, dynamic>> _displayedTracks = []; // 当前显示的 tracks
   bool _isLoadingMore = false;
   bool _hasMoreData = true;
   final _colorTween = ColorTween(begin: Colors.black, end: Colors.black);
@@ -100,6 +100,12 @@ class _PlaylistPageState extends State<PlaylistPage>
   static const _divider = SizedBox(height: 12);
   static const _smallDivider = SizedBox(height: 4);
   static const _horizontalDivider = SizedBox(width: 8);
+
+  // 缓存 track 列表的元信息样式 - 滚动时不再重复创建 TextStyle
+  // Colors.grey[400] 的 const 等价值
+  static const _trackMetaColor = Color(0xFFBDBDBD);
+  static const _trackMetaStyle =
+      TextStyle(color: _trackMetaColor, fontSize: 12);
 
   // 缓存主题相关样式
   late final _titleStyle = const TextStyle(
@@ -298,7 +304,8 @@ class _PlaylistPageState extends State<PlaylistPage>
       }
 
       // 从正确的路径获取 tracks
-      final tracks = response['tracks'] as List<dynamic>?;
+      final tracks =
+          (response['tracks'] as List<dynamic>?)?.cast<Map<String, dynamic>>();
 
       if (tracks != null && tracks.isNotEmpty) {
         if (kDebugMode) {
@@ -307,7 +314,7 @@ class _PlaylistPageState extends State<PlaylistPage>
 
         if (mounted) {
           setState(() {
-            _allTracks = tracks;
+            _allTracks = tracks!;
             _displayedTracks = _allTracks.take(_pageSize).toList();
             _isLoading = false; // 确保加载状态更新
             _hasMoreData = _allTracks.length > _pageSize;
@@ -982,7 +989,7 @@ class _PlaylistPageState extends State<PlaylistPage>
               AudioService.to.toggleShuffle();
             }
             AudioService.to.playPlaylist(
-              List<Map<String, dynamic>>.from(_allTracks),
+              _allTracks,
               initialIndex: 0,
             );
           },
@@ -990,7 +997,7 @@ class _PlaylistPageState extends State<PlaylistPage>
         const SizedBox(width: 8),
         PlayButton(
           backgroundColor: dominantColor?.darken(0.15).withOpacity(0.8),
-          tracks: List<Map<String, dynamic>>.from(_allTracks),
+          tracks: _allTracks,
         ),
       ],
     );
@@ -1079,24 +1086,15 @@ class _PlaylistPageState extends State<PlaylistPage>
               child: TrackListItem(
                 track: _displayedTracks[index],
                 index: index,
-                playlist: List<Map<String, dynamic>>.from(_allTracks),
+                playlist: _allTracks,
                 titleStyle: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
-                indexStyle: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 12,
-                ),
-                subtitleStyle: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 12,
-                ),
-                durationStyle: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 12,
-                ),
+                indexStyle: _trackMetaStyle,
+                subtitleStyle: _trackMetaStyle,
+                durationStyle: _trackMetaStyle,
                 trailing: IconButton(
                   icon: const Icon(
                     Icons.more_vert,
@@ -1107,7 +1105,7 @@ class _PlaylistPageState extends State<PlaylistPage>
                       _showTrackOptions(context, _displayedTracks[index]),
                 ),
                 onTap: () => AudioService.to.playPlaylist(
-                  List<Map<String, dynamic>>.from(_allTracks),
+                  _allTracks,
                   initialIndex: index,
                 ),
               ),

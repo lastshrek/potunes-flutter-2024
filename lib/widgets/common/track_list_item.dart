@@ -46,10 +46,7 @@ class TrackListItem extends StatelessWidget {
     }
 
     final audioService = Get.find<AudioService>();
-    audioService.playPlaylist(
-      List<Map<String, dynamic>>.from(playlist),
-      initialIndex: index,
-    );
+    audioService.playPlaylist(playlist, initialIndex: index);
   }
 
   @override
