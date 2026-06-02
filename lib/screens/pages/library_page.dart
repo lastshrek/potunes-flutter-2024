@@ -127,7 +127,6 @@ class _LibraryPageState extends State<LibraryPage> {
             statusBarColor: Colors.black,
             activeControlsWidgetColor: const Color(0xFFDA5597),
             lockAspectRatio: true,
-            hideBottomControls: false,
           ),
           IOSUiSettings(
             title: '裁剪头像',
