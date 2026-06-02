@@ -36,4 +36,8 @@
         <item name="android:enforceNavigationBarContrast">false</item>
     </style>
 
+    <!-- uCrop 裁剪主题（Light.NoActionBar + 禁用 edge-to-edge） -->
+    <style name="UCropThemeLight" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
 </resources>
