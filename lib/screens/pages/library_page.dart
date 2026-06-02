@@ -1,13 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../services/user_service.dart';
-import 'dart:convert';
-import 'dart:io';
 import '../../controllers/navigation_controller.dart';
 import '../../screens/pages/favourites_page.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../../screens/pages/profile_page.dart';
 import '../../widgets/common/app_header.dart';
 import '../../widgets/common/app_drawer.dart';
@@ -135,48 +137,22 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
-  // 处理并上传图片
   Future<void> _processImage(XFile image) async {
     try {
-      final File imageFile = File(image.path);
+      final bytes = await File(image.path).readAsBytes();
+      final original = img.decodeImage(bytes);
+      if (original == null) throw '图片解码失败';
 
-      // 进一步降低压缩参数
-      final List<int> compressedBytes =
-          await FlutterImageCompress.compressWithFile(
-                imageFile.absolute.path,
-                minWidth: 256, // 降低最大宽度
-                minHeight: 256, // 降低最大高度
-                quality: 50, // 降低压缩质量
-              ) ??
-              [];
+      final size = math.min(original.width, original.height);
+      final x = (original.width - size) ~/ 2;
+      final y = (original.height - size) ~/ 2;
+      final cropped = img.copyCrop(original, x: x, y: y, width: size, height: size);
 
-      if (compressedBytes.isEmpty) {
-        throw '图片压缩失败';
-      }
+      final resized = img.copyResize(cropped, width: 256, height: 256);
+      final jpegBytes = img.encodeJpg(resized, quality: 85);
 
-      // 检查压缩后的大小
-      final int sizeInKB = compressedBytes.length ~/ 1024;
-
-      // 如果还是太大，进一步压缩
-      if (sizeInKB > 100) {
-        final List<int> furtherCompressedBytes =
-            await FlutterImageCompress.compressWithFile(
-                  imageFile.absolute.path,
-                  minWidth: 128,
-                  minHeight: 128,
-                  quality: 30,
-                ) ??
-                [];
-
-        if (furtherCompressedBytes.isNotEmpty) {
-          compressedBytes.clear();
-          compressedBytes.addAll(furtherCompressedBytes);
-        }
-      }
-
-      // 转换为 base64
       final String base64Image =
-          'data:image/jpeg;base64,${base64Encode(compressedBytes)}';
+          'data:image/jpeg;base64,${base64Encode(jpegBytes)}';
 
       setState(() {
         _avatarBase64 = base64Image;

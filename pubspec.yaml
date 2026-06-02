@@ -47,6 +47,7 @@ dependencies:
   audio_service: ^0.18.17
   image_picker: ^1.0.7
   flutter_image_compress: ^2.1.0
+  image: ^4.0.17
   share_plus: ^7.2.1
   
   cupertino_icons: ^1.0.8
