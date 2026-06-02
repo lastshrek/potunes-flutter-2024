@@ -388,7 +388,8 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 8),
         LayoutBuilder(
           builder: (context, constraints) {
-            final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+            final isLandscape =
+                MediaQuery.of(context).orientation == Orientation.landscape;
 
             if (isLandscape) {
               return SizedBox(
@@ -681,7 +682,8 @@ class _HomePageState extends State<HomePage> {
                       AudioService.to.exitFMMode();
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.white24),
@@ -724,9 +726,9 @@ class _HomePageState extends State<HomePage> {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => Obx(() => PopScope(
-                            canPop: !AudioService.to.isFMMode,
-                            child: const NowPlayingPage(),
-                          )),
+                                canPop: !AudioService.to.isFMMode,
+                                child: const NowPlayingPage(),
+                              )),
                         ),
                       );
                     }
@@ -765,7 +767,6 @@ class _HomePageState extends State<HomePage> {
       );
     });
   }
-
 
   void _onCollectionPlaylistTap(Map<String, dynamic> playlist) {
     _navigateToPage(
@@ -840,7 +841,6 @@ class _HomePageState extends State<HomePage> {
   void _navigateToPage(Widget page) {
     Get.to(
       () => page,
-      transition: Transition.rightToLeft,
       duration: const Duration(milliseconds: 300),
     );
   }

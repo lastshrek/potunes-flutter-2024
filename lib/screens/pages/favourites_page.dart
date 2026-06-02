@@ -105,7 +105,8 @@ class _FavouritesPageState extends State<FavouritesPage> {
               'original_album_id': item['original_album_id'] ?? 0,
               'mv': item['mv'] ?? 0,
               'playlist_id': item['playlist_id'],
-              'type': item['type'] ?? ((item['id'] == 0) ? 'netease' : 'potunes'),
+              'type':
+                  item['type'] ?? ((item['id'] == 0) ? 'netease' : 'potunes'),
             })
         .toList();
 
@@ -206,7 +207,9 @@ class _FavouritesPageState extends State<FavouritesPage> {
                           ),
                           onPressed: () {
                             if (favourites.isNotEmpty) {
-                              final shuffledList = List<Map<String, dynamic>>.from(favourites)..shuffle();
+                              final shuffledList =
+                                  List<Map<String, dynamic>>.from(favourites)
+                                    ..shuffle();
                               _playSong(shuffledList[0], shuffledList, 0);
                             }
                           },
@@ -230,7 +233,8 @@ class _FavouritesPageState extends State<FavouritesPage> {
 
                   // 添加分段选择器
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.grey[900],
                       borderRadius: BorderRadius.circular(8),
@@ -242,9 +246,12 @@ class _FavouritesPageState extends State<FavouritesPage> {
                             child: GestureDetector(
                               onTap: () => selectedIndex.value = 0,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: selectedIndex.value == 0 ? const Color(0xFFDA5597) : null,
+                                  color: selectedIndex.value == 0
+                                      ? const Color(0xFFDA5597)
+                                      : null,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Text(
@@ -262,9 +269,12 @@ class _FavouritesPageState extends State<FavouritesPage> {
                             child: GestureDetector(
                               onTap: () => selectedIndex.value = 1,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: selectedIndex.value == 1 ? const Color(0xFFDA5597) : null,
+                                  color: selectedIndex.value == 1
+                                      ? const Color(0xFFDA5597)
+                                      : null,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Text(
@@ -298,7 +308,8 @@ class _FavouritesPageState extends State<FavouritesPage> {
                                     child: TrackListItem(
                                       track: song,
                                       index: index,
-                                      playlist: List<Map<String, dynamic>>.from(favourites),
+                                      playlist: List<Map<String, dynamic>>.from(
+                                          favourites),
                                       titleStyle: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 16,
@@ -322,9 +333,11 @@ class _FavouritesPageState extends State<FavouritesPage> {
                                           color: Colors.white54,
                                           size: 20,
                                         ),
-                                        onPressed: () => _showTrackOptions(context, song),
+                                        onPressed: () =>
+                                            _showTrackOptions(context, song),
                                       ),
-                                      onTap: () => _playSong(song, favourites, index),
+                                      onTap: () =>
+                                          _playSong(song, favourites, index),
                                     ),
                                   ),
                                 );
@@ -374,7 +387,8 @@ class _FavouritesPageState extends State<FavouritesPage> {
                                             height: 30,
                                             decoration: BoxDecoration(
                                               shape: BoxShape.circle,
-                                              color: Colors.white.withOpacity(0.1),
+                                              color:
+                                                  Colors.white.withOpacity(0.1),
                                             ),
                                           ),
                                         ),
@@ -394,8 +408,10 @@ class _FavouritesPageState extends State<FavouritesPage> {
                                           child: Container(
                                             height: 2,
                                             decoration: BoxDecoration(
-                                              color: Colors.white.withOpacity(0.3),
-                                              borderRadius: BorderRadius.circular(1),
+                                              color:
+                                                  Colors.white.withOpacity(0.3),
+                                              borderRadius:
+                                                  BorderRadius.circular(1),
                                             ),
                                           ),
                                         ),
@@ -424,7 +440,6 @@ class _FavouritesPageState extends State<FavouritesPage> {
                                         albumName: albumName,
                                         songs: albumSongs,
                                       ),
-                                      transition: Transition.rightToLeft,
                                     );
                                   },
                                 );
@@ -533,7 +548,10 @@ class PlayButton extends StatelessWidget {
           ),
           child: Obx(() => Center(
                 child: FaIcon(
-                  audioService.isPlaying && audioService.isCurrentPlaylist(tracks) ? FontAwesomeIcons.pause : FontAwesomeIcons.play,
+                  audioService.isPlaying &&
+                          audioService.isCurrentPlaylist(tracks)
+                      ? FontAwesomeIcons.pause
+                      : FontAwesomeIcons.play,
                   color: Colors.white,
                   size: 24,
                 ),

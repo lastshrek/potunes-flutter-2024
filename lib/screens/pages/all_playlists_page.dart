@@ -105,7 +105,6 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
 
     Get.to(
       () => page,
-      transition: Transition.rightToLeft,
       duration: const Duration(milliseconds: 300),
       preventDuplicates: false,
     );
@@ -113,7 +112,8 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
     final isCollections = widget.apiPath == ApiConfig.allCollections;
 
     // 在预加载时显示空白页面
@@ -174,7 +174,9 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
                       left: 16,
                       right: 16,
                       top: 16,
-                      bottom: kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom + 40,
+                      bottom: kBottomNavigationBarHeight +
+                          MediaQuery.of(context).padding.bottom +
+                          40,
                     ),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: isLandscape ? 3 : 2,
@@ -197,14 +199,18 @@ class _AllPlaylistsPageState extends State<AllPlaylistsPage> {
                             PlaylistPage(
                               playlist: playlist,
                               playlistId: int.parse(playlistId.toString()),
-                              trackCount: playlist['count'] ?? playlist['track_count'],
+                              trackCount:
+                                  playlist['count'] ?? playlist['track_count'],
                               description: playlist['content'] ?? '',
                               coverUrl: playlist['cover'] ?? '',
-                              isFromCollections: widget.apiPath == ApiConfig.allCollections,
+                              isFromCollections:
+                                  widget.apiPath == ApiConfig.allCollections,
                             ),
                           );
                         },
-                        child: isCollections ? _buildCollectionItem(playlist) : _buildNormalItem(playlist),
+                        child: isCollections
+                            ? _buildCollectionItem(playlist)
+                            : _buildNormalItem(playlist),
                       );
                     },
                   ),

@@ -141,13 +141,14 @@ class _LibraryPageState extends State<LibraryPage> {
       final File imageFile = File(image.path);
 
       // 进一步降低压缩参数
-      final List<int> compressedBytes = await FlutterImageCompress.compressWithFile(
-            imageFile.absolute.path,
-            minWidth: 256, // 降低最大宽度
-            minHeight: 256, // 降低最大高度
-            quality: 50, // 降低压缩质量
-          ) ??
-          [];
+      final List<int> compressedBytes =
+          await FlutterImageCompress.compressWithFile(
+                imageFile.absolute.path,
+                minWidth: 256, // 降低最大宽度
+                minHeight: 256, // 降低最大高度
+                quality: 50, // 降低压缩质量
+              ) ??
+              [];
 
       if (compressedBytes.isEmpty) {
         throw '图片压缩失败';
@@ -158,13 +159,14 @@ class _LibraryPageState extends State<LibraryPage> {
 
       // 如果还是太大，进一步压缩
       if (sizeInKB > 100) {
-        final List<int> furtherCompressedBytes = await FlutterImageCompress.compressWithFile(
-              imageFile.absolute.path,
-              minWidth: 128,
-              minHeight: 128,
-              quality: 30,
-            ) ??
-            [];
+        final List<int> furtherCompressedBytes =
+            await FlutterImageCompress.compressWithFile(
+                  imageFile.absolute.path,
+                  minWidth: 128,
+                  minHeight: 128,
+                  quality: 30,
+                ) ??
+                [];
 
         if (furtherCompressedBytes.isNotEmpty) {
           compressedBytes.clear();
@@ -173,7 +175,8 @@ class _LibraryPageState extends State<LibraryPage> {
       }
 
       // 转换为 base64
-      final String base64Image = 'data:image/jpeg;base64,${base64Encode(compressedBytes)}';
+      final String base64Image =
+          'data:image/jpeg;base64,${base64Encode(compressedBytes)}';
 
       setState(() {
         _avatarBase64 = base64Image;
@@ -188,7 +191,6 @@ class _LibraryPageState extends State<LibraryPage> {
   void _navigateToPage(Widget page) async {
     final result = await Get.to(
       () => page,
-      transition: Transition.rightToLeft,
       duration: const Duration(milliseconds: 300),
     );
 
@@ -226,7 +228,9 @@ class _LibraryPageState extends State<LibraryPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        (userData?['nickname']?.toString().isNotEmpty == true ? userData!['nickname'] : _formatPhone(phone)),
+                        (userData?['nickname']?.toString().isNotEmpty == true
+                            ? userData!['nickname']
+                            : _formatPhone(phone)),
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -235,11 +239,19 @@ class _LibraryPageState extends State<LibraryPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        userData?['intro']?.toString().isNotEmpty == true ? userData!['intro'] : 'This user is too lazy to leave a signature',
+                        userData?['intro']?.toString().isNotEmpty == true
+                            ? userData!['intro']
+                            : 'This user is too lazy to leave a signature',
                         style: TextStyle(
                           fontSize: 14,
-                          color: userData?['intro']?.toString().isNotEmpty == true ? Colors.grey[300] : Colors.grey[600],
-                          fontStyle: userData?['intro']?.toString().isNotEmpty == true ? FontStyle.normal : FontStyle.italic,
+                          color:
+                              userData?['intro']?.toString().isNotEmpty == true
+                                  ? Colors.grey[300]
+                                  : Colors.grey[600],
+                          fontStyle:
+                              userData?['intro']?.toString().isNotEmpty == true
+                                  ? FontStyle.normal
+                                  : FontStyle.italic,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -341,7 +353,9 @@ class _LibraryPageState extends State<LibraryPage> {
                 ? CircleAvatar(
                     radius: 40, // 减小头像尺寸
                     backgroundImage: MemoryImage(
-                      base64Decode(_avatarBase64!.contains(',') ? _avatarBase64!.split(',').last : _avatarBase64!),
+                      base64Decode(_avatarBase64!.contains(',')
+                          ? _avatarBase64!.split(',').last
+                          : _avatarBase64!),
                     ),
                   )
                 : const CircleAvatar(
@@ -542,7 +556,8 @@ class _LibraryPageState extends State<LibraryPage> {
                       itemBuilder: (context, index) {
                         final playlist = _playlists[index];
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 16.0),
                           leading: Container(
                             width: 40,
                             height: 40,
@@ -611,7 +626,6 @@ class _LibraryPageState extends State<LibraryPage> {
                                 playlistId: playlist['id'],
                                 title: playlist['title'] ?? '',
                               ),
-                              transition: Transition.rightToLeft,
                             );
                           },
                         );

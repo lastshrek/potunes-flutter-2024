@@ -74,7 +74,8 @@ Future<void> main() async {
 
   // 设置图片缓存
   PaintingBinding.instance.imageCache.maximumSize = 100; // 限制缓存数量
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 * 1024 * 1024; // 限制缓存大小为50MB
+  PaintingBinding.instance.imageCache.maximumSizeBytes =
+      50 * 1024 * 1024; // 限制缓存大小为50MB
 
   Get.put<RouteObserver<Route<dynamic>>>(RouteObserver<Route<dynamic>>());
 
@@ -93,6 +94,12 @@ Future<void> main() async {
       scaffoldBackgroundColor: Colors.black,
       primaryColor: Colors.black,
       cardColor: Colors.black87,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       iconTheme: const IconThemeData(
         color: Color(0xFFDA5597), // Custom Pink
       ),
@@ -146,7 +153,7 @@ Future<void> main() async {
         );
       },
     ),
-    defaultTransition: Transition.fadeIn,
+    defaultTransition: Transition.cupertino,
     transitionDuration: const Duration(milliseconds: 300),
     initialBinding: InitialBinding(),
     getPages: AppPages.pages,
@@ -160,7 +167,8 @@ Future<void> main() async {
   ));
   if (Platform.isAndroid) {
     //覆盖状态栏，写在渲染之前MaterialApp组件会覆盖掉这个值。
-    SystemUiOverlayStyle systemUiOverlayStyle = const SystemUiOverlayStyle(statusBarColor: Colors.transparent);
+    SystemUiOverlayStyle systemUiOverlayStyle =
+        const SystemUiOverlayStyle(statusBarColor: Colors.transparent);
     SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
   }
 }
@@ -186,7 +194,8 @@ Future<void> setOptimalDisplayMode() async {
       (DisplayMode a, DisplayMode b) => b.refreshRate.compareTo(a.refreshRate),
     );
 
-  final DisplayMode mostOptimalMode = sameResolution.isNotEmpty ? sameResolution.first : active;
+  final DisplayMode mostOptimalMode =
+      sameResolution.isNotEmpty ? sameResolution.first : active;
 
   await FlutterDisplayMode.setPreferredMode(mostOptimalMode);
 }
