@@ -47,7 +47,7 @@
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+            android:theme="@style/UCropThemeDark" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
