@@ -108,12 +108,14 @@ class NetworkService {
     }
   }
 
-  Future<Map<String, dynamic>> getPlaylistById(int id, {CancelToken? cancelToken}) async {
+  Future<Map<String, dynamic>> getPlaylistById(int id,
+      {CancelToken? cancelToken}) async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();
     }
     try {
-      final response = await _client.get<dynamic>('${ApiConfig.playlist}/$id', cancelToken: cancelToken);
+      final response = await _client.get<dynamic>('${ApiConfig.playlist}/$id',
+          cancelToken: cancelToken);
       print('getPlaylistById response: $response');
 
       if (response is Map &&
@@ -655,7 +657,8 @@ class NetworkService {
   }
 
   // 添加获取 toplist 详情的方法
-  Future<Map<String, dynamic>> getTopListDetail(int id, {CancelToken? cancelToken}) async {
+  Future<Map<String, dynamic>> getTopListDetail(int id,
+      {CancelToken? cancelToken}) async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();
     }
@@ -698,7 +701,8 @@ class NetworkService {
     }
   }
 
-  Future<Map<String, dynamic>> getNewAlbumDetail(int id, {CancelToken? cancelToken}) async {
+  Future<Map<String, dynamic>> getNewAlbumDetail(int id,
+      {CancelToken? cancelToken}) async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();
     }
@@ -873,7 +877,8 @@ class NetworkService {
       }
       return false;
     } catch (e) {
-      ErrorReporter.showError(e);
+      // 静默处理 - 播放计数是次要功能，不弹 snackbar
+      debugPrint('updateTrackPlayCount failed (silent): $e');
       return false;
     }
   }

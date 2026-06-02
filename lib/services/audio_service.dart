@@ -27,7 +27,9 @@ class AudioService extends GetxService {
   static const String _isFMModeKey = 'is_fm_mode';
 
   // 修改 channel 名称以匹配实际的 Bundle ID
-  static String channelName = !Platform.isAndroid ? 'im.coinchat.treehole/audio_control' : 'pink.poche.potunes/audio_control';
+  static String channelName = !Platform.isAndroid
+      ? 'im.coinchat.treehole/audio_control'
+      : 'pink.poche.potunes/audio_control';
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final NetworkService _networkService = NetworkService.instance;
@@ -55,7 +57,8 @@ class AudioService extends GetxService {
   Rx<Duration> get rxPosition => _position;
 
   // 添加 currentPlaylist 的 getter 和 setter
-  List<Map<String, dynamic>> get currentPlaylist => _currentPlaylist.value ?? [];
+  List<Map<String, dynamic>> get currentPlaylist =>
+      _currentPlaylist.value ?? [];
   set currentPlaylist(List<Map<String, dynamic>> value) {
     _currentPlaylist.value = value;
     _saveLastState();
@@ -99,10 +102,10 @@ class AudioService extends GetxService {
   // 修改 displayPlaylist getter，根据模式返回对应列表
   // 注意：在 GetX builder 中使用时，需要直接访问 _currentPlaylist.value 来触发响应式更新
   List<Map<String, dynamic>>? get displayPlaylist => _currentPlaylist.value;
-  
+
   // 添加响应式的播放列表 getter，用于 UI 绑定
   Rxn<List<Map<String, dynamic>>> get rxCurrentPlaylist => _currentPlaylist;
-  
+
   // 添加响应式的当前索引 getter，用于 UI 绑定
   RxInt get rxCurrentIndex => _currentIndex;
 
@@ -171,7 +174,8 @@ class AudioService extends GetxService {
               if (Platform.isIOS) {
                 await _audioPlayer.seek(Duration(seconds: position.round()));
               } else {
-                await _audioPlayer.seek(Duration(milliseconds: (position * 1000).round()));
+                await _audioPlayer
+                    .seek(Duration(milliseconds: (position * 1000).round()));
               }
               break;
           }
@@ -179,7 +183,8 @@ class AudioService extends GetxService {
           // 更新通知中心状态
           await _updateNowPlaying();
         } catch (e, stack) {
-          ErrorReporter.showError('❌ Error executing control center event: $e\n$stack');
+          ErrorReporter.showError(
+              '❌ Error executing control center event: $e\n$stack');
         }
       }
       return null;
@@ -210,7 +215,9 @@ class AudioService extends GetxService {
         final duration = _audioPlayer.duration!;
 
         // 当播放时间达到30秒且未记录时记录一次
-        if (!_hasRecordedPlay && position.inSeconds >= 30 && _currentTrack.value != null) {
+        if (!_hasRecordedPlay &&
+            position.inSeconds >= 30 &&
+            _currentTrack.value != null) {
           _updatePlayCount();
           _hasRecordedPlay = true;
         }
@@ -225,14 +232,16 @@ class AudioService extends GetxService {
     _audioPlayer.currentIndexStream.listen((index) {
       // 如果正在设置播放列表，跳过此次更新（playPlaylist 会自己设置正确的值）
       if (_isSettingPlaylist) return;
-      
+
       // FM 模式：索引 1 是静音占位符，点击下一首时立即加载新 FM 曲目
       if (_isFMMode.value && index == 1 && !_isLoadingFMTrack) {
         playFMTrack();
         return;
       }
-      
-      if (index != null && _currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
+
+      if (index != null &&
+          _currentPlaylist.value != null &&
+          _currentPlaylist.value!.isNotEmpty) {
         // 确保索引在有效范围内
         final safeIndex = index.clamp(0, _currentPlaylist.value!.length - 1);
         _currentIndex.value = safeIndex;
@@ -269,14 +278,16 @@ class AudioService extends GetxService {
     _audioPlayer.currentIndexStream.listen((index) async {
       // 如果正在设置播放列表，跳过此次更新（playPlaylist 会自己设置正确的值）
       if (_isSettingPlaylist) return;
-      
+
       // FM 模式：索引 1 是静音占位符，点击下一首时立即加载新 FM 曲目
       if (_isFMMode.value && index == 1 && !_isLoadingFMTrack) {
         playFMTrack();
         return;
       }
-      
-      if (index != null && _currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
+
+      if (index != null &&
+          _currentPlaylist.value != null &&
+          _currentPlaylist.value!.isNotEmpty) {
         // 确保索引在有效范围内
         final safeIndex = index.clamp(0, _currentPlaylist.value!.length - 1);
         _currentIndex.value = safeIndex;
@@ -301,11 +312,14 @@ class AudioService extends GetxService {
 
     // 监听缓冲状态和播放完成状态
     _audioPlayer.processingStateStream.listen((state) {
-      _isBuffering.value = state == ProcessingState.loading || state == ProcessingState.buffering;
-      
+      _isBuffering.value = state == ProcessingState.loading ||
+          state == ProcessingState.buffering;
+
       // FM 模式下，当播放完成时自动获取下一首
       // Requirements: 1.1, 2.4 - FM 模式后台切歌和行为覆盖
-      if (state == ProcessingState.completed && _isFMMode.value && !_isHandlingCompletion) {
+      if (state == ProcessingState.completed &&
+          _isFMMode.value &&
+          !_isHandlingCompletion) {
         _isHandlingCompletion = true;
         playFMTrack().whenComplete(() {
           _isHandlingCompletion = false;
@@ -316,20 +330,19 @@ class AudioService extends GetxService {
     // 监听播放进度
     _audioPlayer.positionStream.listen((position) {
       // FM 模式下检测上一首按钮行为（位置突然跳回开头）
-      if (_isFMMode.value && 
-          _lastKnownPosition.inSeconds > 3 && 
+      if (_isFMMode.value &&
+          _lastKnownPosition.inSeconds > 3 &&
           position.inMilliseconds < 1000 &&
           !_isHandlingCompletion &&
           !_isLoadingFMTrack) {
         // 忽略该位置更新，不 seek 回去以避免音频卡顿
         return;
       }
-      
+
       _lastKnownPosition = position;
       _position.value = position;
       _position.value = position;
       _updateNowPlaying();
-      
     });
 
     // 监听音频时长
@@ -340,12 +353,14 @@ class AudioService extends GetxService {
     });
   }
 
-  Future<void> playPlaylist(List<Map<String, dynamic>> tracks, {int initialIndex = 0}) async {
+  Future<void> playPlaylist(List<Map<String, dynamic>> tracks,
+      {int initialIndex = 0}) async {
     try {
       final stopwatch = Stopwatch()..start();
-      debugPrint('⏯️ [playPlaylist] 开始, 共 ${tracks.length} 首歌, 起始索引 $initialIndex');
+      debugPrint(
+          '⏯️ [playPlaylist] 开始, 共 ${tracks.length} 首歌, 起始索引 $initialIndex');
       _hasRecordedPlay = false;
-      _isSettingPlaylist = true;  // 设置标志，防止 currentIndexStream 监听器覆盖
+      _isSettingPlaylist = true; // 设置标志，防止 currentIndexStream 监听器覆盖
 
       // 退出 FM 模式
       _isFMMode.value = false;
@@ -376,7 +391,9 @@ class AudioService extends GetxService {
             title: track['name']?.toString() ?? '',
             artist: track['artist']?.toString() ?? '',
             album: track['album']?.toString() ?? '',
-            duration: Duration(milliseconds: int.tryParse(track['duration']?.toString() ?? '0') ?? 0),
+            duration: Duration(
+                milliseconds:
+                    int.tryParse(track['duration']?.toString() ?? '0') ?? 0),
             artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
             playable: true,
             displayTitle: track['name']?.toString() ?? '',
@@ -405,10 +422,15 @@ class AudioService extends GetxService {
       _currentIndex.value = initialIndex;
       _currentTrack.value = processedTracks[initialIndex];
 
+      // 让出主线程一帧，让 50 个 TrackListItem 的 Obx rebuild 完成，
+      // 再执行 setAudioSource 同步准备（避免主线程密集工作导致的卡顿）
+      await Future<void>.delayed(Duration.zero);
+
       // 先加载第一首歌的歌词
       debugPrint('⏯️ [playPlaylist] 开始加载歌词...');
       await _loadLyrics(processedTracks[initialIndex]);
-      debugPrint('⏯️ [playPlaylist] 歌词加载完成 (${stopwatch.elapsedMilliseconds}ms)');
+      debugPrint(
+          '⏯️ [playPlaylist] 歌词加载完成 (${stopwatch.elapsedMilliseconds}ms)');
 
       // 设置音频源
       debugPrint('⏯️ [playPlaylist] 开始设置音频源...');
@@ -417,11 +439,12 @@ class AudioService extends GetxService {
         initialIndex: initialIndex,
         preload: false,
       );
-      debugPrint('⏯️ [playPlaylist] 音频源设置完成 (${stopwatch.elapsedMilliseconds}ms)');
-      
+      debugPrint(
+          '⏯️ [playPlaylist] 音频源设置完成 (${stopwatch.elapsedMilliseconds}ms)');
+
       // 清除标志
       _isSettingPlaylist = false;
-      
+
       // 设置循环模式
       if (_repeatMode.value == RepeatMode.single) {
         await _audioPlayer.setLoopMode(LoopMode.one);
@@ -445,7 +468,8 @@ class AudioService extends GetxService {
     }
   }
 
-  Future<void> playTrack(Map<String, dynamic> track, {bool autoPlay = true}) async {
+  Future<void> playTrack(Map<String, dynamic> track,
+      {bool autoPlay = true}) async {
     try {
       _currentTrack.value = track;
       _audioPlayer.pause();
@@ -458,7 +482,9 @@ class AudioService extends GetxService {
         title: track['name']?.toString() ?? '',
         artist: track['artist']?.toString() ?? '',
         album: track['album']?.toString() ?? '',
-        duration: Duration(milliseconds: int.tryParse(track['duration']?.toString() ?? '0') ?? 0),
+        duration: Duration(
+            milliseconds:
+                int.tryParse(track['duration']?.toString() ?? '0') ?? 0),
         artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
         playable: true,
         displayTitle: track['name']?.toString() ?? '',
@@ -537,7 +563,9 @@ class AudioService extends GetxService {
         } else {
           // 计算上一首歌的索引
           final currentIndex = _currentIndex.value;
-          final previousIndex = currentIndex > 0 ? currentIndex - 1 : _currentPlaylist.value!.length - 1;
+          final previousIndex = currentIndex > 0
+              ? currentIndex - 1
+              : _currentPlaylist.value!.length - 1;
 
           // 直接调用 skipToQueueItem，而不是 seekToPrevious
           await skipToQueueItem(previousIndex);
@@ -561,7 +589,8 @@ class AudioService extends GetxService {
         return;
       }
 
-      final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
+      final nextIndex =
+          (_currentIndex.value + 1) % _currentPlaylist.value!.length;
       await skipToQueueItem(nextIndex);
     } catch (e) {
       ErrorReporter.showError('Error in next: $e');
@@ -583,12 +612,14 @@ class AudioService extends GetxService {
       }
 
       // 清理或保存播放列表
-      if (_currentPlaylist.value != null && _currentPlaylist.value!.isNotEmpty) {
+      if (_currentPlaylist.value != null &&
+          _currentPlaylist.value!.isNotEmpty) {
         await prefs.setString(_playlistKey, jsonEncode(_currentPlaylist.value));
         await prefs.setInt(_indexKey, _currentIndex.value);
         await prefs.setBool('shuffle_mode', _isShuffleMode.value);
         if (_originalPlaylist.value != null) {
-          await prefs.setString('original_playlist', jsonEncode(_originalPlaylist.value));
+          await prefs.setString(
+              'original_playlist', jsonEncode(_originalPlaylist.value));
         } else {
           await prefs.remove('original_playlist');
         }
@@ -613,7 +644,8 @@ class AudioService extends GetxService {
       // 加载当前歌曲
       final currentTrackJson = prefs.getString('current_track');
       if (currentTrackJson != null) {
-        _currentTrack.value = Map<String, dynamic>.from(jsonDecode(currentTrackJson));
+        _currentTrack.value =
+            Map<String, dynamic>.from(jsonDecode(currentTrackJson));
       }
 
       // 如果是 FM 模式，只加载当前歌曲并开始播放
@@ -629,8 +661,12 @@ class AudioService extends GetxService {
           title: _currentTrack.value!['name']?.toString() ?? '',
           artist: _currentTrack.value!['artist']?.toString() ?? '',
           album: _currentTrack.value!['album']?.toString() ?? '',
-          duration: Duration(milliseconds: int.tryParse(_currentTrack.value!['duration']?.toString() ?? '0') ?? 0),
-          artUri: Uri.parse(_currentTrack.value!['cover_url']?.toString() ?? ''),
+          duration: Duration(
+              milliseconds: int.tryParse(
+                      _currentTrack.value!['duration']?.toString() ?? '0') ??
+                  0),
+          artUri:
+              Uri.parse(_currentTrack.value!['cover_url']?.toString() ?? ''),
           playable: true,
           displayTitle: _currentTrack.value!['name']?.toString() ?? '',
           displaySubtitle: _currentTrack.value!['artist']?.toString() ?? '',
@@ -671,7 +707,8 @@ class AudioService extends GetxService {
       final isShuffleMode = prefs.getBool('shuffle_mode') ?? false;
 
       if (playlistJson != null && index != null) {
-        final playlist = List<Map<String, dynamic>>.from(jsonDecode(playlistJson).map((x) => Map<String, dynamic>.from(x)));
+        final playlist = List<Map<String, dynamic>>.from(
+            jsonDecode(playlistJson).map((x) => Map<String, dynamic>.from(x)));
 
         if (playlist.isNotEmpty && index < playlist.length) {
           // 设置随机播放状态
@@ -680,7 +717,9 @@ class AudioService extends GetxService {
           // 加载播放列表
           _currentPlaylist.value = playlist;
           if (isShuffleMode && originalPlaylistJson != null) {
-            _originalPlaylist.value = List<Map<String, dynamic>>.from(jsonDecode(originalPlaylistJson).map((x) => Map<String, dynamic>.from(x)));
+            _originalPlaylist.value = List<Map<String, dynamic>>.from(
+                jsonDecode(originalPlaylistJson)
+                    .map((x) => Map<String, dynamic>.from(x)));
           }
 
           // 设置当前索引和曲目
@@ -699,7 +738,10 @@ class AudioService extends GetxService {
                 title: track['name']?.toString() ?? '',
                 artist: track['artist']?.toString() ?? '',
                 album: track['album']?.toString() ?? '',
-                duration: Duration(milliseconds: int.tryParse(track['duration']?.toString() ?? '0') ?? 0),
+                duration: Duration(
+                    milliseconds:
+                        int.tryParse(track['duration']?.toString() ?? '0') ??
+                            0),
                 artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
                 playable: true,
                 displayTitle: track['name']?.toString() ?? '',
@@ -730,7 +772,6 @@ class AudioService extends GetxService {
           );
         }
       }
-
     } catch (e) {
       ErrorReporter.showError('Error loading last state: $e');
       _currentPlaylist.value = null;
@@ -748,7 +789,8 @@ class AudioService extends GetxService {
       _isLoadingLyrics.value = true;
 
       // 避免重复加载相同的歌词
-      if (_currentLyricsId == track['id']?.toString() && _currentLyricsNId == track['nId']?.toString()) {
+      if (_currentLyricsId == track['id']?.toString() &&
+          _currentLyricsNId == track['nId']?.toString()) {
         return;
       }
 
@@ -760,7 +802,8 @@ class AudioService extends GetxService {
         _currentLyricsId ?? '',
         _currentLyricsNId ?? '',
       );
-      debugPrint('📝 [loadLyrics] API 返回 (${lyricStopwatch.elapsedMilliseconds}ms)');
+      debugPrint(
+          '📝 [loadLyrics] API 返回 (${lyricStopwatch.elapsedMilliseconds}ms)');
 
       // 更新喜欢状态
       if (response['isLike'] != null) {
@@ -805,7 +848,8 @@ class AudioService extends GetxService {
       if (translated != null) {
         final translatedLines = translated.split('\n');
         for (final line in translatedLines) {
-          final match = RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$').firstMatch(line);
+          final match =
+              RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$').firstMatch(line);
           if (match != null) {
             final minutes = int.parse(match.group(1)!);
             final seconds = int.parse(match.group(2)!);
@@ -828,7 +872,8 @@ class AudioService extends GetxService {
       // 解析原文歌词
       final originalLines = original.split('\n');
       for (final line in originalLines) {
-        final match = RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$').firstMatch(line);
+        final match =
+            RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$').firstMatch(line);
         if (match != null) {
           final minutes = int.parse(match.group(1)!);
           final seconds = int.parse(match.group(2)!);
@@ -858,7 +903,11 @@ class AudioService extends GetxService {
 
       // 按时间排序并过滤掉完全空白的行
       lyrics.sort((a, b) => a.time.compareTo(b.time));
-      final filteredLyrics = lyrics.where((line) => line.original.isNotEmpty || (line.translation?.isNotEmpty ?? false)).toList();
+      final filteredLyrics = lyrics
+          .where((line) =>
+              line.original.isNotEmpty ||
+              (line.translation?.isNotEmpty ?? false))
+          .toList();
 
       return filteredLyrics.isNotEmpty ? filteredLyrics : null;
     } catch (e) {
@@ -881,7 +930,8 @@ class AudioService extends GetxService {
     }
   }
 
-  bool isSamePlaylist(List<Map<String, dynamic>>? list1, List<Map<String, dynamic>>? list2) {
+  bool isSamePlaylist(
+      List<Map<String, dynamic>>? list1, List<Map<String, dynamic>>? list2) {
     if (list1 == null || list2 == null) return false;
     if (list1.length != list2.length) return false;
 
@@ -889,7 +939,9 @@ class AudioService extends GetxService {
     if (list1.isNotEmpty && list2.isNotEmpty) {
       final song1 = list1[0];
       final song2 = list2[0];
-      return song1['id'] == song2['id'] && song1['nId'] == song2['nId'] && song1['source'] == song2['source'];
+      return song1['id'] == song2['id'] &&
+          song1['nId'] == song2['nId'] &&
+          song1['source'] == song2['source'];
     }
 
     return false;
@@ -903,7 +955,8 @@ class AudioService extends GetxService {
 
   // 修改 currentPlaylist 的 getter
   bool isCurrentPlaylist(List<Map<String, dynamic>> playlist) {
-    return isSamePlaylist(_currentPlaylist.value?.cast<Map<String, dynamic>>(), playlist);
+    return isSamePlaylist(
+        _currentPlaylist.value?.cast<Map<String, dynamic>>(), playlist);
   }
 
   // 添加喜欢/取消喜欢的方法
@@ -944,7 +997,9 @@ class AudioService extends GetxService {
   Future<void> skipToQueueItem(int index) async {
     try {
       _hasRecordedPlay = false; // 重置记录状态
-      if (_currentPlaylist.value == null || index < 0 || index >= _currentPlaylist.value!.length) {
+      if (_currentPlaylist.value == null ||
+          index < 0 ||
+          index >= _currentPlaylist.value!.length) {
         return;
       }
 
@@ -960,7 +1015,9 @@ class AudioService extends GetxService {
             title: track['name']?.toString() ?? '',
             artist: track['artist']?.toString() ?? '',
             album: track['album']?.toString() ?? '',
-            duration: Duration(milliseconds: int.tryParse(track['duration']?.toString() ?? '0') ?? 0),
+            duration: Duration(
+                milliseconds:
+                    int.tryParse(track['duration']?.toString() ?? '0') ?? 0),
             artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
             playable: true,
             displayTitle: track['name']?.toString() ?? '',
@@ -1024,7 +1081,8 @@ class AudioService extends GetxService {
           final currentTrack = _currentTrack.value;
 
           // 创建随机播放列表
-          final List<Map<String, dynamic>> shuffled = List.from(_currentPlaylist.value!);
+          final List<Map<String, dynamic>> shuffled =
+              List.from(_currentPlaylist.value!);
           shuffled.remove(currentTrack);
           shuffled.shuffle();
           shuffled.insert(0, currentTrack!);
@@ -1039,7 +1097,9 @@ class AudioService extends GetxService {
           // 找到当前歌曲在原始列表中的位置
           final currentTrack = _currentTrack.value;
 
-          final originalIndex = _originalPlaylist.value!.indexWhere((t) => t['id'] == currentTrack!['id'] && t['nId'] == currentTrack['nId']);
+          final originalIndex = _originalPlaylist.value!.indexWhere((t) =>
+              t['id'] == currentTrack!['id'] &&
+              t['nId'] == currentTrack['nId']);
 
           if (originalIndex != -1) {
             // 恢复原始播放列表和正确的索引
@@ -1084,7 +1144,8 @@ class AudioService extends GetxService {
         return;
       }
 
-      final nextIndex = (_currentIndex.value + 1) % _currentPlaylist.value!.length;
+      final nextIndex =
+          (_currentIndex.value + 1) % _currentPlaylist.value!.length;
       await skipToQueueItem(nextIndex);
     } catch (e) {
       ErrorReporter.showError('AudioService: Error skipping to next: $e');
@@ -1098,7 +1159,8 @@ class AudioService extends GetxService {
       print('updatePlayCount: ${_currentTrack.value}');
       await NetworkService.instance.updateTrackPlayCount(_currentTrack.value!);
     } catch (e) {
-      ErrorReporter.showError('Error updating play count: $e');
+      // 静默处理 - 播放计数是次要功能，不弹 snackbar
+      debugPrint('updateTrackPlayCount failed (silent): $e');
     }
   }
 
@@ -1107,7 +1169,8 @@ class AudioService extends GetxService {
     if (currentTrack == null) return false;
 
     // 同时检查 id 和 nId 是否相等
-    return currentTrack['id']?.toString() == track['id']?.toString() && currentTrack['nId']?.toString() == track['nId']?.toString();
+    return currentTrack['id']?.toString() == track['id']?.toString() &&
+        currentTrack['nId']?.toString() == track['nId']?.toString();
   }
 
   // FM 模式切歌 - 修复版：移除占位符，统一单曲源，修复错误时标志位泄漏
@@ -1136,7 +1199,9 @@ class AudioService extends GetxService {
         title: track['name']?.toString() ?? '',
         artist: track['artist']?.toString() ?? '',
         album: track['album']?.toString() ?? '',
-        duration: Duration(milliseconds: int.tryParse(track['duration']?.toString() ?? '0') ?? 0),
+        duration: Duration(
+            milliseconds:
+                int.tryParse(track['duration']?.toString() ?? '0') ?? 0),
         artUri: Uri.parse(track['cover_url']?.toString() ?? ''),
         playable: true,
         displayTitle: track['name']?.toString() ?? '',
@@ -1151,12 +1216,14 @@ class AudioService extends GetxService {
 
       // 极小静音 WAV（~0.02ms），用作占位符让通知栏显示"下一首"按钮
       // 当用户点下一首走到索引 1 时，currentIndexStream 立即拦截并加载新 FM 曲目
-      const silentWavDataUri = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+      const silentWavDataUri =
+          'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
 
       final source = ConcatenatingAudioSource(
         useLazyPreparation: true,
         children: [
-          AudioSource.uri(Uri.parse(track['url']?.toString() ?? ''), tag: mediaItem),
+          AudioSource.uri(Uri.parse(track['url']?.toString() ?? ''),
+              tag: mediaItem),
           AudioSource.uri(
             Uri.parse(silentWavDataUri),
             tag: MediaItem(
@@ -1182,7 +1249,6 @@ class AudioService extends GetxService {
       ErrorReporter.showNetworkError(message: '无法获取新歌曲，请检查网络连接');
     }
   }
-
 
   // 退出 FM 模式
   Future<void> exitFMMode() async {
@@ -1281,10 +1347,11 @@ class AudioService extends GetxService {
   // 请求电池优化豁免
   Future<bool> requestBatteryOptimization() async {
     if (!Platform.isAndroid) return true;
-    
+
     try {
       const platform = MethodChannel('pink.poche.potunes/audio_control');
-      final result = await platform.invokeMethod<bool>('requestBatteryOptimization');
+      final result =
+          await platform.invokeMethod<bool>('requestBatteryOptimization');
       return result ?? false;
     } catch (e) {
       // 优雅降级：记录错误但继续
@@ -1296,10 +1363,11 @@ class AudioService extends GetxService {
   // 检查电池优化豁免状态
   Future<bool> checkBatteryOptimization() async {
     if (!Platform.isAndroid) return true;
-    
+
     try {
       const platform = MethodChannel('pink.poche.potunes/audio_control');
-      final result = await platform.invokeMethod<bool>('checkBatteryOptimization');
+      final result =
+          await platform.invokeMethod<bool>('checkBatteryOptimization');
       return result ?? false;
     } catch (e) {
       // 优雅降级：记录错误但返回 false
@@ -1311,7 +1379,7 @@ class AudioService extends GetxService {
   // 初始化时检查电池优化状态（可在应用启动时调用）
   Future<void> initBatteryOptimization() async {
     if (!Platform.isAndroid) return;
-    
+
     final isIgnoring = await checkBatteryOptimization();
     if (!isIgnoring) {
       // 如果未豁免，请求豁免
