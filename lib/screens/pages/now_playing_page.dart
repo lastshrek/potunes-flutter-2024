@@ -229,31 +229,15 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     final lyrics = AudioService.to.lyrics;
     if (lyrics == null) return;
 
-    // 计算当前行之前所有行的总高度
     double offset = 0.0;
     for (int i = 0; i < currentIndex; i++) {
       offset += _calculateLineHeight(lyrics[i].toString());
     }
 
-    // 计算目标偏移量：
-    // 1. 计算容器中心点
-    final containerHeight =
-        MediaQuery.of(context).size.height - kToolbarHeight - 65;
-    final centerY = containerHeight / 2;
-
-    // 2. 计算当前行高度
     final currentLineHeight =
         _calculateLineHeight(lyrics[currentIndex].toString());
 
-    // 3. 计算目标偏移量
-    // offset: 当前行之前所有行的总高度
-    // centerY: 容器中心点位置
-    // currentLineHeight / 2: 当前行高度的一半，使文本中心对齐
-    // listViewTopPadding: ListView 的顶部 padding
-    final listViewTopPadding =
-        MediaQuery.of(context).size.height / 2 - kToolbarHeight - 65;
-    final targetOffset =
-        offset - centerY + (currentLineHeight / 2) + listViewTopPadding;
+    final targetOffset = offset + currentLineHeight / 2;
 
     _lyricsScrollController.animateTo(
       targetOffset.clamp(
@@ -818,7 +802,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
         final totalHeight = constraints.maxHeight;
         final bottomPadding = MediaQuery.of(context).padding.bottom;
         final controlsHeight = 64.0 + bottomPadding + 16.0;
-        final appBarHeight = kToolbarHeight + 65;
+        final appBarHeight = kToolbarHeight;
 
         return GestureDetector(
           onTapDown: (_) => _resetHideControlsTimer(),
@@ -831,10 +815,10 @@ class _NowPlayingPageState extends State<NowPlayingPage>
               children: [
                 // 歌词容器
                 Positioned(
-                  top: appBarHeight - 30,
+                  top: appBarHeight,
                   left: 0,
                   right: 0,
-                  bottom: -30,
+                  bottom: 0,
                   child: GetX<AudioService>(
                     builder: (controller) {
                       final lyrics = controller.lyrics;
@@ -886,10 +870,8 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                         child: ListView.builder(
                           controller: _lyricsScrollController,
                           padding: EdgeInsets.only(
-                            top: MediaQuery.of(context).size.height / 2 -
-                                kToolbarHeight -
-                                65,
-                            bottom: MediaQuery.of(context).size.height / 2,
+                            top: availableHeight / 2,
+                            bottom: availableHeight / 2,
                           ),
                           itemCount: lyrics.length,
                           itemBuilder: (context, index) {
