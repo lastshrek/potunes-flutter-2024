@@ -6,7 +6,6 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../services/user_service.dart';
 import '../../screens/pages/favourites_page.dart';
-import '../../screens/pages/settings_page.dart';
 import '../../widgets/common/app_header.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../screens/pages/playlist_detail_page.dart';
@@ -254,15 +253,6 @@ class _LibraryPageState extends State<LibraryPage> {
                     iconColor: const Color(0xFFDA5597),
                     label: 'Favourites',
                     onTap: () => _navigateToPage(const FavouritesPage()),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.settings,
-                    iconColor: Colors.white,
-                    label: 'Settings',
-                    onTap: () => _navigateToPage(const SettingsPage()),
                   ),
                 ),
               ],
