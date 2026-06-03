@@ -301,8 +301,10 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                   backgroundColor: Colors.transparent,
                   elevation: 0,
                   leading: IconButton(
-                    icon: const Icon(Icons.power_settings_new),
-                    onPressed: () => _showExitFMDialog(context),
+                    icon: Icon(isFMMode ? Icons.power_settings_new : Icons.keyboard_arrow_down),
+                    onPressed: isFMMode
+                        ? () => _showExitFMDialog(context)
+                        : () => Navigator.pop(context),
                   ),
                   centerTitle: true,
                   title: Row(

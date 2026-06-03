@@ -1253,15 +1253,17 @@ class AudioService extends GetxService {
   // 退出 FM 模式
   Future<void> exitFMMode() async {
     try {
+      _isFMMode.value = false;
+      _isHandlingCompletion = true;
       await _audioPlayer.pause();
       await _audioPlayer.stop();
       _currentTrack.value = null;
       _currentPlaylist.value = null;
       _currentIndex.value = 0;
       _parsedLyrics.value = null;
-      _isFMMode.value = false;
       _hasRecordedPlay = false;
       await _saveLastState();
+      _isHandlingCompletion = false;
     } catch (e) {
       ErrorReporter.showError('退出 FM 模式失败: $e');
     }
