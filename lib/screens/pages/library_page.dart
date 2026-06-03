@@ -411,18 +411,10 @@ class _LibraryPageState extends State<LibraryPage> {
               ),
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[850],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.favorite,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                leading: const Icon(
+                  Icons.favorite,
+                  color: Color(0xFFDA5597),
+                  size: 24,
                 ),
                 title: const Text(
                   'Favourites',
