@@ -1154,6 +1154,47 @@ class NetworkService {
     }
   }
 
+  Future<Map<String, dynamic>> search(String keyword,
+      {int page = 1, int limit = 20}) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.get<dynamic>(ApiConfig.search,
+          queryParameters: {
+            'keyword': keyword,
+            'page': page,
+            'limit': limit,
+          });
+
+      if (response is Map &&
+          response['statusCode'] == 200 &&
+          response['data'] is Map<String, dynamic>) {
+        final data = response['data'] as Map<String, dynamic>;
+
+        if (data['tracks'] is List) {
+          final tracks = (data['tracks'] as List).map((track) {
+            if (track is Map<String, dynamic>) {
+              return _processTrackData(track);
+            }
+            return track;
+          }).toList();
+          data['tracks'] = tracks;
+        }
+
+        return data;
+      }
+
+      throw ApiException(
+        statusCode: 500,
+        message: '搜索失败',
+      );
+    } catch (e) {
+      ErrorReporter.showError(e);
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> getPlaylistDetail(int playlistId) async {
     if (!_hasNetworkPermission) {
       await checkNetworkPermission();

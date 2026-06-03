@@ -34,6 +34,8 @@ class ApiConfig {
   static const String userPlaylistDetail = '/v1/playlists/custom';
   static const String userPlaylistAdd = '/v1/playlists/custom';
   static const String userPlaylistAddTrack = '/v1/playlists/custom/:id/track';
+  // 搜索相关
+  static const String search = '/search';
   // 版本相关
   static const String version = '/v1/versions';
   // HTTP 状态码

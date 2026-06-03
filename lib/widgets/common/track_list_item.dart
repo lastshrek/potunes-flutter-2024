@@ -110,6 +110,24 @@ class TrackListItem extends StatelessWidget {
                     .withSubtleHighlight(isCurrentTrack, highlightColor),
               ),
             ),
+            if (track['type'] == 'netease')
+              Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(color: Colors.grey[600]!),
+                  ),
+                  child: Text(
+                    '网易',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
         trailing: Row(

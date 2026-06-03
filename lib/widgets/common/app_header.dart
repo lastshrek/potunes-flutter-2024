@@ -6,6 +6,7 @@ class AppHeader extends StatelessWidget {
   final List<Widget>? actions;
   final bool showSearch;
   final Function(String)? onSearchChanged;
+  final VoidCallback? onSearchTap;
 
   const AppHeader({
     super.key,
@@ -14,6 +15,7 @@ class AppHeader extends StatelessWidget {
     this.actions,
     this.showSearch = false,
     this.onSearchChanged,
+    this.onSearchTap,
   });
 
   @override
@@ -36,6 +38,7 @@ class AppHeader extends StatelessWidget {
           ? SizedBox(
               height: 40,
               child: TextField(
+                readOnly: true,
                 style: const TextStyle(color: Colors.white),
                 textAlignVertical: TextAlignVertical.center,
                 decoration: InputDecoration(
@@ -50,7 +53,7 @@ class AppHeader extends StatelessWidget {
                   ),
                   contentPadding: EdgeInsets.zero,
                 ),
-                onChanged: onSearchChanged,
+                onTap: onSearchTap,
               ),
             )
           : Text(

@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../controllers/app_controller.dart';
 import '../controllers/home_controller.dart';
+import '../controllers/search_controller.dart';
 import '../controllers/top_charts_controller.dart';
 import '../controllers/navigation_controller.dart';
 import '../services/audio_service.dart';
@@ -20,5 +21,6 @@ class InitialBinding implements Bindings {
     Get.put(NavigationController(), permanent: true);
     Get.put(HomeController());
     Get.put(TopChartsController());
+    Get.put(MusicSearchController());
   }
 }

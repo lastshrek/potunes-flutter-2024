@@ -4,6 +4,7 @@ import '../../widgets/common/cached_image.dart';
 import '../../widgets/skeleton_loading.dart';
 import '../../widgets/horizontal_playlist_list.dart';
 import '../../screens/pages/playlist_page.dart';
+import '../../screens/pages/search_page.dart';
 import '../../config/api_config.dart';
 import 'package:get/get.dart';
 import '../../controllers/home_controller.dart';
@@ -184,8 +185,8 @@ class _HomePageState extends State<HomePage> {
                 AppHeader(
                   title: '',
                   showSearch: true,
-                  onSearchChanged: (value) {
-                    print('Search query: $value');
+                  onSearchTap: () {
+                    Get.to(() => const SearchPage());
                   },
                 ),
                 SliverList(
@@ -722,14 +723,18 @@ class _HomePageState extends State<HomePage> {
                       AudioService.to.exitFMMode();
                     } else {
                       AudioService.to.playFMTrack();
-                      // FM 模式直接进入歌词页，用 PopScope 阻止返回
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => Obx(() => PopScope(
-                                canPop: !AudioService.to.isFMMode,
-                                child: const NowPlayingPage(),
-                              )),
-                        ),
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        useSafeArea: true,
+                        backgroundColor: Colors.transparent,
+                        elevation: 0,
+                        enableDrag: false,
+                        barrierColor: Colors.black,
+                        builder: (_) => Obx(() => PopScope(
+                              canPop: !AudioService.to.isFMMode,
+                              child: const NowPlayingPage(),
+                            )),
                       );
                     }
                   },
