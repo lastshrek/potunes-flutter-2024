@@ -106,6 +106,23 @@ class HttpClient {
     }
   }
 
+  Future<dynamic> delete<T>(
+    String path, {
+    dynamic data,
+    Options? options,
+  }) async {
+    try {
+      final dio.Response<T> response = await _dio.delete(
+        path,
+        data: data,
+        options: options,
+      );
+      return response.data;
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
   void _handleError(dynamic error) {
     if (error is DioException) {
       throw error;

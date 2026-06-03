@@ -1046,8 +1046,7 @@ class NetworkService {
         ),
       );
 
-      if (response is Map &&
-          (response['statusCode'] == 200 || response['statusCode'] == 201)) {
+      if (response is Map && response['statusCode'] == 200) {
         return response['data'] as Map<String, dynamic>;
       }
 
@@ -1056,9 +1055,6 @@ class NetworkService {
         message: response['message'] ?? '创建歌单失败',
       );
     } catch (e) {
-      if (e is DioException && e.response?.statusCode == 201) {
-        return (e.response?.data['data'] as Map<String, dynamic>?) ?? {};
-      }
       ErrorReporter.showError(e);
       rethrow;
     }
@@ -1112,7 +1108,9 @@ class NetworkService {
 
       final response = await _client.post<dynamic>(
         ApiConfig.userPlaylistAddTrack.replaceAll(':id', playlistId.toString()),
-        data: track,
+        data: {
+          'tracks': [track],
+        },
         options: Options(
           headers: {
             'Authorization': 'Bearer ${UserService.to.token}',
@@ -1121,9 +1119,7 @@ class NetworkService {
         ),
       );
 
-      // 成功时返回的是正常的 statusCode
-      if (response is Map &&
-          (response['statusCode'] == 200 || response['statusCode'] == 201)) {
+      if (response is Map && response['statusCode'] == 200) {
         return true;
       }
 
@@ -1131,23 +1127,6 @@ class NetworkService {
     } catch (e) {
       if (kDebugMode) {
         print('addTrackToPlaylist error: $e');
-        if (e is DioException) {
-          print('DioException response data: ${e.response?.data}');
-          // 错误时返回的是 code 和 message
-          final responseData = e.response?.data;
-          if (responseData is Map) {
-            print('Error code: ${responseData['code']}');
-            print('Error message: ${responseData['message']}');
-          }
-        }
-      }
-      if (e is DioException && e.response?.data != null) {
-        final responseData = e.response?.data;
-        if (responseData is Map) {
-          final message = responseData['message'] ?? '添加失败';
-          ErrorReporter.showBusinessError(message: message);
-          return false;
-        }
       }
       ErrorReporter.showError(e);
       return false;
@@ -1192,6 +1171,60 @@ class NetworkService {
     } catch (e) {
       ErrorReporter.showError(e);
       rethrow;
+    }
+  }
+
+  Future<bool> deletePlaylist(int playlistId) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.delete<dynamic>(
+        '${ApiConfig.userPlaylist}/$playlistId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+        ),
+      );
+
+      if (response is Map && response['statusCode'] == 200) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      ErrorReporter.showError(e);
+      return false;
+    }
+  }
+
+  Future<bool> removeTracksFromPlaylist(
+      int playlistId, List<int> trackIds) async {
+    if (!_hasNetworkPermission) {
+      await checkNetworkPermission();
+    }
+    try {
+      final response = await _client.delete<dynamic>(
+        ApiConfig.userPlaylistRemoveTrack
+            .replaceAll(':id', playlistId.toString()),
+        data: {
+          'trackIds': trackIds,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${UserService.to.token}',
+          },
+          contentType: 'application/json',
+        ),
+      );
+
+      if (response is Map && response['statusCode'] == 200) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      ErrorReporter.showError(e);
+      return false;
     }
   }
 

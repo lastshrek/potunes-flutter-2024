@@ -30,10 +30,11 @@ class ApiConfig {
   static const String registerWithBind = '/users/register-with-bind';
   static const String fav = '/v1/users/favs';
   static const String like = '/v1/tracks/like';
-  static const String userPlaylist = '/v1/playlists/custom/user';
-  static const String userPlaylistDetail = '/v1/playlists/custom';
-  static const String userPlaylistAdd = '/v1/playlists/custom';
-  static const String userPlaylistAddTrack = '/v1/playlists/custom/:id/track';
+  static const String userPlaylist = '/v1/user-playlists';
+  static const String userPlaylistDetail = '/v1/user-playlists';
+  static const String userPlaylistAdd = '/v1/user-playlists';
+  static const String userPlaylistAddTrack = '/v1/user-playlists/:id/tracks';
+  static const String userPlaylistRemoveTrack = '/v1/user-playlists/:id/tracks';
   // 搜索相关
   static const String search = '/search';
   // 版本相关

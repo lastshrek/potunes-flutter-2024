@@ -5,9 +5,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../services/user_service.dart';
+import '../../services/network_service.dart';
 import '../../screens/pages/favourites_page.dart';
 import '../../widgets/common/app_header.dart';
 import '../../widgets/common/app_drawer.dart';
+import '../../widgets/common/cached_image.dart';
 import '../../screens/pages/playlist_detail_page.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -18,6 +20,7 @@ class LibraryPage extends StatefulWidget {
 }
 
 class _LibraryPageState extends State<LibraryPage> {
+  final NetworkService _networkService = NetworkService.instance;
   String? _avatarBase64;
   final _userData = Rx<Map<String, dynamic>?>(null);
   final List<Map<String, dynamic>> _playlists = [];
@@ -37,12 +40,12 @@ class _LibraryPageState extends State<LibraryPage> {
         _isLoadingPlaylists = true;
       });
 
-      // final playlists = await _networkService.getUserPlaylists();
+      final playlists = await _networkService.getUserPlaylists();
 
       if (mounted) {
         setState(() {
           _playlists.clear();
-          // _playlists.addAll(playlists);
+          _playlists.addAll(playlists);
           _isLoadingPlaylists = false;
         });
       }
@@ -357,8 +360,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
     if (confirm == true) {
       try {
-        // TODO: 实现删除歌单的网络请求
-        // await _networkService.deletePlaylist(playlist['id']);
+        await _networkService.deletePlaylist(playlist['id']);
         setState(() {
           _playlists.removeWhere((item) => item['id'] == playlist['id']);
         });
@@ -502,11 +504,22 @@ class _LibraryPageState extends State<LibraryPage> {
                               color: Colors.grey[850],
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(
-                              Icons.queue_music,
-                              color: Colors.white,
-                              size: 20,
-                            ),
+                            child: playlist['cover'] != null &&
+                                    playlist['cover'].toString().isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: CachedImage(
+                                      url: playlist['cover'],
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.queue_music,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                           ),
                           title: Text(
                             playlist['title'] ?? '',

@@ -4,10 +4,10 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'dart:async';
 import '../../services/audio_service.dart';
 import '../../widgets/mini_player.dart';
-import '../../widgets/common/current_track_highlight.dart';
-import '../../widgets/common/cached_image.dart';
 import '../../services/network_service.dart';
 import '../../widgets/common/track_list_item.dart';
+import '../../widgets/song_options_sheet.dart';
+import 'add_to_playlist_page.dart';
 
 class PlaylistDetailPage extends StatefulWidget {
   final int playlistId;
@@ -27,7 +27,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   final NetworkService _networkService = NetworkService.instance;
   bool _isLoading = true;
   Map<String, dynamic>? _playlistData;
-  List<dynamic> _tracks = [];
+  List<Map<String, dynamic>> _tracks = [];
   bool _isPreloading = true;
 
   @override
@@ -50,9 +50,23 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
     try {
       final data = await _networkService.getPlaylistDetail(widget.playlistId);
       if (mounted) {
+        final rawTracks = (data['tracks'] as List<dynamic>?) ?? [];
+        final processedTracks = rawTracks.map((track) {
+          if (track is Map<String, dynamic>) {
+            return {
+              ...track,
+              'type': track['type'] ?? (track['nId'] != null && track['nId'] != 0 ? 'netease' : 'potunes'),
+              'ar': track['ar'] ?? [],
+              'original_album': track['original_album'] ?? '',
+              'original_album_id': track['original_album_id'] ?? 0,
+            };
+          }
+          return track;
+        }).toList();
+
         setState(() {
           _playlistData = data;
-          _tracks = data['tracks'] ?? [];
+          _tracks = List<Map<String, dynamic>>.from(processedTracks);
           _isLoading = false;
         });
       }
@@ -78,10 +92,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
 
   void _playSong(Map<String, dynamic> song, int index) {
     final audioService = Get.find<AudioService>();
-    audioService.playPlaylist(
-      List<Map<String, dynamic>>.from(_tracks),
-      initialIndex: index,
-    );
+    audioService.playPlaylist(_tracks, initialIndex: index);
   }
 
   @override
@@ -235,11 +246,29 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
     );
   }
 
+  void _showTrackOptions(BuildContext context, Map<String, dynamic> track) {
+    SongOptionsSheet.show(
+      context: context,
+      track: track,
+      onAddToPlaylist: () {
+        AddToPlaylistPage.show(context: context, track: track);
+      },
+    );
+  }
+
   Widget _buildTrackItem(int index, Map<String, dynamic> song) {
     return TrackListItem(
       track: song,
       index: index,
-      playlist: List<Map<String, dynamic>>.from(_tracks),
+      playlist: _tracks,
+      trailing: IconButton(
+        icon: const Icon(
+          Icons.more_vert,
+          color: Colors.white54,
+          size: 20,
+        ),
+        onPressed: () => _showTrackOptions(context, song),
+      ),
     );
   }
 }

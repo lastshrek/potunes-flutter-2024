@@ -1172,9 +1172,18 @@ class AudioService extends GetxService {
     final currentTrack = _currentTrack.value;
     if (currentTrack == null) return false;
 
-    // 同时检查 id 和 nId 是否相等
-    return currentTrack['id']?.toString() == track['id']?.toString() &&
-        currentTrack['nId']?.toString() == track['nId']?.toString();
+    final currentNId = int.tryParse(currentTrack['nId']?.toString() ?? '') ?? 0;
+    final trackNId = int.tryParse(track['nId']?.toString() ?? '') ?? 0;
+
+    // 网易歌曲：按 nId 比较（id 在不同上下文含义不同）
+    if (currentNId > 0 && trackNId > 0) {
+      return currentNId == trackNId;
+    }
+
+    // 本地歌曲：按 track_id 比较（收藏页 id 被后端覆写为 track_id）
+    final currentId = currentTrack['track_id'] ?? currentTrack['id'];
+    final trackId = track['track_id'] ?? track['id'];
+    return currentId?.toString() == trackId?.toString();
   }
 
   // FM 模式切歌 - 修复版：移除占位符，统一单曲源，修复错误时标志位泄漏
