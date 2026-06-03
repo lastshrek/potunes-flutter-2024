@@ -420,7 +420,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   ),
                   child: const Icon(
                     Icons.favorite,
-                    color: Color(0xFFDA5597),
+                    color: Colors.white,
                     size: 20,
                   ),
                 ),
