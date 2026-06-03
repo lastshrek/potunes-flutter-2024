@@ -124,7 +124,7 @@ class _LibraryPageState extends State<LibraryPage> {
             toolbarTitle: '裁剪头像',
             toolbarColor: Colors.black,
             toolbarWidgetColor: Colors.white,
-            statusBarColor: Colors.black,
+            statusBarLight: false,
             activeControlsWidgetColor: const Color(0xFFDA5597),
             lockAspectRatio: true,
           ),
