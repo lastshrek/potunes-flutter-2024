@@ -55,13 +55,6 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
-  void _refreshUserData() {
-    setState(() {
-      _userData.value = UserService.to.userData;
-      _avatarBase64 = _userData.value?['avatar'];
-    });
-  }
-
   String _formatPhone(String phone) {
     if (phone.isEmpty) return '';
     if (phone.length != 11) return phone;
@@ -168,17 +161,6 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
-  void _navigateToPage(Widget page) async {
-    final result = await Get.to(
-      () => page,
-      duration: const Duration(milliseconds: 300),
-    );
-
-    if (result != null && result is Map<String, dynamic>) {
-      _refreshUserData();
-    }
-  }
-
   // 用户信息区域
   Widget _buildProfileSection(String phone, Map<String, dynamic>? userData) {
     return Container(
@@ -242,66 +224,14 @@ class _LibraryPageState extends State<LibraryPage> {
               ],
             ),
           ),
-          // 功能按钮
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12.0, 0, 12.0, 12.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    icon: Icons.favorite,
-                    iconColor: const Color(0xFFDA5597),
-                    label: 'Favourites',
-                    onTap: () => _navigateToPage(const FavouritesPage()),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                color: iconColor,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Widget _buildAvatarWidget() {
@@ -462,6 +392,50 @@ class _LibraryPageState extends State<LibraryPage> {
           // 个人资料区域（包含 Favourites 和 Edit Profile）
           SliverToBoxAdapter(
             child: _buildProfileSection(phone, userData),
+          ),
+
+          // Favourites
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[900]?.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[850],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.favorite,
+                    color: Color(0xFFDA5597),
+                    size: 20,
+                  ),
+                ),
+                title: const Text(
+                  'Favourites',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () => Get.to(() => const FavouritesPage()),
+              ),
+            ),
           ),
 
           // 歌单列表
