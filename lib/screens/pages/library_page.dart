@@ -5,12 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../services/user_service.dart';
-import '../../controllers/navigation_controller.dart';
 import '../../screens/pages/favourites_page.dart';
-import '../../screens/pages/profile_page.dart';
+import '../../screens/pages/settings_page.dart';
 import '../../widgets/common/app_header.dart';
 import '../../widgets/common/app_drawer.dart';
-import '../../services/network_service.dart';
 import '../../screens/pages/playlist_detail_page.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -23,7 +21,6 @@ class LibraryPage extends StatefulWidget {
 class _LibraryPageState extends State<LibraryPage> {
   String? _avatarBase64;
   final _userData = Rx<Map<String, dynamic>?>(null);
-  final NetworkService _networkService = NetworkService.instance;
   final List<Map<String, dynamic>> _playlists = [];
   bool _isLoadingPlaylists = false;
 
@@ -262,10 +259,10 @@ class _LibraryPageState extends State<LibraryPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildActionButton(
-                    icon: Icons.edit,
+                    icon: Icons.settings,
                     iconColor: Colors.white,
-                    label: 'Edit Profile',
-                    onTap: () => _navigateToPage(const ProfilePage()),
+                    label: 'Settings',
+                    onTap: () => _navigateToPage(const SettingsPage()),
                   ),
                 ),
               ],
@@ -620,113 +617,8 @@ class _LibraryPageState extends State<LibraryPage> {
             ),
           ),
 
-          // 底部空间和退出登录按钮
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Container(
-              padding: const EdgeInsets.all(16.0),
-              alignment: Alignment.bottomCenter,
-              child: TextButton(
-                onPressed: () async {
-                  // 显示确认对话框
-                  final bool? confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        backgroundColor: Colors.grey[900],
-                        title: const Text(
-                          'Confirm Logout',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        content: const Text(
-                          'Are you sure you want to logout?',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 16,
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            style: TextButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              'Logout',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-
-                  // 如果用户确认登出
-                  if (confirm == true) {
-                    try {
-                      await UserService.to.logout();
-                      NavigationController.to.changePage(0);
-                      Get.snackbar(
-                        'Success',
-                        'Logged out successfully',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.green,
-                        colorText: Colors.white,
-                        margin: const EdgeInsets.all(16),
-                      );
-                    } catch (e) {
-                      print('Error during logout: $e');
-                      Get.snackbar(
-                        'Error',
-                        'Failed to logout',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
-                        margin: const EdgeInsets.all(16),
-                      );
-                    }
-                  }
-                },
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 48),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'Logout',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // 底部留白
+          const SliverToBoxAdapter(child: SizedBox(height: 48)),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import '../controllers/navigation_controller.dart';
 import 'pages/home_page.dart';
 import 'pages/top_charts_page.dart';
 import 'pages/library_page.dart';
+import '../screens/pages/settings_page.dart';
 import '../widgets/mini_player.dart';
 import 'pages/login_page.dart';
 import '../services/user_service.dart';
@@ -105,8 +106,11 @@ class _HomeScreenState extends State<HomeScreen> {
               leading: const Icon(Icons.settings),
               title: const Text('设置'),
               onTap: () {
-                // TODO: 导航到设置页面
                 Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsPage()),
+                );
               },
             ),
             ListTile(
