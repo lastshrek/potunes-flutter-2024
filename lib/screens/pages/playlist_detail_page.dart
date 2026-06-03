@@ -27,7 +27,6 @@ class PlaylistDetailPage extends StatefulWidget {
 
 class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   final NetworkService _networkService = NetworkService.instance;
-  bool _isLoading = true;
   Map<String, dynamic>? _playlistData;
   List<Map<String, dynamic>> _tracks = [];
   bool _isPreloading = true;
@@ -78,7 +77,6 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
         setState(() {
           _playlistData = data;
           _tracks = List<Map<String, dynamic>>.from(processedTracks);
-          _isLoading = false;
         });
       }
     } catch (_) {}
@@ -103,10 +101,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
       final apiUpdatedAt = data['playlist']?['updated_at']?.toString();
 
       // 接口数据未更新，跳过
-      if (_cachedUpdatedAt != null && apiUpdatedAt == _cachedUpdatedAt) {
-        setState(() => _isLoading = false);
-        return;
-      }
+      if (_cachedUpdatedAt != null && apiUpdatedAt == _cachedUpdatedAt) return;
 
       final rawTracks = (data['tracks'] as List<dynamic>?) ?? [];
       final processedTracks = rawTracks.map((track) {
@@ -125,15 +120,10 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
       setState(() {
         _playlistData = data;
         _tracks = List<Map<String, dynamic>>.from(processedTracks);
-        _isLoading = false;
       });
 
       _saveToCache(data);
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    } catch (_) {}
   }
 
   String _formatDuration(dynamic milliseconds) {
@@ -219,14 +209,6 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                     ),
                   ),
                 ),
-              if (_isLoading)
-                const SliverFillRemaining(
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-              else ...[
-                // 歌单信息
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -284,8 +266,6 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                     ),
                   ),
                 ),
-
-                // 歌曲列表
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
@@ -299,7 +279,6 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                   padding: EdgeInsets.only(bottom: 100),
                 ),
               ],
-            ],
             ),
           ),
           const Positioned(
