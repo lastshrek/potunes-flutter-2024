@@ -41,9 +41,7 @@ class TopChartsController extends BaseController {
         final List<dynamic> decoded = jsonDecode(cachedData);
         _charts.assignAll(decoded.map((item) => Map<String, dynamic>.from(item)).toList());
       }
-    } catch (e) {
-      ErrorReporter.showError(e);
-    }
+    } catch (_) {}
   }
 
   // 保存数据到缓存
@@ -52,9 +50,7 @@ class TopChartsController extends BaseController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_chartsKey, jsonEncode(data));
       await prefs.setInt(_lastUpdateKey, DateTime.now().millisecondsSinceEpoch);
-    } catch (e) {
-      ErrorReporter.showError(e);
-    }
+    } catch (_) {}
   }
 
   @override
@@ -75,8 +71,8 @@ class TopChartsController extends BaseController {
       } else {
         ErrorReporter.showError('Invalid data format');
       }
-    } catch (e) {
-      ErrorReporter.showError(e);
+    } catch (_) {
+      // 有缓存时不弹错误，静默等待下次刷新
     } finally {
       _isRefreshing.value = false;
     }

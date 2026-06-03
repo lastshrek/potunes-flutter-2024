@@ -292,7 +292,6 @@ class NetworkService {
         message: '无效的响应格式',
       );
     } catch (e) {
-      ErrorReporter.showError(e);
       rethrow;
     }
   }
