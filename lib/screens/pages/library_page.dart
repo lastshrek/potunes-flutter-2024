@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../services/user_service.dart';
 import '../../services/network_service.dart';
@@ -24,38 +25,56 @@ class _LibraryPageState extends State<LibraryPage> {
   String? _avatarBase64;
   final _userData = Rx<Map<String, dynamic>?>(null);
   final List<Map<String, dynamic>> _playlists = [];
-  bool _isLoadingPlaylists = false;
 
   @override
   void initState() {
     super.initState();
     _avatarBase64 = UserService.to.userData?['avatar'];
     _userData.value = UserService.to.userData;
+    _loadCachedPlaylists();
     _loadPlaylists();
+  }
+
+  static const _cacheKey = 'library_user_playlists';
+
+  void _loadCachedPlaylists() {
+    try {
+      final prefs = SharedPreferences.getInstance();
+      prefs.then((p) {
+        final cached = p.getString(_cacheKey);
+        if (cached == null) return;
+        final data = (jsonDecode(cached) as List<dynamic>?)
+            ?.cast<Map<String, dynamic>>();
+        if (data != null && mounted) {
+          setState(() {
+            _playlists
+              ..clear()
+              ..addAll(data);
+          });
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _savePlaylistsCache(List<Map<String, dynamic>> playlists) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_cacheKey, jsonEncode(playlists));
+    } catch (_) {}
   }
 
   Future<void> _loadPlaylists() async {
     try {
-      setState(() {
-        _isLoadingPlaylists = true;
-      });
-
       final playlists = await _networkService.getUserPlaylists();
-
       if (mounted) {
         setState(() {
-          _playlists.clear();
-          _playlists.addAll(playlists);
-          _isLoadingPlaylists = false;
+          _playlists
+            ..clear()
+            ..addAll(playlists);
         });
+        _savePlaylistsCache(playlists);
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingPlaylists = false;
-        });
-      }
-    }
+    } catch (_) {}
   }
 
   String _formatPhone(String phone) {
@@ -232,11 +251,6 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   Widget _buildAvatarWidget() {
     return Stack(
       children: [
@@ -387,7 +401,11 @@ class _LibraryPageState extends State<LibraryPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       drawer: const AppDrawer(),
-      body: CustomScrollView(
+      body: RefreshIndicator(
+        onRefresh: _loadPlaylists,
+        displacement: 60,
+        color: const Color(0xFFDA5597),
+        child: CustomScrollView(
         slivers: [
           const AppHeader(title: 'Library'),
 
@@ -466,14 +484,7 @@ class _LibraryPageState extends State<LibraryPage> {
                       ),
                     ),
                   ),
-                  if (_isLoadingPlaylists)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.0),
-                      child: Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
-                  else if (_playlists.isEmpty)
+                  if (_playlists.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16.0),
                       child: Center(
@@ -590,6 +601,12 @@ class _LibraryPageState extends State<LibraryPage> {
           const SliverToBoxAdapter(child: SizedBox(height: 48)),
         ],
       ),
+    ),
     );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 }
