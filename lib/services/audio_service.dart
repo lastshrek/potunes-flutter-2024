@@ -233,9 +233,11 @@ class AudioService extends GetxService {
       // 如果正在设置播放列表，跳过此次更新（playPlaylist 会自己设置正确的值）
       if (_isSettingPlaylist) return;
 
-      // FM 模式：索引 1 是静音占位符，点击下一首时立即加载新 FM 曲目
-      if (_isFMMode.value && index == 1 && !_isLoadingFMTrack) {
-        playFMTrack();
+      // FM 模式：索引 1 是静音占位符，始终跳过，不更新 _currentTrack / _loadLyrics
+      if (_isFMMode.value && index == 1) {
+        if (!_isLoadingFMTrack) {
+          playFMTrack();
+        }
         return;
       }
 
@@ -279,9 +281,11 @@ class AudioService extends GetxService {
       // 如果正在设置播放列表，跳过此次更新（playPlaylist 会自己设置正确的值）
       if (_isSettingPlaylist) return;
 
-      // FM 模式：索引 1 是静音占位符，点击下一首时立即加载新 FM 曲目
-      if (_isFMMode.value && index == 1 && !_isLoadingFMTrack) {
-        playFMTrack();
+      // FM 模式：索引 1 是静音占位符，始终跳过，不更新 _currentTrack / _loadLyrics
+      if (_isFMMode.value && index == 1) {
+        if (!_isLoadingFMTrack) {
+          playFMTrack();
+        }
         return;
       }
 
@@ -1243,10 +1247,9 @@ class AudioService extends GetxService {
       _audioPlayer.play();
       await _saveLastState();
     } catch (e) {
-      // 网络失败时重置所有保护标志，防止 FM 永久卡死
+      // 网络失败时静默处理，下次切歌自动重试
       _isLoadingFMTrack = false;
       _isHandlingCompletion = false;
-      ErrorReporter.showNetworkError(message: '无法获取新歌曲，请检查网络连接');
     }
   }
 

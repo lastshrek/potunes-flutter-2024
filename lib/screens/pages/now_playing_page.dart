@@ -22,12 +22,11 @@ class NowPlayingPage extends StatefulWidget {
 }
 
 class _NowPlayingPageState extends State<NowPlayingPage>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
-  // 添加颜色状态管理
+    with WidgetsBindingObserver, RouteAware {
   final _dominantColor = Rx<Color>(Colors.black);
   final _secondaryColor = Rx<Color>(Colors.black.withOpacity(0.7));
 
-  // 添加颜色缓存
+  static const int _maxColorCacheSize = 80;
   static final Map<String, Color> _colorCache = {};
   String? _lastTrackUrl;
 
@@ -37,12 +36,11 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   final _showControls = true.obs;
   Timer? _hideControlsTimer;
 
-  // 添加动画控制器
-  late AnimationController _animationController;
-  late Animation<double> _bgOpacityAnimation;
+  StreamSubscription<Duration>? _positionSubscription;
 
-  // 用于强制刷新的计数器
-  final _refreshCounter = 0.obs;
+  // 缓存预计算的布局值，避免 MediaQuery 重复调用
+  double _cachedContentWidth = 0;
+  double _cachedLeftPadding = 0;
 
   @override
   void initState() {
@@ -53,43 +51,14 @@ class _NowPlayingPageState extends State<NowPlayingPage>
       initialPage: AudioService.to.currentPageIndex,
     );
 
-    // 初始化动画控制器
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-
-    // 背景色透明度动画
-    _bgOpacityAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
-
-    // 自动开始动画
-    _animationController.forward();
-
-    // 延迟提取颜色
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) {
-          _extractColors();
-        }
-      });
-    });
-
-    // 监听播放位置变化
-    ever(AudioService.to.rxPosition, (position) {
+    // 替换 ever() worker，用 StreamSubscription 避免内存泄漏
+    _positionSubscription = AudioService.to.rxPosition.listen((position) {
       if (_pageController.hasClients) {
-        // 添加判断
         final page = _pageController.page;
         if (page != null && page == 1) {
-          // 安全访问 page 属性
           final controller = AudioService.to;
           if (controller.lyrics != null) {
-            _scrollToCurrentLine(controller.currentLineIndex, 0);
+            _scrollToCurrentLine(controller.currentLineIndex);
           }
         }
       }
@@ -100,14 +69,12 @@ class _NowPlayingPageState extends State<NowPlayingPage>
       if (_pageController.hasClients && _pageController.page != null) {
         AudioService.to.currentPageIndex = _pageController.page!.round();
 
-        // 当切换到歌词页面时
         if (_pageController.page == 1) {
           _resetHideControlsTimer();
-          // 立即获取当前歌词状态
           final controller = AudioService.to;
           if (controller.lyrics != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _scrollToCurrentLine(controller.currentLineIndex, 0);
+              _scrollToCurrentLine(controller.currentLineIndex);
             });
           }
         } else {
@@ -115,6 +82,10 @@ class _NowPlayingPageState extends State<NowPlayingPage>
           _showControls.value = true;
         }
       }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _extractColors();
     });
   }
 
@@ -142,7 +113,6 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     // 当从其他页面返回到此页面时调用
     super.didPopNext();
     // 强制刷新
-    _refreshCounter.value++;
     _extractColors();
   }
 
@@ -150,13 +120,13 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   void dispose() {
     Get.find<RouteObserver<Route<dynamic>>>().unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
+    _positionSubscription?.cancel();
     if (_pageController.hasClients) {
       AudioService.to.currentPageIndex = _pageController.page?.round() ?? 0;
     }
     _lyricsScrollController.dispose();
     _pageController.dispose();
     _hideControlsTimer?.cancel();
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -216,14 +186,21 @@ class _NowPlayingPageState extends State<NowPlayingPage>
 
       _dominantColor.value = newColor;
       _secondaryColor.value = newColor.withOpacity(0.7);
-      _colorCache[coverUrl] = newColor;
+      _cacheColor(coverUrl, newColor);
     } catch (e) {
       debugPrint('🎨 [extractColors] 异常: $e');
     }
   }
 
+  void _cacheColor(String url, Color color) {
+    if (_colorCache.length >= _maxColorCacheSize) {
+      _colorCache.remove(_colorCache.keys.first);
+    }
+    _colorCache[url] = color;
+  }
+
   // 修改滚动到当前行的方法
-  void _scrollToCurrentLine(int currentIndex, double availableHeight) {
+  void _scrollToCurrentLine(int currentIndex) {
     if (!_lyricsScrollController.hasClients) return;
 
     final lyrics = AudioService.to.lyrics;
@@ -251,23 +228,28 @@ class _NowPlayingPageState extends State<NowPlayingPage>
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      // 监听刷新计数器，强制重建
-      final _ = _refreshCounter.value;
+    return GetX<AudioService>(
+      builder: (controller) {
+        final track = controller.currentTrack;
+        final isFMMode = controller.isFMMode;
 
-      return GetX<AudioService>(
-        builder: (controller) {
-          final track = controller.currentTrack;
-          final isFMMode = controller.isFMMode;
+        if (track == null) return const SizedBox.shrink();
 
-          if (track == null) return const SizedBox.shrink();
+        if (track['cover_url'] != _lastTrackUrl) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _extractColors();
+          });
+        }
 
-          if (track['cover_url'] != _lastTrackUrl) {
-            _extractColors();
-          }
-
-          return Scaffold(
-            backgroundColor: Colors.transparent,
+          return PopScope(
+            canPop: !isFMMode,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop && mounted) {
+                _showExitFMDialog(context);
+              }
+            },
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
             appBar: PreferredSize(
               preferredSize: const Size.fromHeight(kToolbarHeight),
               child: Container(
@@ -348,10 +330,11 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                 ],
               ),
             ),
+            ),
           );
         },
       );
-    });
+
   }
 
   void _showExitFMDialog(BuildContext context) {
@@ -369,9 +352,9 @@ class _NowPlayingPageState extends State<NowPlayingPage>
             child: const Text('取消', style: TextStyle(color: Colors.white54)),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              AudioService.to.exitFMMode();
+              await AudioService.to.exitFMMode();
               Navigator.of(context).pop();
             },
             child: const Text('确定', style: TextStyle(color: Color(0xFFDA5597))),
@@ -495,6 +478,9 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                     builder: (controller) {
                       final position = controller.position;
                       final duration = controller.duration;
+                      if (duration <= Duration.zero) {
+                        return const SizedBox(height: 8);
+                      }
                       return Column(
                         children: [
                           SliderTheme(
@@ -797,139 +783,141 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   }
 
   Widget _buildLyricsPage(Map<String, dynamic> track) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final totalHeight = constraints.maxHeight;
-        final bottomPadding = MediaQuery.of(context).padding.bottom;
-        final controlsHeight = 64.0 + bottomPadding + 16.0;
-        final appBarHeight = kToolbarHeight;
+    final totalHeight = MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final controlsHeight = 64.0 + bottomPadding + 16.0;
+    final appBarHeight = kToolbarHeight;
 
-        return GestureDetector(
-          onTapDown: (_) => _resetHideControlsTimer(),
-          onVerticalDragStart: (_) => _resetHideControlsTimer(),
-          child: Obx(() {
-            final showControls = _showControls.value;
-            final availableHeight = totalHeight - appBarHeight;
+    _cachedContentWidth = (MediaQuery.of(context).size.width -
+            MediaQuery.of(context).padding.left -
+            20.0) /
+        1.2;
+    _cachedLeftPadding = MediaQuery.of(context).padding.left + 10.0;
 
-            return Stack(
-              children: [
-                // 歌词容器
-                Positioned(
-                  top: appBarHeight,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: GetX<AudioService>(
-                    builder: (controller) {
-                      final lyrics = controller.lyrics;
-                      final currentIndex = controller.currentLineIndex;
-                      final isLoading = controller.isLoadingLyrics;
+    final availableHeight = totalHeight - appBarHeight;
 
-                      if (isLoading) {
-                        return const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white70),
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Loading Lyrics...',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
+    return GestureDetector(
+      onTapDown: (_) => _resetHideControlsTimer(),
+      onVerticalDragStart: (_) => _resetHideControlsTimer(),
+      child: Stack(
+        children: [
+          // 歌词容器 — 只依赖 AudioService
+          Positioned(
+            top: appBarHeight,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: ClipRect(
+              child: GetX<AudioService>(
+                builder: (controller) {
+                  final lyrics = controller.lyrics;
+                  final currentIndex = controller.currentLineIndex;
+                  final isLoading = controller.isLoadingLyrics;
+
+                  if (isLoading) {
+                    return const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white70),
                           ),
-                        );
+                          SizedBox(height: 16),
+                          Text(
+                            'Loading Lyrics...',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  if (lyrics == null) {
+                    return Center(
+                      child: emptyScreen(
+                        context,
+                        0,
+                        ':( ',
+                        100.0,
+                        'Lyrics',
+                        60.0,
+                        'notAvailable',
+                        20.0,
+                        useWhite:
+                            Theme.of(context).brightness == Brightness.light
+                                ? false
+                                : true,
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    controller: _lyricsScrollController,
+                    padding: EdgeInsets.only(
+                      top: availableHeight / 2,
+                      bottom: availableHeight / 2,
+                    ),
+                    itemCount: lyrics.length,
+                    itemBuilder: (context, index) {
+                      final line = lyrics[index];
+                      final isCurrentLine = index == currentIndex;
+
+                      if (isCurrentLine) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (_pageController.page == 1) {
+                            _scrollToCurrentLine(currentIndex);
+                          }
+                        });
                       }
 
-                      if (lyrics == null) {
-                        return Center(
-                          child: emptyScreen(
-                            context,
-                            0,
-                            ':( ',
-                            100.0,
-                            'Lyrics',
-                            60.0,
-                            'notAvailable',
-                            20.0,
-                            useWhite:
-                                Theme.of(context).brightness == Brightness.light
-                                    ? false
-                                    : true,
-                          ),
-                        );
-                      }
-
-                      return ClipRect(
-                        child: ListView.builder(
-                          controller: _lyricsScrollController,
-                          padding: EdgeInsets.only(
-                            top: availableHeight / 2,
-                            bottom: availableHeight / 2,
-                          ),
-                          itemCount: lyrics.length,
-                          itemBuilder: (context, index) {
-                            final line = lyrics[index];
-                            final isCurrentLine = index == currentIndex;
-
-                            if (isCurrentLine) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (_pageController.page == 1) {
-                                  _scrollToCurrentLine(
-                                      currentIndex, availableHeight);
-                                }
-                              });
-                            }
-
-                            return _buildLyricLine(line, isCurrentLine);
-                          },
-                        ),
+                      return _buildLyricLine(
+                        line,
+                        isCurrentLine,
+                        leftPadding: _cachedLeftPadding,
+                        contentWidth: _cachedContentWidth,
                       );
                     },
-                  ),
-                ),
-                // 播放控制
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  left: 0,
-                  right: 0,
-                  bottom: showControls ? 0 : -controlsHeight,
-                  child: Container(
-                    height: controlsHeight,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.0),
-                          Colors.black.withOpacity(0.8),
-                          Colors.black,
-                        ],
-                        stops: const [0.0, 0.5, 1.0],
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // 播放控制按钮
-                        _buildControlButtons(AudioService.to, false),
-                        SizedBox(height: bottomPadding + 8),
+                  );
+                },
+              ),
+            ),
+          ),
+          // 播放控制 — 只依赖 _showControls
+          Obx(() => AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                left: 0,
+                right: 0,
+                bottom: _showControls.value ? 0 : -controlsHeight,
+                child: Container(
+                  height: controlsHeight,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.0),
+                        Colors.black.withOpacity(0.8),
+                        Colors.black,
                       ],
+                      stops: const [0.0, 0.5, 1.0],
                     ),
                   ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildControlButtons(AudioService.to, false),
+                      SizedBox(height: bottomPadding + 8),
+                    ],
+                  ),
                 ),
-              ],
-            );
-          }),
-        );
-      },
+              )),
+        ],
+      ),
     );
   }
 
@@ -940,22 +928,22 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     return '$minutes:$seconds';
   }
 
-  Widget _buildLyricLine(LyricLine line, bool isCurrentLine) {
+  Widget _buildLyricLine(LyricLine line, bool isCurrentLine, {
+    required double leftPadding,
+    required double contentWidth,
+  }) {
     return Container(
       height:
           _calculateLineHeight(line.toString(), isCurrentLine: isCurrentLine),
       alignment: Alignment.centerLeft,
       child: Container(
         padding: EdgeInsets.only(
-          left: MediaQuery.of(context).padding.left + 10.0,
+          left: leftPadding,
           top: 6.0,
           bottom: 6.0,
         ),
         child: SizedBox(
-          width: (MediaQuery.of(context).size.width -
-                  MediaQuery.of(context).padding.left -
-                  20.0) /
-              1.2,
+          width: contentWidth,
           child: TweenAnimationBuilder<double>(
             tween: Tween<double>(
               begin: isCurrentLine ? 1.0 : 1.0,
@@ -1011,7 +999,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     final textSpan = TextSpan(
       text: text,
       style: TextStyle(
-        fontSize: isCurrentLine ? 16 * 1.2 : 16, // 只改变字号，不改变布局宽度
+        fontSize: 16,
         height: 1.5,
         letterSpacing: 0.5,
         fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,
@@ -1025,11 +1013,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
       textAlign: TextAlign.left,
     );
 
-    // 始终使用缩放后的宽度计算布局
-    final maxWidth = (MediaQuery.of(context).size.width -
-            MediaQuery.of(context).padding.left -
-            20.0) /
-        1.2;
+    final maxWidth = _cachedContentWidth;
     textPainter.layout(maxWidth: maxWidth);
 
     final textHeight = textPainter.height;
