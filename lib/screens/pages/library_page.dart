@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../services/user_service.dart';
 import '../../services/network_service.dart';
+import '../../utils/dialog_utils.dart';
 import '../../screens/pages/favourites_page.dart';
 import '../../widgets/common/app_header.dart';
 import '../../widgets/common/app_drawer.dart';
@@ -86,27 +87,31 @@ class _LibraryPageState extends State<LibraryPage> {
 
   Future<void> _pickImage(BuildContext context) async {
     try {
-      final source = await showModalBottomSheet<ImageSource>(
+      final source = await AppDialogs.showBottomSheet<ImageSource>(
         context: context,
-        backgroundColor: Colors.grey[900],
-        builder: (context) {
-          return SafeArea(
+        isDismissible: true,
+        builder: (ctx) => Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.9),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
             child: Wrap(
               children: [
                 ListTile(
                   leading: const Icon(Icons.photo_library, color: Colors.white),
                   title: const Text('从相册选择', style: TextStyle(color: Colors.white)),
-                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                  onTap: () => Navigator.pop(ctx, ImageSource.gallery),
                 ),
                 ListTile(
                   leading: const Icon(Icons.photo_camera, color: Colors.white),
                   title: const Text('拍照', style: TextStyle(color: Colors.white)),
-                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                  onTap: () => Navigator.pop(ctx, ImageSource.camera),
                 ),
               ],
             ),
-          );
-        },
+          ),
+        ),
       );
 
       if (source == null) return;
@@ -319,57 +324,12 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Future<void> _deletePlaylist(Map<String, dynamic> playlist) async {
-    final bool? confirm = await showDialog<bool>(
+    final bool? confirm = await AppDialogs.showConfirm(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.grey[900],
-          title: const Text(
-            'Delete Playlist',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Text(
-            'Are you sure you want to delete "${playlist['title']}"?',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.red[400],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'Delete',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+      title: 'Delete Playlist',
+      message: 'Are you sure you want to delete "${playlist['title']}"?',
+      confirmText: 'Delete',
+      isDestructive: true,
     );
 
     if (confirm == true) {
@@ -549,31 +509,36 @@ class _LibraryPageState extends State<LibraryPage> {
                                   size: 20,
                                 ),
                                 onPressed: () {
-                                  showModalBottomSheet(
+                                  AppDialogs.showBottomSheet(
                                     context: context,
-                                    backgroundColor: Colors.grey[900],
-                                    builder: (context) => SafeArea(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          ListTile(
-                                            leading: const Icon(
-                                              Icons.delete_outline,
-                                              color: Colors.red,
-                                            ),
-                                            title: const Text(
-                                              'Delete Playlist',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 16,
+                                    builder: (ctx) => Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.9),
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                                      ),
+                                      child: SafeArea(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ListTile(
+                                              leading: const Icon(
+                                                Icons.delete_outline,
+                                                color: Colors.red,
                                               ),
+                                              title: const Text(
+                                                'Delete Playlist',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              onTap: () {
+                                                Navigator.pop(ctx);
+                                                _deletePlaylist(playlist);
+                                              },
                                             ),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              _deletePlaylist(playlist);
-                                            },
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   );

@@ -27,6 +27,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final HomeController controller;
   List<Map<String, dynamic>> get collections => controller.collections;
+  int _swiperIndex = 0;
 
   @override
   void initState() {
@@ -436,7 +437,7 @@ class _HomePageState extends State<HomePage> {
                                 viewportFraction: 0.92,
                                 scale: 0.95,
                                 onIndexChanged: (index) {
-                                  AudioService.to.currentPageIndex = index;
+                                  setState(() => _swiperIndex = index);
                                 },
                               ),
                       ),
@@ -451,14 +452,14 @@ class _HomePageState extends State<HomePage> {
                                 duration: const Duration(milliseconds: 300),
                                 margin:
                                     const EdgeInsets.symmetric(horizontal: 3),
-                                width: AudioService.to.currentPageIndex == index
+                                width: _swiperIndex == index
                                     ? 20
                                     : 8,
                                 height: 8,
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(4),
                                   color:
-                                      AudioService.to.currentPageIndex == index
+                                      _swiperIndex == index
                                           ? Colors.white.withValues(alpha: 0.9)
                                           : Colors.white.withValues(alpha: 0.3),
                                 ),
@@ -718,11 +719,12 @@ class _HomePageState extends State<HomePage> {
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: () {
+                  onTap: () async {
                     if (isFM) {
                       AudioService.to.exitFMMode();
                     } else {
-                      AudioService.to.playFMTrack();
+                      await AudioService.to.playFMTrack();
+                      if (!AudioService.to.isFMMode) return;
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,

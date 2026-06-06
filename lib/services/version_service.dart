@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../config/api_config.dart';
 import '../utils/error_reporter.dart';
+import '../utils/dialog_utils.dart';
 import 'download_service.dart';
 
 class VersionService extends GetxService {
@@ -85,6 +86,25 @@ class VersionService extends GetxService {
     }
   }
 
+  // 供抽屉显示的版本更新信息
+  Future<VersionUpdateInfo?> fetchUpdateInfo() async {
+    try {
+      final response = await _dio.get(
+        ApiConfig.version,
+        queryParameters: {'platform': 'android'},
+      );
+
+      if (response.statusCode == ApiConfig.successCode) {
+        final data = response.data['data'] as Map<String, dynamic>;
+        final version = data['a_version'] as String? ?? '';
+        final rawUpdateText = data['updateText'];
+        final updateText = rawUpdateText?.toString() ?? '';
+        return VersionUpdateInfo(version: version, updateText: updateText);
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> _startDownloadAndInstall(String url) async {
     try {
       await Get.dialog(
@@ -140,9 +160,9 @@ class VersionService extends GetxService {
           WillPopScope(
             onWillPop: () async => false,
             child: AlertDialog(
-              backgroundColor: Colors.black87,
+              backgroundColor: AppDialogs.bgColor,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(16),
               ),
               title: const Text(
                 '发现新版本',
@@ -190,10 +210,7 @@ class VersionService extends GetxService {
                   onPressed: () => Get.back(),
                   child: const Text(
                     '稍后再说',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ),
                 TextButton(
@@ -202,7 +219,7 @@ class VersionService extends GetxService {
                     _startDownloadAndInstall(url);
                   },
                   style: TextButton.styleFrom(
-                    backgroundColor: Colors.white,
+                    backgroundColor: AppDialogs.accentColor,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 10,
@@ -214,7 +231,7 @@ class VersionService extends GetxService {
                   child: const Text(
                     '立即更新',
                     style: TextStyle(
-                      color: Colors.black,
+                      color: Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
@@ -235,6 +252,13 @@ class VersionService extends GetxService {
   }
 }
 
+class VersionUpdateInfo {
+  final String version;
+  final String updateText;
+
+  VersionUpdateInfo({required this.version, required this.updateText});
+}
+
 enum _DownloadState { downloading, installing }
 
 class _DownloadProgressController extends GetxController {
@@ -252,9 +276,9 @@ class _DownloadProgressDialog extends StatelessWidget {
     return GetBuilder<_DownloadProgressController>(
       builder: (controller) {
         return AlertDialog(
-          backgroundColor: Colors.black87,
+          backgroundColor: AppDialogs.bgColor,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(16),
           ),
           content: SizedBox(
             width: 280,

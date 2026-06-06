@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 import 'package:get/get.dart';
 import '../controllers/navigation_controller.dart';
+import '../utils/dialog_utils.dart';
 import 'pages/home_page.dart';
 import 'pages/top_charts_page.dart';
 import 'pages/library_page.dart';
@@ -54,14 +55,10 @@ class _HomeScreenState extends State<HomeScreen> {
       final isLoggedIn = UserService.to.isLoggedIn;
 
       if (!isLoggedIn) {
-        showModalBottomSheet(
+        AppDialogs.showBottomSheet(
           context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          enableDrag: true,
           isDismissible: true,
-          useSafeArea: false,
-          builder: (context) => const LoginPage(),
+          builder: (ctx) => const LoginPage(),
         ).then((value) {
           if (value == true) {
             setState(() {

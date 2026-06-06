@@ -3,11 +3,37 @@ import 'package:get/get.dart';
 import 'package:potunes_flutter_2025/screens/pages/login_page.dart';
 import 'package:potunes_flutter_2025/screens/pages/settings_page.dart';
 import '../../controllers/navigation_controller.dart';
+import '../../utils/dialog_utils.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../services/user_service.dart';
+import '../../services/version_service.dart';
 
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  VersionUpdateInfo? _versionInfo;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVersionInfo();
+  }
+
+  Future<void> _fetchVersionInfo() async {
+    final info = await Get.find<VersionService>().fetchUpdateInfo();
+    if (mounted) {
+      setState(() {
+        _versionInfo = info;
+        _loading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,11 +143,9 @@ class AppDrawer extends StatelessWidget {
                               if (UserService.to.isLoggedIn) {
                                 NavigationController.to.changePage(2);
                               } else {
-                                showModalBottomSheet(
+                                AppDialogs.showBottomSheet(
                                   context: context,
-                                  backgroundColor: Colors.transparent,
-                                  isScrollControlled: true,
-                                  builder: (context) => const LoginPage(),
+                                  builder: (ctx) => const LoginPage(),
                                 );
                               }
                             },
@@ -180,27 +204,23 @@ class AppDrawer extends StatelessWidget {
                             top: 16,
                             bottom: 8,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                '1.2.0版本主要更新：',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildUpdateItem('全新UI升级'),
-                              _buildUpdateItem('新增FM模式'),
-                              _buildUpdateItem('iOS新增灵动岛'),
-                              _buildUpdateItem('新增个人资料管理'),
-                              _buildUpdateItem('当前播放歌曲列表内展示'),
-                              _buildUpdateItem('收藏页细化'),
-                              _buildUpdateItem('性能优化'),
-                            ],
-                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  height: 20,
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : _versionInfo != null
+                                  ? _buildVersionContent(_versionInfo!)
+                                  : const SizedBox.shrink(),
                         ),
                       ],
                     ),
@@ -211,6 +231,31 @@ class AppDrawer extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildVersionContent(VersionUpdateInfo info) {
+    final items = info.updateText
+        .replaceAll('\\n', '\n')
+        .split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${info.version}版本主要更新：',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...items.map(_buildUpdateItem),
+      ],
     );
   }
 

@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:io' show Platform;
 import 'package:potunes_flutter_2025/utils/error_reporter.dart';
 import '../../services/user_service.dart';
 import '../../services/network_service.dart';
+import '../../utils/dialog_utils.dart';
 import '../../services/audio_service.dart';
 import '../../controllers/navigation_controller.dart';
 import '../../utils/password_utils.dart';
@@ -20,25 +22,44 @@ class _SettingsPageState extends State<SettingsPage> {
   final _introController = TextEditingController();
   String? _selectedGender;
   static const List<String> _genderOptions = ['male', 'female', 'other'];
+  String _originalNickname = '';
+  String _originalIntro = '';
+  String? _originalGender;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _nicknameController.addListener(_onFieldChanged);
+    _introController.addListener(_onFieldChanged);
+  }
+
+  void _onFieldChanged() {
+    setState(() {});
   }
 
   void _loadUserData() {
     final userData = UserService.to.userData;
     if (userData != null) {
-      _nicknameController.text = userData['nickname']?.toString() ?? '';
-      _introController.text = userData['intro']?.toString() ?? '';
-      final gender = userData['gender']?.toString() ?? '';
-      _selectedGender = _genderOptions.contains(gender) ? gender : null;
+      _originalNickname = userData['nickname']?.toString() ?? '';
+      _originalIntro = userData['intro']?.toString() ?? '';
+      _originalGender = userData['gender']?.toString() ?? '';
+      _nicknameController.text = _originalNickname;
+      _introController.text = _originalIntro;
+      _selectedGender = _genderOptions.contains(_originalGender) ? _originalGender : null;
     }
+  }
+
+  bool _hasChanges() {
+    return _nicknameController.text.trim() != _originalNickname ||
+        _introController.text.trim() != _originalIntro ||
+        _selectedGender != _originalGender;
   }
 
   @override
   void dispose() {
+    _nicknameController.removeListener(_onFieldChanged);
+    _introController.removeListener(_onFieldChanged);
     _nicknameController.dispose();
     _introController.dispose();
     super.dispose();
@@ -46,10 +67,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _handleSave() async {
     try {
-      Get.dialog(
-        const Center(child: CircularProgressIndicator()),
-        barrierDismissible: false,
-      );
+      AppDialogs.showLoading();
 
       final result = await NetworkService.instance.updateProfile(
         nickname: _nicknameController.text.trim(),
@@ -78,35 +96,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _handleLogout() async {
-    final bool? confirm = await showDialog<bool>(
+    final bool? confirm = await AppDialogs.showConfirm(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.grey[900],
-          title: const Text(
-            'Confirm Logout',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          content: const Text(
-            'Are you sure you want to logout?',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white70, fontSize: 16)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: const Text('Logout', style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w500)),
-            ),
-          ],
-        );
-      },
+      title: 'Confirm Logout',
+      message: 'Are you sure you want to logout?',
+      confirmText: 'Logout',
     );
 
     if (confirm == true) {
@@ -128,102 +122,93 @@ class _SettingsPageState extends State<SettingsPage> {
     final isLoading = false.obs;
     final error = Rx<String?>(null);
 
-    Get.dialog(
-      AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text('Change Password', style: TextStyle(color: Colors.white)),
-        content: Obx(() => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (error.value != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(error.value!, style: const TextStyle(color: Colors.red)),
-                  ),
-                TextField(
-                  controller: oldPasswordController,
-                  obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'Old Password',
-                    hintStyle: TextStyle(color: Colors.grey),
-                  ),
+    AppDialogs.showFormDialog(
+      title: const Text('Change Password', style: TextStyle(color: Colors.white)),
+      content: Obx(() => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (error.value != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(error.value!, style: const TextStyle(color: Colors.red)),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: newPasswordController,
-                  obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'New Password',
-                    hintStyle: TextStyle(color: Colors.grey),
-                  ),
+              TextField(
+                controller: oldPasswordController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'Old Password',
+                  hintStyle: TextStyle(color: Colors.grey),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: confirmPasswordController,
-                  obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'Confirm New Password',
-                    hintStyle: TextStyle(color: Colors.grey),
-                  ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: newPasswordController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'New Password',
+                  hintStyle: TextStyle(color: Colors.grey),
                 ),
-              ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: confirmPasswordController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'Confirm New Password',
+                  hintStyle: TextStyle(color: Colors.grey),
+                ),
+              ),
+            ],
+          )),
+      actions: [
+        AppDialogs.styledCancelButton(),
+        Obx(() => AppDialogs.styledFormAction(
+              text: 'Confirm',
+              isLoading: isLoading.value,
+              onPressed: () async {
+                final oldPassword = oldPasswordController.text;
+                final newPassword = newPasswordController.text;
+                final confirmPassword = confirmPasswordController.text;
+
+                if (oldPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+                  error.value = 'Please fill all fields';
+                  return;
+                }
+                if (newPassword.length < 6) {
+                  error.value = 'Password must be at least 6 characters';
+                  return;
+                }
+                if (newPassword != confirmPassword) {
+                  error.value = 'Passwords do not match';
+                  return;
+                }
+
+                try {
+                  isLoading.value = true;
+                  error.value = null;
+                  final phone = UserService.to.userData?['phone']?.toString() ?? '';
+                  final hashedOldPassword = hashPassword(oldPassword);
+                  final hashedNewPassword = hashPassword(newPassword);
+                  final result = await NetworkService.instance.changePassword(
+                    phone,
+                    hashedOldPassword,
+                    hashedNewPassword,
+                  );
+                  if (result) {
+                    Get.back();
+                    ErrorReporter.showSuccess('Password changed successfully');
+                  }
+                } catch (e) {
+                  error.value = e.toString();
+                } finally {
+                  isLoading.value = false;
+                }
+              },
             )),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          Obx(() => TextButton(
-                onPressed: isLoading.value
-                    ? null
-                    : () async {
-                        final oldPassword = oldPasswordController.text;
-                        final newPassword = newPasswordController.text;
-                        final confirmPassword = confirmPasswordController.text;
-
-                        if (oldPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
-                          error.value = 'Please fill all fields';
-                          return;
-                        }
-                        if (newPassword.length < 6) {
-                          error.value = 'Password must be at least 6 characters';
-                          return;
-                        }
-                        if (newPassword != confirmPassword) {
-                          error.value = 'Passwords do not match';
-                          return;
-                        }
-
-                        try {
-                          isLoading.value = true;
-                          error.value = null;
-                          final phone = UserService.to.userData?['phone']?.toString() ?? '';
-                          final hashedOldPassword = hashPassword(oldPassword);
-                          final hashedNewPassword = hashPassword(newPassword);
-                          final result = await NetworkService.instance.changePassword(
-                            phone,
-                            hashedOldPassword,
-                            hashedNewPassword,
-                          );
-                          if (result) {
-                            Get.back();
-                            ErrorReporter.showSuccess('Password changed successfully');
-                          }
-                        } catch (e) {
-                          error.value = e.toString();
-                        } finally {
-                          isLoading.value = false;
-                        }
-                      },
-                child: isLoading.value
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFDA5597)))
-                    : const Text('Confirm', style: TextStyle(color: Color(0xFFDA5597))),
-              )),
-        ],
-      ),
+      ],
     );
   }
 
@@ -232,71 +217,62 @@ class _SettingsPageState extends State<SettingsPage> {
     final isLoading = false.obs;
     final error = Rx<String?>(null);
 
-    Get.dialog(
-      AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text('Bind Phone', style: TextStyle(color: Colors.white)),
-        content: SingleChildScrollView(
-          child: Obx(() => Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (error.value != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(error.value!, style: const TextStyle(color: Colors.red)),
-                    ),
-                  TextField(
-                    controller: phoneController,
-                    keyboardType: TextInputType.phone,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      hintText: 'Old Phone Number',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      prefixIcon: Icon(Icons.phone_android, color: Color(0xFFDA5597)),
-                    ),
+    AppDialogs.showFormDialog(
+      title: const Text('Bind Phone', style: TextStyle(color: Colors.white)),
+      content: SingleChildScrollView(
+        child: Obx(() => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (error.value != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(error.value!, style: const TextStyle(color: Colors.red)),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'This will merge the old account\'s data\n(favorites, playlists) into your current account.',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    hintText: 'Old Phone Number',
+                    hintStyle: TextStyle(color: Colors.grey),
+                    prefixIcon: Icon(Icons.phone_android, color: Color(0xFFDA5597)),
                   ),
-                ],
-              )),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          Obx(() => TextButton(
-                onPressed: isLoading.value
-                    ? null
-                    : () async {
-                        final phone = phoneController.text.trim();
-                        if (phone.length != 11) {
-                          error.value = 'Please enter an 11-digit phone number';
-                          return;
-                        }
-                        try {
-                          isLoading.value = true;
-                          error.value = null;
-                          final response = await NetworkService.instance.bindPhone(phone);
-                          await UserService.to.saveLoginData(response);
-                          Get.back();
-                          _loadUserData();
-                          ErrorReporter.showSuccess('Phone bound successfully');
-                        } catch (e) {
-                          error.value = e.toString();
-                        } finally {
-                          isLoading.value = false;
-                        }
-                      },
-                child: isLoading.value
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFDA5597)))
-                    : const Text('Bind', style: TextStyle(color: Color(0xFFDA5597))),
-              )),
-        ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This will merge the old account\'s data\n(favorites, playlists) into your current account.',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            )),
       ),
+      actions: [
+        AppDialogs.styledCancelButton(),
+        Obx(() => AppDialogs.styledFormAction(
+              text: 'Bind',
+              isLoading: isLoading.value,
+              onPressed: () async {
+                final phone = phoneController.text.trim();
+                if (phone.length != 11) {
+                  error.value = 'Please enter an 11-digit phone number';
+                  return;
+                }
+                try {
+                  isLoading.value = true;
+                  error.value = null;
+                  final response = await NetworkService.instance.bindPhone(phone);
+                  await UserService.to.saveLoginData(response);
+                  Get.back();
+                  _loadUserData();
+                  ErrorReporter.showSuccess('Phone bound successfully');
+                } catch (e) {
+                  error.value = e.toString();
+                } finally {
+                  isLoading.value = false;
+                }
+              },
+            )),
+      ],
     );
   }
 
@@ -400,6 +376,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(height: 12),
                   // Nickname
+                  const Text('Nickname',
+                      style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.grey[900],
@@ -411,13 +390,16 @@ class _SettingsPageState extends State<SettingsPage> {
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        hintText: 'Nickname',
+                        hintText: 'Enter nickname',
                         hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   // Gender
+                  const Text('Gender',
+                      style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
@@ -443,8 +425,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       onChanged: (value) => setState(() => _selectedGender = value),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   // Bio
+                  const Text('Bio',
+                      style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.grey[900],
@@ -457,32 +442,26 @@ class _SettingsPageState extends State<SettingsPage> {
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        hintText: 'Bio',
+                        hintText: 'Write a short bio...',
                         hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   // Save Button
-                  Obx(() {
-                    final userDataObx = UserService.to.userData;
-                    final hasChanges = _nicknameController.text.trim() != (userDataObx?['nickname']?.toString() ?? '') ||
-                        _introController.text.trim() != (userDataObx?['intro']?.toString() ?? '') ||
-                        _selectedGender != (userDataObx?['gender']?.toString() ?? '');
-                    return SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: ElevatedButton(
-                        onPressed: hasChanges ? _handleSave : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFDA5597),
-                          disabledBackgroundColor: Colors.grey[800],
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text('Save', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton(
+                      onPressed: _hasChanges() ? _handleSave : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDA5597),
+                        disabledBackgroundColor: Colors.grey[800],
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                    );
-                  }),
+                      child: const Text('Save', style: TextStyle(color: Colors.white, fontSize: 16)),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -533,12 +512,13 @@ class _SettingsPageState extends State<SettingsPage> {
             title: 'Bind Phone',
             onTap: _showBindPhoneDialog,
           ),
-        _buildListTile(
-          icon: Icons.battery_charging_full,
-          title: 'Optimize Background Playback',
-          subtitle: 'Allow app to keep playing in the background',
-          onTap: () => Get.find<AudioService>().requestBatteryOptimization(),
-        ),
+        if (!Platform.isIOS)
+          _buildListTile(
+            icon: Icons.battery_charging_full,
+            title: 'Optimize Background Playback',
+            subtitle: 'Allow app to keep playing in the background',
+            onTap: _handleBatteryOptimization,
+          ),
       ],
     );
   }
@@ -550,7 +530,7 @@ class _SettingsPageState extends State<SettingsPage> {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: const Color(0xFFDA5597)),
+      leading: Icon(icon, color: Colors.white),
       title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 16)),
       subtitle: subtitle != null
           ? Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 13))
@@ -558,5 +538,16 @@ class _SettingsPageState extends State<SettingsPage> {
       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: onTap,
     );
+  }
+
+  Future<void> _handleBatteryOptimization() async {
+    final audioService = Get.find<AudioService>();
+    final result = await audioService.requestBatteryOptimization();
+    if (!mounted) return;
+    if (result) {
+      ErrorReporter.showSuccess('Background playback optimization enabled');
+    } else {
+      ErrorReporter.showBusinessError(message: 'Please manually disable battery optimization in system settings');
+    }
   }
 }

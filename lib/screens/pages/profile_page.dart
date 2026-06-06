@@ -5,6 +5,7 @@ import '../../services/user_service.dart';
 import 'dart:convert';
 import '../../services/network_service.dart';
 import '../../utils/password_utils.dart';
+import '../../utils/dialog_utils.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -70,12 +71,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _handleSave() async {
     try {
       // 显示加载中提示
-      Get.dialog(
-        const Center(
-          child: CircularProgressIndicator(),
-        ),
-        barrierDismissible: false,
-      );
+      AppDialogs.showLoading();
 
       final result = await NetworkService.instance.updateProfile(
         nickname: _nicknameController.text.trim(),
@@ -355,81 +351,66 @@ class _ProfilePageState extends State<ProfilePage> {
     final isLoading = false.obs;
     final error = Rx<String?>(null);
 
-    Get.dialog(
-      AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text('Bind Phone', style: TextStyle(color: Colors.white)),
-        content: SingleChildScrollView(
-          child: Obx(() => Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (error.value != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(error.value!,
-                          style: const TextStyle(color: Colors.red)),
-                    ),
-                  TextField(
-                    controller: phoneController,
-                    keyboardType: TextInputType.phone,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      hintText: 'Old Phone Number',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      prefixIcon:
-                          Icon(Icons.phone_android, color: Color(0xFFDA5597)),
-                    ),
+    AppDialogs.showFormDialog(
+      title: const Text('Bind Phone', style: TextStyle(color: Colors.white)),
+      content: SingleChildScrollView(
+        child: Obx(() => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (error.value != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(error.value!,
+                        style: const TextStyle(color: Colors.red)),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'This will merge the old account\'s data\n(favorites, playlists) into your current account.',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    hintText: 'Old Phone Number',
+                    hintStyle: TextStyle(color: Colors.grey),
+                    prefixIcon:
+                        Icon(Icons.phone_android, color: Color(0xFFDA5597)),
                   ),
-                ],
-              )),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          Obx(() => TextButton(
-                onPressed: isLoading.value
-                    ? null
-                    : () async {
-                        final phone = phoneController.text.trim();
-                        if (phone.length != 11) {
-                          error.value = '请输入11位手机号';
-                          return;
-                        }
-                        try {
-                          isLoading.value = true;
-                          error.value = null;
-                          final response = await NetworkService.instance.bindPhone(phone);
-                          await UserService.to.saveLoginData(response);
-                          Get.back();
-                          setState(() {
-                            _phone = phone;
-                          });
-                          ErrorReporter.showSuccess('Phone bound successfully');
-                        } catch (e) {
-                          error.value = e.toString();
-                        } finally {
-                          isLoading.value = false;
-                        }
-                      },
-                child: isLoading.value
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Color(0xFFDA5597)),
-                      )
-                    : const Text('Bind',
-                        style: TextStyle(color: Color(0xFFDA5597))),
-              )),
-        ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This will merge the old account\'s data\n(favorites, playlists) into your current account.',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            )),
       ),
+      actions: [
+        AppDialogs.styledCancelButton(),
+        Obx(() => AppDialogs.styledFormAction(
+              text: 'Bind',
+              isLoading: isLoading.value,
+              onPressed: () async {
+                final phone = phoneController.text.trim();
+                if (phone.length != 11) {
+                  error.value = '请输入11位手机号';
+                  return;
+                }
+                try {
+                  isLoading.value = true;
+                  error.value = null;
+                  final response = await NetworkService.instance.bindPhone(phone);
+                  await UserService.to.saveLoginData(response);
+                  Get.back();
+                  setState(() {
+                    _phone = phone;
+                  });
+                  ErrorReporter.showSuccess('Phone bound successfully');
+                } catch (e) {
+                  error.value = e.toString();
+                } finally {
+                  isLoading.value = false;
+                }
+              },
+            )),
+      ],
     );
   }
 
@@ -440,120 +421,105 @@ class _ProfilePageState extends State<ProfilePage> {
     final isLoading = false.obs;
     final error = Rx<String?>(null);
 
-    Get.dialog(
-      AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text('Change Password',
-            style: TextStyle(color: Colors.white)),
-        content: Obx(() => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (error.value != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(error.value!,
-                        style: const TextStyle(color: Colors.red)),
-                  ),
-                TextField(
-                  controller: oldPasswordController,
-                  obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'Old Password',
-                    hintStyle: TextStyle(color: Colors.grey),
-                  ),
+    AppDialogs.showFormDialog(
+      title: const Text('Change Password',
+          style: TextStyle(color: Colors.white)),
+      content: Obx(() => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (error.value != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(error.value!,
+                      style: const TextStyle(color: Colors.red)),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: newPasswordController,
-                  obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'New Password',
-                    hintStyle: TextStyle(color: Colors.grey),
-                  ),
+              TextField(
+                controller: oldPasswordController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'Old Password',
+                  hintStyle: TextStyle(color: Colors.grey),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: confirmPasswordController,
-                  obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'Confirm New Password',
-                    hintStyle: TextStyle(color: Colors.grey),
-                  ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: newPasswordController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'New Password',
+                  hintStyle: TextStyle(color: Colors.grey),
                 ),
-              ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: confirmPasswordController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'Confirm New Password',
+                  hintStyle: TextStyle(color: Colors.grey),
+                ),
+              ),
+            ],
+          )),
+      actions: [
+        AppDialogs.styledCancelButton(),
+        Obx(() => AppDialogs.styledFormAction(
+              text: 'Confirm',
+              isLoading: isLoading.value,
+              onPressed: () async {
+                final oldPassword = oldPasswordController.text;
+                final newPassword = newPasswordController.text;
+                final confirmPassword = confirmPasswordController.text;
+
+                if (oldPassword.isEmpty ||
+                    newPassword.isEmpty ||
+                    confirmPassword.isEmpty) {
+                  error.value = '请填写所有字段';
+                  return;
+                }
+
+                if (newPassword.length < 6) {
+                  error.value = '密码长度至少6位';
+                  return;
+                }
+
+                if (newPassword != confirmPassword) {
+                  error.value = '两次输入的密码不一致';
+                  return;
+                }
+
+                try {
+                  isLoading.value = true;
+                  error.value = null;
+
+                  final phone =
+                      UserService.to.userData?['phone']?.toString() ??
+                          '';
+                  final hashedOldPassword = hashPassword(oldPassword);
+                  final hashedNewPassword = hashPassword(newPassword);
+
+                  final result =
+                      await NetworkService.instance.changePassword(
+                    phone,
+                    hashedOldPassword,
+                    hashedNewPassword,
+                  );
+
+                  if (result) {
+                    Get.back();
+                    ErrorReporter.showSuccess('密码修改成功');
+                  }
+                } catch (e) {
+                  error.value = e.toString();
+                } finally {
+                  isLoading.value = false;
+                }
+              },
             )),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          Obx(() => TextButton(
-                onPressed: isLoading.value
-                    ? null
-                    : () async {
-                        final oldPassword = oldPasswordController.text;
-                        final newPassword = newPasswordController.text;
-                        final confirmPassword = confirmPasswordController.text;
-
-                        if (oldPassword.isEmpty ||
-                            newPassword.isEmpty ||
-                            confirmPassword.isEmpty) {
-                          error.value = '请填写所有字段';
-                          return;
-                        }
-
-                        if (newPassword.length < 6) {
-                          error.value = '密码长度至少6位';
-                          return;
-                        }
-
-                        if (newPassword != confirmPassword) {
-                          error.value = '两次输入的密码不一致';
-                          return;
-                        }
-
-                        try {
-                          isLoading.value = true;
-                          error.value = null;
-
-                          final phone =
-                              UserService.to.userData?['phone']?.toString() ??
-                                  '';
-                          final hashedOldPassword = hashPassword(oldPassword);
-                          final hashedNewPassword = hashPassword(newPassword);
-
-                          final result =
-                              await NetworkService.instance.changePassword(
-                            phone,
-                            hashedOldPassword,
-                            hashedNewPassword,
-                          );
-
-                          if (result) {
-                            Get.back();
-                            ErrorReporter.showSuccess('密码修改成功');
-                          }
-                        } catch (e) {
-                          error.value = e.toString();
-                        } finally {
-                          isLoading.value = false;
-                        }
-                      },
-                child: isLoading.value
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Color(0xFFDA5597)),
-                      )
-                    : const Text('Confirm',
-                        style: TextStyle(color: Color(0xFFDA5597))),
-              )),
-        ],
-      ),
+      ],
     );
   }
 }

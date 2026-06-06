@@ -24,7 +24,6 @@ class AudioService extends GetxService {
 
   static const String _playlistKey = 'last_playlist';
   static const String _indexKey = 'last_index';
-  static const String _isFMModeKey = 'is_fm_mode';
 
   // 修改 channel 名称以匹配实际的 Bundle ID
   static String channelName = !Platform.isAndroid
@@ -85,6 +84,7 @@ class AudioService extends GetxService {
 
   // 添加防重复调用保护标志 - Requirements: 1.1
   bool _isLoadingFMTrack = false;
+  Timer? _retryFMTimer;
 
   // FM 模式下用于检测上一首按钮的位置跟踪
   Duration _lastKnownPosition = Duration.zero;
@@ -605,9 +605,6 @@ class AudioService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // 保存 FM 模式状态
-      await prefs.setBool(_isFMModeKey, _isFMMode.value);
-
       // 清理或保存当前歌曲
       if (_currentTrack.value != null) {
         await prefs.setString('current_track', jsonEncode(_currentTrack.value));
@@ -642,66 +639,14 @@ class AudioService extends GetxService {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // 加载 FM 模式状态
-      _isFMMode.value = prefs.getBool(_isFMModeKey) ?? false;
+      // 冷启动始终重置 FM 模式，不持久化
+      _isFMMode.value = false;
 
       // 加载当前歌曲
       final currentTrackJson = prefs.getString('current_track');
       if (currentTrackJson != null) {
         _currentTrack.value =
             Map<String, dynamic>.from(jsonDecode(currentTrackJson));
-      }
-
-      // 如果是 FM 模式，只加载当前歌曲并开始播放
-      if (_isFMMode.value && _currentTrack.value != null) {
-        // 设置播放列表为单曲
-        _currentPlaylist.value = [_currentTrack.value!];
-        _currentIndex.value = 0;
-        _nextTrack.value = null;
-
-        // 创建 MediaItem
-        final mediaItem = MediaItem(
-          id: '${_currentTrack.value!['id']}_${_currentTrack.value!['nId']}',
-          title: _currentTrack.value!['name']?.toString() ?? '',
-          artist: _currentTrack.value!['artist']?.toString() ?? '',
-          album: _currentTrack.value!['album']?.toString() ?? '',
-          duration: Duration(
-              milliseconds: int.tryParse(
-                      _currentTrack.value!['duration']?.toString() ?? '0') ??
-                  0),
-          artUri:
-              Uri.parse(_currentTrack.value!['cover_url']?.toString() ?? ''),
-          playable: true,
-          displayTitle: _currentTrack.value!['name']?.toString() ?? '',
-          displaySubtitle: _currentTrack.value!['artist']?.toString() ?? '',
-          extras: {
-            'type': _currentTrack.value!['type'] ?? 'potunes',
-            'url': _currentTrack.value!['url'],
-            'isLive': false,
-            'hasLyrics': true,
-          },
-        );
-
-        // 创建 AudioSource
-        // 使用单曲 ConcatenatingAudioSource 与 playFMTrack 保持一致
-        final source = ConcatenatingAudioSource(
-          useLazyPreparation: true,
-          children: [
-            AudioSource.uri(
-              Uri.parse(_currentTrack.value!['url']?.toString() ?? ''),
-              tag: mediaItem,
-            ),
-          ],
-        );
-
-        await _audioPlayer.setAudioSource(source);
-        await _audioPlayer.setLoopMode(LoopMode.off);
-
-        // 设置音频源
-
-        // 加载歌词
-        await _loadLyrics(_currentTrack.value!);
-        return;
       }
 
       // 非 FM 模式的正常加载逻辑
@@ -775,6 +720,11 @@ class AudioService extends GetxService {
             preload: false,
           );
         }
+      }
+
+      // 没有播放列表则清空当前歌曲（如上一次是 FM 模式）
+      if (_currentTrack.value != null) {
+        _currentTrack.value = null;
       }
     } catch (e) {
       ErrorReporter.showError('Error loading last state: $e');
@@ -1190,13 +1140,15 @@ class AudioService extends GetxService {
   Future<void> playFMTrack() async {
     if (_isLoadingFMTrack) return;
 
+    _retryFMTimer?.cancel();
     _isLoadingFMTrack = true;
     _lastKnownPosition = Duration.zero;
 
     try {
-      _isFMMode.value = true;
       await _audioPlayer.pause();
       final track = await NetworkService.instance.getRadioTrack();
+
+      _isFMMode.value = true;
 
       // FM 模式用 2 元素播放列表：索引 0 是真实曲目，索引 1 是静音占位符
       // 占位符使通知栏显示下一首按钮，点击后由 currentIndexStream 拦截切歌
@@ -1256,14 +1208,19 @@ class AudioService extends GetxService {
       _audioPlayer.play();
       await _saveLastState();
     } catch (e) {
-      // 网络失败时静默处理，下次切歌自动重试
       _isLoadingFMTrack = false;
       _isHandlingCompletion = false;
+
+      // 已是 FM 模式（自动切歌失败），5 秒后重试
+      if (_isFMMode.value) {
+        _retryFMTimer = Timer(const Duration(seconds: 5), playFMTrack);
+      }
     }
   }
 
   // 退出 FM 模式
   Future<void> exitFMMode() async {
+    _retryFMTimer?.cancel();
     try {
       _isFMMode.value = false;
       _isHandlingCompletion = true;

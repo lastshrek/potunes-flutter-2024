@@ -34,36 +34,21 @@ class AppHeader extends StatelessWidget {
               },
             )
           : null,
-      title: showSearch
-          ? SizedBox(
-              height: 40,
-              child: TextField(
-                readOnly: true,
-                style: const TextStyle(color: Colors.white),
-                textAlignVertical: TextAlignVertical.center,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.grey[900],
-                  hintText: '搜索音乐...',
-                  hintStyle: TextStyle(color: Colors.grey[400]),
-                  prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: EdgeInsets.zero,
-                ),
-                onTap: onSearchTap,
-              ),
-            )
-          : Text(
-              title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-      actions: actions,
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      actions: [
+        if (showSearch && onSearchTap != null)
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.white),
+            onPressed: onSearchTap,
+          ),
+        if (actions != null) ...actions!,
+      ],
     );
   }
 }

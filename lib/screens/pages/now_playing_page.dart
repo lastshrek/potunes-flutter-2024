@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:ui';
 import '../../services/user_service.dart';
 import '../../widgets/scrolling_text.dart';
+import '../../utils/dialog_utils.dart';
 import '../../utils/image_headers.dart';
 import '../../widgets/common/current_track_highlight.dart';
 
@@ -341,7 +342,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
+        backgroundColor: AppDialogs.bgColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('退出 FM 模式', style: TextStyle(color: Colors.white)),
         content: const Text('确定要退出 FM 模式吗？',
