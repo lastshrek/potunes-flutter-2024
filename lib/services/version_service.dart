@@ -107,13 +107,15 @@ class VersionService extends GetxService {
 
   Future<void> _startDownloadAndInstall(String url) async {
     try {
-      await Get.dialog(
+      Get.dialog(
         WillPopScope(
           onWillPop: () async => false,
           child: _DownloadProgressDialog(),
         ),
         barrierDismissible: false,
       );
+
+      await Future.delayed(Duration.zero);
 
       final controller = Get.find<_DownloadProgressController>();
       controller.state.value = _DownloadState.downloading;

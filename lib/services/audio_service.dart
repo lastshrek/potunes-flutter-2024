@@ -612,6 +612,8 @@ class AudioService extends GetxService {
         await prefs.remove('current_track');
       }
 
+      await prefs.setBool('was_fm_mode', _isFMMode.value);
+
       // 清理或保存播放列表
       if (_currentPlaylist.value != null &&
           _currentPlaylist.value!.isNotEmpty) {
@@ -642,9 +644,19 @@ class AudioService extends GetxService {
       // 冷启动始终重置 FM 模式，不持久化
       _isFMMode.value = false;
 
-      // 加载当前歌曲
+      final wasFMMode = prefs.getBool('was_fm_mode') ?? false;
       final currentTrackJson = prefs.getString('current_track');
-      if (currentTrackJson != null) {
+      if (wasFMMode) {
+        _currentTrack.value = null;
+        _currentPlaylist.value = null;
+        _currentIndex.value = 0;
+        await prefs.remove('was_fm_mode');
+        await prefs.remove('current_track');
+        await prefs.remove(_playlistKey);
+        await prefs.remove(_indexKey);
+        await prefs.remove('shuffle_mode');
+        await prefs.remove('original_playlist');
+      } else if (currentTrackJson != null) {
         _currentTrack.value =
             Map<String, dynamic>.from(jsonDecode(currentTrackJson));
       }
@@ -720,11 +732,6 @@ class AudioService extends GetxService {
             preload: false,
           );
         }
-      }
-
-      // 没有播放列表则清空当前歌曲（如上一次是 FM 模式）
-      if (_currentTrack.value != null) {
-        _currentTrack.value = null;
       }
     } catch (e) {
       ErrorReporter.showError('Error loading last state: $e');
